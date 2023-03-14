@@ -4,7 +4,7 @@
 \alias{predict.indclmplus}
 \title{Individual clmplus fit predictions}
 \usage{
-\method{predict}{indclmplus}(indclmplus, ...)
+\method{predict}{indclmplus}(ReSurvFit, ...)
 }
 \arguments{
 \item{indclmplus}{resurv model to use for forecasting}

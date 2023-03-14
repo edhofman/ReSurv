@@ -7,7 +7,7 @@
 #' @return reserve predictions.
 #'
 #' @export
-predict.indclmplus <- function(indclmplus,
+predict.indclmplus <- function(ReSurvFit,
                                ...) {
   trunc_m <- 48 #manually inputted due to simulated data structure, needs to be derived from data.
 

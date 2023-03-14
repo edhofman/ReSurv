@@ -8,13 +8,13 @@
 #'
 #' @return individual chain ladder plus fit.
 #' @export
-indclmplus <- function(IndividualData,
+ReSurv <- function(IndividualData,
                        hazard.model="cox",
                        tie='efron',
                        baseline="spline"
 ){
 
-  UseMethod("indclmplus")
+  UseMethod("ReSurv")
 
 }
 
@@ -28,7 +28,7 @@ indclmplus <- function(IndividualData,
 #'
 #' @return individual chain ladder plus fit.
 #' @export
-indclmplus.default <- function(IndividualData,
+ReSurv.default <- function(IndividualData,
                                hazard.model="cox",
                                tie='efron',
                                baseline="spline"){
@@ -49,7 +49,7 @@ indclmplus.default <- function(IndividualData,
 #'
 #' @return individual chain ladder plus fit.
 #' @export
-indclmplus.IndividualData <- function(IndividualData,
+ReSurv.IndividualData <- function(IndividualData,
                                hazard.model="cox",
                                tie='efron',
                                baseline="spline"
@@ -181,7 +181,7 @@ out=list(df = df_quarterly,
          hazard= q_hazard,
          IndividualData=IndividualData)
 
-class(out) <- c('indclmplus')
+class(out) <- c('ReSurvFit')
 
 out
 
