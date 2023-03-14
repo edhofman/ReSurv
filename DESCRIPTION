@@ -1,0 +1,52 @@
+Package: ReSurv
+Type: Package
+Title: Machine learning based approach for individual claims reserving
+Version: 0.0.1
+Authors@R:
+    c(person(given = "Emil",
+             family = "Hofman",
+             role = c("aut", "cre", "cph"),
+             email="edh@math.ku.dk"),
+      person(given = "Gabriele",
+             family = "Pittarello",
+             role = c("aut", "cph"),
+             email = "gabriele.pittarello@uniroma1.it",
+             comment = c(ORCID = "0000-0003-3360-5826")),
+      person(given = "Munir",
+             family = "Hiabu",
+             email="mh@math.ku.dk",
+             role = c("aut", "cph"),
+             comment = c(ORCID = "0000-0001-5846-667X")))
+Description: Implementation of the chain ladder model under the reverse time framework
+    introduced in Hiabu (2017) <doi:10.1080/03461238.2016.1240709>.
+    It also implements extensions that add flexibility to the individual development factors modeling
+    by allowing practitioners to set their own hazard rate model.
+URL: https://github.com/gpitt71/ReSurv
+BugReports: https://github.com/gpitt71/ReSurv/issues
+License: GPL (>= 2)
+Imports:
+    StMoMo,
+    ChainLadder,
+    stats,
+    ggplot2,
+    forecast,
+    gridExtra,
+    reshape2,
+    dplyr,
+    data.table,
+    reshape,
+    purrr,
+    tidyverse,
+    survival,
+    bshazard
+Depends: tidyverse
+Encoding: UTF-8
+LazyData: true
+Suggests: 
+    knitr,
+    rmarkdown,
+    apc,
+    dplyr,
+    tidyr
+VignetteBuilder: knitr, rmarkdown
+RoxygenNote: 7.2.3
