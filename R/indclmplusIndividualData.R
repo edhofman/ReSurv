@@ -112,7 +112,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
   hazard = as.matrix(cbind(hazard_cl,
                            tmp ))
-
+  colnames(hazard) <- c("CL",hz_names_i$names_hazard )
 
   max_DP <- max(IndividualData$training$DP_rev_o)
 
@@ -123,26 +123,37 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
   #group to quarters, this is relatively time consuming
-  for( i in 1:max_DP){
-    frame_tmp <- data.table(IndividualData$training) %>% filter(TR_o<i) %>%
-      filter(DP_rev_o>=i) %>%
-      mutate(time_w = round(ifelse(DP_rev_o==i, DP_rev_i, AP_i-1+3*(i-AP_o+1) ),10) ) %>%
-      mutate(weight = ifelse(DP_rev_o==i, (DP_rev_i-1)%%3+1, 3 )) %>%
-      mutate(DP_o_tmp = i) %>%
-      mutate(p_month = (AP_i-1)%%3+1) %>%
+  for( i in 1:max_DP){ #Loop through each output period, to find weights
+    frame_tmp <- data.table(IndividualData$training) %>% filter(TR_o<i) %>% #All claims that haven't been truncated at said reverse development
+      filter(DP_rev_o>=i) %>% #Claims that still hasn't been reported
+      mutate(time_w = round(ifelse(DP_rev_o==i, DP_rev_i, AP_i-1+1/(IndividualData$conversion_factor)*(i-AP_o+1) ),10) ) %>% #If a claim is reported in the corresponding development period save said reporting time, otherwise we need the corresponding limit for each acciedent period in the development period.
+      mutate(weight = ifelse(DP_rev_o==i, (DP_rev_i-1)%%(1/(IndividualData$conversion_factor))+1, 1/(IndividualData$conversion_factor) )) %>% #If reported in said period give weight corresponding to amount of input_time period spend in output time_period, otherwise give width length of output as weight.
+      mutate(p_month = (AP_i-1)%%(1/(IndividualData$conversion_factor))+1) %>% #Entering month in development period
       group_by(p_month, time_w) %>%
       summarize(weight=sum(weight*I) )
 
-    frame_tmp2 <- frame_tmp %>%  reshape2::dcast(time_w ~p_month, value.var="weight")
+    #frame_tmp2 <- frame_tmp %>%  reshape2::dcast(time_w ~p_month, value.var="weight") #create parrelogram structure for output development period, that hold weights for each input development period
 
-    hazard_q[i,] <- mapply(pkg.env$m_to_q_hazard,
-                           1:ncol(hazard_q),
-                           MoreArgs=list(hazard=hazard,
-                           frame_tmp=frame_tmp,
-                           frame_tmp2=frame_tmp2))}
+    hazard_data_frame <- pkg.env$hazard_data_frame(hazard=hazard,
+                                                   conversion_factor = IndividualData$conversion_factor)
+
+    # hazard_q[i,] <- mapply(pkg.env$m_to_q_hazard,
+    #                        1:ncol(hazard_q),
+    #                        MoreArgs=list(hazard=hazard,
+    #                        frame_tmp=frame_tmp,
+    #                        frame_tmp2=frame_tmp2,
+    #                        conversion_factor = IndividualData$conversion_factor))
+
+    hazard_q[i,] <- mapply(pkg.env$m_to_q_hazard_2,
+                           2:max(hazard_data_frame$group), #start from 2 since group 1 is chain ladder
+                           MoreArgs=list(hazard_data_frame=hazard_data_frame,
+                                         frame_tmp=frame_tmp,
+                                         frame_tmp2=frame_tmp2,
+                                         conversion_factor = IndividualData$conversion_factor))
+    }
 
   #create monthly development factors, though not outputted later on.
-  colnames(hazard) <- c("CL",hz_names_i$names_hazard )
+
 
   df_monthly <- (2+hazard)/(2-hazard)
 
