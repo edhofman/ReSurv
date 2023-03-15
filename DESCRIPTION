@@ -25,7 +25,6 @@ URL: https://github.com/gpitt71/ReSurv
 BugReports: https://github.com/gpitt71/ReSurv/issues
 License: GPL (>= 2)
 Imports:
-    StMoMo,
     ChainLadder,
     stats,
     ggplot2,
@@ -38,8 +37,10 @@ Imports:
     purrr,
     tidyverse,
     survival,
+    reticulate,
     bshazard
-Depends: tidyverse
+Depends: tidyverse,
+         reticulate
 Encoding: UTF-8
 LazyData: true
 Suggests: 

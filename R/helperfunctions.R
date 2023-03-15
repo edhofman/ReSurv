@@ -37,6 +37,21 @@ pkg.env$check.time.units <- function(input_time_unit,
 
 }
 
+pkg.env$check.traintestsplit <- function(x){
+
+  "
+  This function checks that the training test split is specified correctly
+
+  "
+
+  if(x>1 | x<0 ){
+    warning(paste0("Traintestsplit has been put to ", x,". The value needs to be between 0 and 1, defaulting to 0.8."))
+    return(.8)
+    }else{return(x)}
+
+
+}
+
 pkg.env$encode.variables <- function(x){
   "
   This function encodes the periods.
@@ -141,6 +156,57 @@ pkg.env$model.matrix.extract.hazard.names <- function(X,
 }
 
 
+pkg.env$MinMaxScaler <- function(x, na.rm = TRUE) {
+  "MinMax Scaler"
+  return((x- min(x)) /(max(x)-min(x)))
+}
+
+pkg.env$scaler <- function(continuous.features.scaling.method){
+  ""
+  if(continuous.features.scaling.method == "minmax" ){return(pkg.env$MinMaxScaler)}
+
+
+}
+
+
+pkg.env$deep_surv_pp <- function(X,
+                    Y,
+                    training_test_split){
+
+  # data_transformed <- cbind(X, Y)
+
+  id_train <- sample(c(TRUE,FALSE), nrow(X), replace=T, prob= c(training_test_split,1-training_test_split) )
+
+
+  #convert to array for later numpy transforamtion
+  data_train <- as.array(as.matrix(X[id_train,]))
+  y_train <- as.array(as.matrix(Y[id_train,]))
+  data_val <- as.array(as.matrix(X[!id_train,]))
+  y_val <- as.array(as.matrix(Y[!id_train,]))
+
+
+  #create tuples holding target and validation values. Convert to same dtype to ensure safe pytorch handling.
+  y_train <- reticulate::tuple(reticulate::np_array(y_train[,1], dtype = "float32"), #duration
+                               reticulate::np_array(y_train[,2], dtype = "float32"), #event
+                               reticulate::np_array(y_train[,3], dtype = "float32")) #truncation
+
+  validation_data = reticulate::tuple(reticulate::np_array(data_val, dtype = "float32"),
+                                      reticulate::tuple(reticulate::np_array(y_val[,1], dtype = "float32"), #duration
+                                reticulate::np_array(y_val[,2], dtype = "float32"), #event
+                                reticulate::np_array(y_val[,3], dtype = "float32"))) #truncation
+
+  x_train = reticulate::np_array(data_train, dtype = "float32")
+
+
+  return(list(
+    x_train = x_train,
+    y_train = y_train,
+    validation_data = validation_data
+  ))
+
+}
+
+
 # Fitting routines
 
 pkg.env$fit_cox_model <- function(data,
@@ -172,6 +238,95 @@ pkg.env$fit_cox_model <- function(data,
 }
 
 
+
+pkg.env$fit_deep_surv <- function(data,
+                                  hparameters,
+                                  network_structure=NULL){
+
+
+  # #Import python modules
+  torchtuples <- reticulate::import("torchtuples")
+  torch <- reticulate::import("torch")
+
+  #Source python code for left truncated deepsurv
+  reticulate::source_python("./inst/python/coxnetwork_custom.py")
+
+  # reticulate::py_run_file(system.file("python", "coxnetwork_custom.py", package = "ReSurv"))
+  # print('test')
+  #create network structure, if correct class specified in network_strucutre use this, otherwise use other variables.
+  # if(!("torch.nn.modules.container.Sequential" %in% class(network_structure$net))){
+  #   net <- torch$nn$Sequential()
+  #   input_shape =  data$x_train$shape[[1]]
+  #   for( i in 1:length(hparameters$num_nodes)+1){
+  #     if( i > length(hparameters$num_nodes)){
+  #       net$append(torch$nn$Linear(input_shape, as.integer(1)))
+  #     }else{
+  #       net$append(torch$nn$Linear(input_shape,as.integer(hparameters$num_nodes[i])))
+  #       net$append(torch$nn[[activation]]() )
+  #
+  #       input_shape = as.integer(hparameters$num_nodes[i])
+  #     }
+  #   }
+  # }
+
+  if(!("torch.nn.modules.container.Sequential" %in% class(network_structure$net))){
+    net <- torch$nn$Sequential()
+    input_shape =  data$x_train$shape[[1]]
+    for( i in 1:length(hparameters$num_nodes)+1){
+      if( i > length(hparameters$num_nodes)){
+        # net$append(torch$nn$Linear(input_shape, as.integer(1)))
+        net$add_module('2',torch$nn$Linear(input_shape, as.integer(1)))
+      }
+      else{
+        net$add_module('0',torch$nn$Linear(input_shape,as.integer(hparameters$num_nodes[i])))
+        net$add_module('1',torch$nn[[hparameters$activation]]())
+        input_shape = as.integer(hparameters$num_nodes[i])
+      }
+    }
+  }
+
+
+  #Setup batchsize, epochs and verbose settings
+  batch_size = as.integer(hparameters$batch_size)
+
+  epochs = as.integer(hparameters$epochs)
+
+  verbose = T
+
+
+
+  # Setup CoxPH model, as imported from python script.
+  model <- CoxPH(
+    net = net,
+    optimizer = torchtuples$optim$Adam(lr = 0.005),
+    xi=hparameters$xi,
+    eps=hparameters$epsilon,
+    tie = hparameters$tie
+  )
+
+
+  #If early stopping specified add to callbacks.
+  if(hparameters$early_stopping==TRUE){
+    callbacks = list(torchtuples$callbacks$EarlyStopping(patience=hparameters$patience))
+  }else{
+    callbacks = NULL
+  }
+
+  #fit model
+  model$fit(
+    input = data$x_train,
+    target = data$y_train,
+    batch_size = hparameters$batch_size,
+    epochs = hparameters$epochs,
+    callbacks = r_to_py(callbacks),
+    verbose = verbose,
+    val_data=data$validation_data,
+    val_batch_size=hparameters$batch_size
+  )
+
+  return(model)
+
+}
 
 # Handling the baseline
 

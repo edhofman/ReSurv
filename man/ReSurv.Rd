@@ -8,7 +8,10 @@ ReSurv(
   IndividualData,
   hazard.model = "cox",
   tie = "efron",
-  baseline = "spline"
+  baseline = "spline",
+  percentage_data_training = 0.8,
+  hparameters = list(),
+  seed = 1
 )
 }
 \arguments{

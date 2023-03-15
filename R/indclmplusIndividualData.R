@@ -9,9 +9,12 @@
 #' @return individual chain ladder plus fit.
 #' @export
 ReSurv <- function(IndividualData,
-                       hazard.model="cox",
-                       tie='efron',
-                       baseline="spline"
+                   hazard.model="cox",
+                   tie='efron',
+                   baseline="spline",
+                   percentage_data_training=.8,
+                   hparameters=list(),
+                   seed=1
 ){
 
   UseMethod("ReSurv")
@@ -31,7 +34,9 @@ ReSurv <- function(IndividualData,
 ReSurv.default <- function(IndividualData,
                                hazard.model="cox",
                                tie='efron',
-                               baseline="spline"){
+                               baseline="spline",
+                           hparameters=list(),
+                           seed=1){
 
   message('The object provided must be of class IndividualData')
 
@@ -52,9 +57,15 @@ ReSurv.default <- function(IndividualData,
 ReSurv.IndividualData <- function(IndividualData,
                                hazard.model="cox",
                                tie='efron',
-                               baseline="spline"
+                               baseline="spline",
+                               continuous.features.scaling.method="minmax",
+                               random_seed=1,
+                               hparameters=list(),
+                               percentage_data_training=.8
                                ){
 
+
+  set.seed(random_seed)
 
   formula_ct <- as.formula(IndividualData$string_formula_i)
 
@@ -73,6 +84,11 @@ ReSurv.IndividualData <- function(IndividualData,
   X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
                             select_columns = IndividualData$categorical_features)
 
+  scaler <- pkg.env$scaler(continuous.features.scaling.method=continuous.features.scaling.method)
+  Xc <- IndividualData$training.data %>%
+    summarise(across(all_of(IndividualData$continuous_features),
+                     scaler))
+
   ##################################################################################
   # Here we place the differen fitting routines
 
@@ -80,6 +96,24 @@ ReSurv.IndividualData <- function(IndividualData,
                                                      formula_ct,
                                                      X,
                                                      X_i)}
+
+  if(hazard.model=="deepsurv"){
+
+    training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
+
+    datads_pp = pkg.env$deep_surv_pp(X=cbind(X,Xc),
+                           Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")],
+                           training_test_split = training_test_split)
+
+
+
+    model.out <- pkg.env$fit_deep_surv(datads_pp,
+                                       hparameters=hparameters)
+
+    return(model.out)
+
+
+    }
 
   ##################################################################################
 

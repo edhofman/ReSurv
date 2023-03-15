@@ -8,7 +8,9 @@
   IndividualData,
   hazard.model = "cox",
   tie = "efron",
-  baseline = "spline"
+  baseline = "spline",
+  hparameters = list(),
+  seed = 1
 )
 }
 \arguments{

@@ -8,7 +8,11 @@
   IndividualData,
   hazard.model = "cox",
   tie = "efron",
-  baseline = "spline"
+  baseline = "spline",
+  continuous.features.scaling.method = "minmax",
+  random_seed = 1,
+  hparameters = list(),
+  percentage_data_training = 0.8
 )
 }
 \arguments{
