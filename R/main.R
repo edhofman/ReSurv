@@ -126,12 +126,12 @@
 #
 # # fwrite(simulated_dataframe_RM_CT,  file= "C:/Users/emil_/OneDrive/Dokumenter/Uni/Speciale/R code/Simulation/simulated_dataframe_1.csv")
 #
-#
-# # ## Model fit ----
-#
+# #
+# # # ## Model fit ----
+# #
 # individual_data <- IndividualData(simulated_dataframe_RM_CT,
 #                                   id="claim_number",
-#                                   continuous_features='AP_i',
+#                                   continuous_features=NULL,
 #                                   categorical_features="claim_type",
 #                                   accident_period="AM",
 #                                   calendar_period="RM",
@@ -139,9 +139,9 @@
 #                                   output_time_unit=1/4,
 #                                   continuous_features_spline=TRUE,
 #                                   degrees_of_freedom=4)
-#
-# out <- ReSurv(individual_data,
-#               hazard.model="deepsurv",
+# #
+# resurv.fit <- ReSurv(individual_data,
+#               hazard_model="cox",
 #               hparameters=list(early_stopping = FALSE,
 #                              patience = 20,
 #                               network_structure = NULL,
@@ -151,10 +151,16 @@
 #                               xi=1,
 #                               epsilon = 0,
 #                               tie="Efron",
-#                               batch_size=1000,
-#                               epochs=100
+#                               batch_size=as.integer(1000),
+#                               epochs=as.integer(100)
 #                               ))
-# #
+#
+#
+# out <- predict(resurv.fit,
+#                individual_data)
+#
+
+# # #
 #
 # ## Locally, run deep surv ----
 #

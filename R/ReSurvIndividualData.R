@@ -1,20 +1,37 @@
 #' Fit individual chain ladder plus models.
 #'
-#' This function fits and computes the reserves for the individual clmplus models.
+#' This function fits and computes the reserves for the ReSurv models.
 #'
-#' @param model: model to be chosen for the fitting.
-#' @param tie: ties handling, default is efron approach.
-#' @param baseline: handling the baseline hazard. Default is a spline.
+#' @param IndividualData IndividualData object to use for the ReSurv fit.
+#' @param hazard_model hazard model supported from our package, must be provided as a string. The model can be chosen from:
+#' \itemize{
+#' \item{'cox': Standard Cox model for the hazard.}
+#' \item{'deep_surv': Deep Survival Neural Network.}
+#' \item{'xgboost': Gradient Boosting.}
+#' }
+#' @param tie ties handling, default is the Efron approach.
+#' @param baseline handling the baseline hazard. Default is a spline.
+#' @param continuous_features_scaling_method method to preprocess the features
+#' @param random_seed random seed set for reproducibility
+#' @param hparameters list of hyperparameters for 'deep_surv' and 'xgboost'. It will be disregarded for 'cox'.
+#' @param percentage_data_training percentage of data used for training on the upper triangle.
 #'
-#' @return individual chain ladder plus fit.
+#'
+#' @return ReSurv fit.
+#'
+#' @import reticulate
+#' @import tidyverse
+#' @import reshape
+#'
 #' @export
 ReSurv <- function(IndividualData,
-                   hazard.model="cox",
+                   hazard_model="cox",
                    tie='efron',
                    baseline="spline",
-                   percentage_data_training=.8,
+                   continuous_features_scaling_method="minmax",
+                   random_seed=1,
                    hparameters=list(),
-                   seed=1
+                   percentage_data_training=.8
 ){
 
   UseMethod("ReSurv")
@@ -23,20 +40,32 @@ ReSurv <- function(IndividualData,
 
 #' Fit individual chain ladder plus models.
 #'
-#' This function fits and computes the reserves for the individual clmplus models.
+#' This function fits and computes the reserves for the ReSurv models.
 #'
-#' @param model: model to be chosen for the fitting.
-#' @param tie: ties handling. Default is efron approach.
-#' @param baseline: handling the baseline hazard. Default is a spline.
+#' @param IndividualData IndividualData object to use for the ReSurv fit.
+#' @param hazard_model hazard model supported from our package, must be provided as a string. The model can be chosen from:
+#' \itemize{
+#' \item{'cox': Standard Cox model for the hazard.}
+#' \item{'deep_surv': Deep Survival Neural Network.}
+#' \item{'xgboost': Gradient Boosting.}
+#' }
+#' @param tie ties handling, default is the Efron approach.
+#' @param baseline handling the baseline hazard. Default is a spline.
+#' @param continuous_features_scaling_method method to preprocess the features
+#' @param random_seed random seed set for reproducibility
+#' @param hparameters list of hyperparameters for 'deep_surv' and 'xgboost'. It will be disregarded for 'cox'.
+#' @param percentage_data_training percentage of data used for training on the upper triangle.
 #'
-#' @return individual chain ladder plus fit.
+#' @return ReSurv fit.
 #' @export
 ReSurv.default <- function(IndividualData,
-                               hazard.model="cox",
-                               tie='efron',
-                               baseline="spline",
+                           hazard_model="cox",
+                           tie='efron',
+                           baseline="spline",
+                           continuous_features_scaling_method="minmax",
+                           random_seed=1,
                            hparameters=list(),
-                           seed=1){
+                           percentage_data_training=.8){
 
   message('The object provided must be of class IndividualData')
 
@@ -46,19 +75,29 @@ ReSurv.default <- function(IndividualData,
 
 #' Fit chain-ladder+ to reverse time triangles.
 #'
-#' This function fits and computes the reserves for the invidual clmplus models.
+#' This function fits and computes the reserves for the ReSurv models.
 #'
-#' @param model: model to be chosen for the fitting.
-#' @param tie: ties handling, default is efron approach.
-#' @param baseline: handling the baseline hazard. Default is a spline.
+#' @param IndividualData IndividualData object to use for the ReSurv fit.
+#' @param hazard_model hazard model supported from our package, must be provided as a string. The model can be chosen from:
+#' \itemize{
+#' \item{'cox': Standard Cox model for the hazard.}
+#' \item{'deep_surv': Deep Survival Neural Network.}
+#' \item{'xgboost': Gradient Boosting.}
+#' }
+#' @param tie ties handling, default is the Efron approach.
+#' @param baseline handling the baseline hazard. Default is a spline.
+#' @param continuous_features_scaling_method method to preprocess the features
+#' @param random_seed random seed set for reproducibility
+#' @param hparameters list of hyperparameters for 'deep_surv' and 'xgboost'. It will be disregarded for 'cox'.
+#' @param percentage_data_training percentage of data used for training on the upper triangle.
 #'
-#' @return individual chain ladder plus fit.
+#' @return ReSurv fit.
 #' @export
 ReSurv.IndividualData <- function(IndividualData,
-                               hazard.model="cox",
+                               hazard_model="cox",
                                tie='efron',
                                baseline="spline",
-                               continuous.features.scaling.method="minmax",
+                               continuous_features_scaling_method="minmax",
                                random_seed=1,
                                hparameters=list(),
                                percentage_data_training=.8
@@ -84,20 +123,22 @@ ReSurv.IndividualData <- function(IndividualData,
   X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
                             select_columns = IndividualData$categorical_features)
 
-  scaler <- pkg.env$scaler(continuous.features.scaling.method=continuous.features.scaling.method)
+  scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
   Xc <- IndividualData$training.data %>%
-    summarise(across(all_of(IndividualData$continuous_features),
+    summarize(across(all_of(IndividualData$continuous_features),
                      scaler))
 
   ##################################################################################
   # Here we place the differen fitting routines
 
-  if(hazard.model=="cox"){model.out <- pkg.env$fit_cox_model(data=IndividualData$training,
+  if(hazard_model=="cox"){
+
+    model.out <- pkg.env$fit_cox_model(data=IndividualData$training,
                                                      formula_ct,
                                                      X,
                                                      X_i)}
 
-  if(hazard.model=="deepsurv"){
+  if(hazard_model=="deepsurv"){
 
     training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
 

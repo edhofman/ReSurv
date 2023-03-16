@@ -1,3 +1,9 @@
+#' @importFrom fastDummies dummy_cols
+#' @importFrom bshazard bshazard
+#' @importFrom reshape2 melt
+#' @import survival
+#' @import forecast
+
 pkg.env <- new.env()
 
 pkg.env$check.all.present <- function(x,check.on){
@@ -110,7 +116,7 @@ pkg.env$model.matrix.creator <- function(data,
 
   #individual_data$training.data
   X <- data %>%
-    fastDummies::dummy_cols(select_columns = select_columns, #individual_data$categorical_features
+    dummy_cols(select_columns = select_columns, #individual_data$categorical_features
                             remove_selected_columns = T)
 
   tmp.cond=as.logical(apply(pkg.env$vgrepl(pattern=select_columns,
@@ -161,9 +167,9 @@ pkg.env$MinMaxScaler <- function(x, na.rm = TRUE) {
   return((x- min(x)) /(max(x)-min(x)))
 }
 
-pkg.env$scaler <- function(continuous.features.scaling.method){
+pkg.env$scaler <- function(continuous_features_scaling_method){
   ""
-  if(continuous.features.scaling.method == "minmax" ){return(pkg.env$MinMaxScaler)}
+  if(continuous_features_scaling_method == "minmax" ){return(pkg.env$MinMaxScaler)}
 
 
 }
@@ -351,7 +357,7 @@ pkg.env$hazard_baseline_model <- function(data,
   }
 
   if(baseline == "spline"){
-    bs_hazard=bshazard::bshazard(pkg.env$formula.editor(continuous_features=NULL,
+    bs_hazard=bshazard(pkg.env$formula.editor(continuous_features=NULL,
                                                 categorical_features="1",
                                                 continuous_features_spline=F),
                                  data=data[(data$AP_i-1)%%(conversion_factor^-1)==0 & data$claim_type==0,],
@@ -422,7 +428,7 @@ pkg.env$hazard_data_frame <- function(hazard, conversion_factor){
 
   hazard$DP_rev_i <- 1:nrow(hazard)
 
-  hazard_t <- reshape2::melt(hazard, id.vars = "DP_rev_i")
+  hazard_t <- melt(hazard, id.vars = "DP_rev_i")
 
   hazard_t$AP_i <- sapply(hazard_t$variable, pkg.env$dissect_hazard_name)
   hazard_t$covariate <- mapply(pkg.env$dissect_hazard_name, hazard_t$variable,  MoreArgs = list(name= "covariate"))

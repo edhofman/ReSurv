@@ -24,30 +24,22 @@ Description: Implementation of the chain ladder model under the reverse time fra
 URL: https://github.com/gpitt71/ReSurv
 BugReports: https://github.com/gpitt71/ReSurv/issues
 License: GPL (>= 2)
-Imports:
-    ChainLadder,
-    stats,
-    ggplot2,
-    forecast,
-    gridExtra,
-    reshape2,
-    dplyr,
-    data.table,
-    reshape,
-    purrr,
-    tidyverse,
-    survival,
-    reticulate,
-    bshazard
 Depends: tidyverse,
          reticulate
+Imports: stats,
+         dplyr,
+         fastDummies,
+         forecast,
+         data.table,
+         reshape,
+         purrr,
+         survival,
+         reshape2,
+         bshazard
 Encoding: UTF-8
 LazyData: true
 Suggests: 
     knitr,
-    rmarkdown,
-    apc,
-    dplyr,
-    tidyr
+    rmarkdown
 VignetteBuilder: knitr, rmarkdown
 RoxygenNote: 7.2.3
