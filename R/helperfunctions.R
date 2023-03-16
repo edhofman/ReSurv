@@ -288,7 +288,6 @@ pkg.env$hazard_data_frame <- function(hazard, conversion_factor){
 pkg.env$m_to_q_hazard <- function(i,
                           hazard,
                           frame_tmp,
-                          frame_tmp2,
                           conversion_factor){
   "
   Group monthly hazard to quarterly.

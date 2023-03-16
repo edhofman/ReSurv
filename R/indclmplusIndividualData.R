@@ -148,7 +148,6 @@ ReSurv.IndividualData <- function(IndividualData,
                            2:max(hazard_data_frame$group), #start from 2 since group 1 is chain ladder
                            MoreArgs=list(hazard_data_frame=hazard_data_frame,
                                          frame_tmp=frame_tmp,
-                                         frame_tmp2=frame_tmp2,
                                          conversion_factor = IndividualData$conversion_factor))
     }
 
