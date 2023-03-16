@@ -385,38 +385,118 @@ pkg.env$hazard_f<-function(i,
 
   c(O/E)}
 
+pkg.env$dissect_hazard_name <- function(names_hazard, name = "AP"){
 
+  "
+  Get accident period and covariates to use for later grouping.
+
+  "
+
+  names_hazard <- as.character(names_hazard)
+  start_position <- gregexpr('_', names_hazard)[[1]][2] +1
+  end_position <- gregexpr(',', names_hazard)[[1]][1] -1
+
+  AP <- substr(names_hazard, start_position, end_position )
+
+  covariate <- substr(names_hazard, end_position+2, nchar(names_hazard) )
+  if(name == "AP"){
+    return(
+      as.numeric(AP)
+    )
+  }
+  if(name=="covariate"){
+    return(
+      covariate
+    )
+  }
+}
+
+pkg.env$hazard_data_frame <- function(hazard, conversion_factor){
+
+  "
+  Convert hazard matrix to dataframe and add grouping variables.
+
+  "
+
+  hazard <- as.data.frame(hazard)
+
+  hazard$DP_rev_i <- 1:nrow(hazard)
+
+  hazard_t <- reshape2::melt(hazard, id.vars = "DP_rev_i")
+
+  hazard_t$AP_i <- sapply(hazard_t$variable, pkg.env$dissect_hazard_name)
+  hazard_t$covariate <- mapply(pkg.env$dissect_hazard_name, hazard_t$variable,  MoreArgs = list(name= "covariate"))
+  hazard_t$AP_o  <- ceiling(hazard_t$AP_i*conversion_factor)
+
+  #Group is pr. covariate, output accident period
+  groups <- unique(data.frame(AP_o = hazard_t$AP_o, covariate = hazard_t$covariate)) %>%
+    mutate(group = row_number())
+
+  hazard_group <- hazard_t %>%  left_join(groups, by=c("AP_o", "covariate")) %>%
+    select(DP_rev_i, AP_i, value, group)
+
+  return(
+    hazard_group
+  )
+}
 
 pkg.env$m_to_q_hazard <- function(i,
                           hazard,
                           frame_tmp,
-                          frame_tmp2){
+                          conversion_factor){
+  "
+  Group monthly hazard to quarterly.
+
+  "
+  inv_conv_factor <- 1/conversion_factor #Inverse conversion factor corresponds to width of output development period measured in input development periods
+
+  h_tmp <- data.frame(hazard[,((i-1)*inv_conv_factor+2 ):(i*inv_conv_factor+1)]) %>% # extract hazard to be grouped
+    mutate(DP_rev_i = row_number()) %>%
+    filter(DP_rev_i<=max(frame_tmp$time_w)) %>% #Filter to only have hazard values that are used in output development period
+    filter(DP_rev_i>=min(frame_tmp$time_w))
+
+  mask_frame <- is.na(frame_tmp2[,c(2:ncol(frame_tmp2),1)]) #create a frame holding 1/0 for relevant values in said parallelogram. Rearrange some of the columns to get correct ordering
+  h_tmp[mask_frame] <- 0 #replace values, that doesn't appear in parallelogram with 0
+
+  h_tmp[,1:inv_conv_factor] <- cumsum(h_tmp[,1:inv_conv_factor])
+
+  h_tmp[mask_frame] <- 0 #replace values, that doesn't appear in parallelogram with 0
+
+  #Joint the weights to the hazard and apply the weighing to get a single estimate for the entire development period
+  h_tmp2 <- h_tmp %>%  left_join(frame_tmp2, by=c("DP_rev_i"="time_w"))
+
+  hazard2<- sum(h_tmp2[,1:inv_conv_factor]*h_tmp2[,(inv_conv_factor+2):ncol(h_tmp2)], na.rm=T)/sum(h_tmp2[,(inv_conv_factor+2):ncol(h_tmp2)],na.rm=T)
+
+  return(hazard2)
+}
+
+pkg.env$m_to_q_hazard_2 <- function(i,
+                                  hazard_data_frame,
+                                  frame_tmp,
+                                  frame_tmp2,
+                                  conversion_factor){
   "
   Group monthly hazard to quarterly.
 
   "
 
-  h_tmp <- data.frame(hazard[,(i*2+i-1):(i*2+i+1)]) %>%  mutate(DP_rev_i = row_number()) %>%
-    filter(DP_rev_i<=max(frame_tmp$time_w)) %>%
-    filter(DP_rev_i>=min(frame_tmp$time_w))
+  #select relevant hazard values, and create p_month variable
+  h_tmp_2 <- hazard_data_frame %>%  filter(group==i) %>%
+    filter(DP_rev_i<=max(frame_tmp$time_w)) %>% #Filter to only have hazard values that are used in output development period
+    filter(DP_rev_i>=min(frame_tmp$time_w)) %>%
+    mutate(p_month = (AP_i-1)%%(1/(conversion_factor))+1)
 
+  #Join the weights, which also give an indication of which development periods, pr. accident period is relevant in the parallelogram
+  h_tmp_2 <- h_tmp_2 %>%  left_join(frame_tmp, by = c("p_month" = "p_month", "DP_rev_i" = "time_w")) %>%
+    filter(!is.na(weight)) %>%
+    group_by(AP_i) %>%
+    mutate(value_cum = cumsum(value)) %>%
+    ungroup()
 
-  h_tmp[4:5,1] <-0 ; h_tmp[c(1,5),2]<-0; h_tmp[c(1,2),3]<-0
-
-
-  h_tmp[,1:3] <- cumsum(h_tmp[,1:3])
-
-  h_tmp[4:5,1] <-0 ; h_tmp[c(1,5),2]<-0; h_tmp[c(1,2),3]<-0
-
-  h_tmp2 <- h_tmp %>%  left_join(frame_tmp2, by=c("DP_rev_i"="time_w"))
-
-  h_tmp2[,1:3] <- h_tmp2[,1:3] * h_tmp2[,5:7]
-
-  hazard2<- sum(h_tmp2[,1:3], na.rm=T)/sum(h_tmp2[,5:7],na.rm=T)
+  hazard2 <- sum(h_tmp_2$value_cum*h_tmp_2$weight) / sum(h_tmp_2$weight)
 
   return(hazard2)
 }
-
 
 
 
