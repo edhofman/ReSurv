@@ -278,7 +278,11 @@ pkg.env$hazard_data_frame <- function(hazard, conversion_factor){
     mutate(group = row_number())
 
   hazard_group <- hazard_t %>%  left_join(groups, by=c("AP_o", "covariate")) %>%
-    select(DP_rev_i, AP_i, value, group)
+    select(DP_rev_i, AP_i, value, group) %>%
+    group_by(AP_i,group) %>%
+    mutate(S_i = exp(-cumsum(value) )) %>%
+    mutate(S_i_lead = lead(S_i,default=0)) %>%
+    ungroup()
 
   return(
     hazard_group
@@ -318,7 +322,6 @@ pkg.env$m_to_q_hazard <- function(i,
 pkg.env$m_to_q_hazard_2 <- function(i,
                                   hazard_data_frame,
                                   frame_tmp,
-                                  frame_tmp2,
                                   conversion_factor){
   "
   Group monthly hazard to quarterly.
@@ -332,15 +335,21 @@ pkg.env$m_to_q_hazard_2 <- function(i,
     mutate(p_month = (AP_i-1)%%(1/(conversion_factor))+1)
 
   #Join the weights, which also give an indication of which development periods, pr. accident period is relevant in the parallelogram
-  h_tmp_2 <- h_tmp_2 %>%  left_join(frame_tmp, by = c("p_month" = "p_month", "DP_rev_i" = "time_w")) %>%
+  h_tmp_3 <- h_tmp_2 %>%  left_join(frame_tmp, by = c("p_month" = "p_month", "DP_rev_i" = "time_w")) %>%
+    mutate(spend = (DP_rev_i-AP_i)%%(1/conversion_factor)+1) %>% #assuming average reporting times of 0.5 pr. development period in
     filter(!is.na(weight)) %>%
     group_by(AP_i) %>%
-    mutate(value_cum = cumsum(value)) %>%
+    mutate(value_cum = cumsum(value),
+           weight_new = ifelse(spend==3,1/2*(S_i - S_i_lead)+(S_i_lead),1/2*(S_i - S_i_lead)) ) %>% #probability weighted approach, for each parellelogram we assume reporting half way through
+    #arrange(AP_i, desc(DP_rev_i)) %>%  #here one weights by cumulative remaining hazard in parallelogram
+    #mutate(value_cum_rev = cumsum(value)) %>%
     ungroup()
 
-  hazard2 <- sum(h_tmp_2$value_cum*h_tmp_2$weight) / sum(h_tmp_2$weight)
+  #hazard2 <- sum(h_tmp_3$value_cum*h_tmp_3$weight) / sum(h_tmp_3$weight) #weighing by observed claims in each area in the parallelogram
+  #hazard2_2 <- sum(h_tmp_3$value_cum*(1-h_tmp_3$value_cum_s_i)) / sum(1-h_tmp_3$value_cum_s_i)
+  hazard2_3 <- sum(sum(h_tmp_3$value_cum*h_tmp_3$weight_new) / sum(h_tmp_3$weight_new)) #weighting by probability
 
-  return(hazard2)
+  return(hazard2_3)
 }
 
 

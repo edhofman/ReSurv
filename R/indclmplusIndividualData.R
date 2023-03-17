@@ -121,6 +121,8 @@ ReSurv.IndividualData <- function(IndividualData,
   hazard_q <- matrix(nrow=max_DP, ncol=(ncol(hazard)-1)*IndividualData$conversion_factor)
   ############################################################
 
+  hazard_data_frame <- pkg.env$hazard_data_frame(hazard=hazard,
+                                                 conversion_factor = IndividualData$conversion_factor)
 
   #group to quarters, this is relatively time consuming
   for( i in 1:max_DP){ #Loop through each output period, to find weights
@@ -130,12 +132,10 @@ ReSurv.IndividualData <- function(IndividualData,
       mutate(weight = ifelse(DP_rev_o==i, (DP_rev_i-1)%%(1/(IndividualData$conversion_factor))+1, 1/(IndividualData$conversion_factor) )) %>% #If reported in said period give weight corresponding to amount of input_time period spend in output time_period, otherwise give width length of output as weight.
       mutate(p_month = (AP_i-1)%%(1/(IndividualData$conversion_factor))+1) %>% #Entering month in development period
       group_by(p_month, time_w) %>%
-      summarize(weight=sum(weight*I) )
+      summarize(weight=sum(weight) )
 
     #frame_tmp2 <- frame_tmp %>%  reshape2::dcast(time_w ~p_month, value.var="weight") #create parrelogram structure for output development period, that hold weights for each input development period
 
-    hazard_data_frame <- pkg.env$hazard_data_frame(hazard=hazard,
-                                                   conversion_factor = IndividualData$conversion_factor)
 
     # hazard_q[i,] <- mapply(pkg.env$m_to_q_hazard,
     #                        1:ncol(hazard_q),
@@ -151,7 +151,7 @@ ReSurv.IndividualData <- function(IndividualData,
                                          conversion_factor = IndividualData$conversion_factor))
     }
 
-  #create monthly development factors, though not outputted later on.
+   #create monthly development factors, though not outputted later on.
 
 
   df_monthly <- (2+hazard)/(2-hazard)
