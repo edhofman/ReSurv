@@ -2,53 +2,29 @@
 #'
 #' This function inputs and pre-processes the data for the application.
 #'
-#' @param data: data.frame for the individual reserving. The number of development periods can be bigger than the number of accident periods
-#' @param id: column that contains the policy id.
-#' @param continuous_features: continuous features columns to be scaled.
-#' @param categorical_features: categorical features columns to be one-hot encoded.
-#' @param accident_period: string that contains the name of the column in data corresponding to accident_period
-#' @param calendar_period: string that contains the name of the column in data corresponding to the calendar_period.
-#' @param input_time_unit: time unit of the input data with reference to a year
-#' @param output_time_unit: time unit of the output data with reference to a year
-#' @param continuous_features_spline: weather a spline for smoothing continuous features should be added.
-#' @param degrees_of_freedom: degrees of freedom of the splines for smoothing continuous features.
+#' @param data data.frame for the individual reserving. The number of development periods can be bigger than the number of accident periods
+#' @param id column that contains the policy id.
+#' @param continuous_features continuous features columns to be scaled.
+#' @param categorical_features categorical features columns to be one-hot encoded.
+#' @param accident_period string that contains the name of the column in data corresponding to accident_period
+#' @param calendar_period string that contains the name of the column in data corresponding to the calendar_period.
+#' @param input_time_unit time unit of the input data with reference to a year
+#' @param output_time_unit time unit of the output data with reference to a year
+#' @param continuous_features_spline weather a spline for smoothing continuous features should be added.
+#' @param degrees_of_freedom degrees of freedom of the splines for smoothing continuous features.
 #'
-#'
-#' @return Pre-processed data ready for individual reserving.
-#'
-#' @references
-#' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
-#'
-#' @export
-IndividualData <- function(data,
-                           id=NULL,
-                           continuous_features,
-                           categorical_features,
-                           accident_period,
-                           calendar_period,
-                           input_time_unit=1/12,
-                           output_time_unit=1/4,
-                           continuous_features_spline=TRUE,
-                           degrees_of_freedom=4){
-
-}
-
-
-#' Individual data set
-#'
-#' This function inputs and pre-processes the data for the application.
-#'
-#' @param data: data.frame for the individual reserving. The number of development periods can be bigger than the number of accident periods
-#' @param id: column that contains the policy id.
-#' @param continuous_features: continuous features columns to be scaled.
-#' @param categorical_features: categorical features columns to be one-hot encoded.
-#' @param accident_period: string that contains the name of the column in data corresponding to accident_period
-#' @param calendar_period: string that contains the name of the column in data corresponding to the calendar_period.
-#' @param input_time_unit: time unit of the input data with reference to a year
-#' @param output_time_unit: time unit of the output data with reference to a year
-#' @param continuous_features_spline: weather a spline for smoothing continuous features should be added.
-#' @param degrees_of_freedom: degrees of freedom of the splines for smoothing continuous features.
-#'
+#' @importFrom dplyr mutate
+#' @importFrom dplyr filter
+#' @importFrom dplyr %>%
+#' @importFrom dplyr across
+#' @importFrom dplyr all_of
+#' @importFrom dplyr select
+#' @importFrom dplyr group_by
+#' @importFrom dplyr row_number
+#' @importFrom dplyr summarize
+#' @importFrom purrr map_df
+#' @importFrom stats as.formula
+#' @importFrom data.table data.table
 #'
 #' @return Pre-processed data ready for individual reserving.
 #'
