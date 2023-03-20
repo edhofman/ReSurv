@@ -21,7 +21,6 @@
 #'
 #' @import reticulate
 #' @import tidyverse
-#' @import reshape
 #'
 #' @export
 ReSurv <- function(IndividualData,
@@ -136,7 +135,27 @@ ReSurv.IndividualData <- function(IndividualData,
     model.out <- pkg.env$fit_cox_model(data=IndividualData$training,
                                                      formula_ct,
                                                      X,
-                                                     X_i)}
+                                                     X_i)
+
+    ##################################################################################
+    # The following steps are data specific.
+    # They need to be generalized.
+
+    baseline_out <- pkg.env$hazard_baseline_model(data=IndividualData$training.data,
+                                                  cox=model.out$cox,
+                                                  hazard=NULL,
+                                                  baseline=baseline,
+                                                  conversion_factor=IndividualData$conversion_factor,
+                                                  nk=50,
+                                                  nbin=48,
+                                                  phi=1)
+
+    ##################################################################################
+
+    l = length(model.out$beta_ams)
+
+
+    }
 
   if(hazard_model=="deepsurv"){
 
@@ -158,22 +177,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
   ##################################################################################
 
-  ##################################################################################
-  # The following steps are data specific.
-  # They need to be generalized.
 
-  baseline_out <- pkg.env$hazard_baseline_model(data=IndividualData$training.data,
-                                        cox=model.out$cox,
-                                        hazard=NULL,
-                                        baseline=baseline,
-                                        conversion_factor=IndividualData$conversion_factor,
-                                        nk=50,
-                                        nbin=48,
-                                        phi=1)
-
-  ##################################################################################
-
-  l = length(model.out$beta_ams)
 
   #need placeholder for latest i mirror cl behaviour
   tmp= sapply(1:l,function(x) c(baseline_out$bs_hazard$hazard)*exp(model.out$beta_ams[x]))

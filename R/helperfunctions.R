@@ -293,9 +293,9 @@ pkg.env$fit_deep_surv <- function(data,
 
 
   #Setup batchsize, epochs and verbose settings
-  batch_size = as.integer(hparameters$batch_size)
-
-  epochs = as.integer(hparameters$epochs)
+  # batch_size = as.integer(hparameters$batch_size)
+  #
+  # epochs = as.integer(hparameters$epochs)
 
   verbose = T
 
@@ -304,7 +304,7 @@ pkg.env$fit_deep_surv <- function(data,
   # Setup CoxPH model, as imported from python script.
   model <- CoxPH(
     net = net,
-    optimizer = torchtuples$optim$Adam(lr = 0.005),
+    optimizer = torchtuples$optim$Adam(lr=hparameters$lr),
     xi=hparameters$xi,
     eps=hparameters$epsilon,
     tie = hparameters$tie

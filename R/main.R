@@ -16,7 +16,7 @@
 # I <- years / time_unit
 # E <- c(rep(6000, I))
 # lambda <- c(rep(0.2, I))
-#
+# #
 # #Decreasing the exposure, and hence lowering the claims occurred
 # E_1 <- c(rep(6000, I)) + seq(from = 0, by = -100, length = I)
 # #Frequency simulation
@@ -127,38 +127,12 @@
 # # fwrite(simulated_dataframe_RM_CT,  file= "C:/Users/emil_/OneDrive/Dokumenter/Uni/Speciale/R code/Simulation/simulated_dataframe_1.csv")
 #
 # #
-# # # ## Model fit ----
+
 # #
-# individual_data <- IndividualData(simulated_dataframe_RM_CT,
-#                                   id="claim_number",
-#                                   continuous_features=NULL,
-#                                   categorical_features="claim_type",
-#                                   accident_period="AM",
-#                                   calendar_period="RM",
-#                                   input_time_unit=1/12,
-#                                   output_time_unit=1/4,
-#                                   continuous_features_spline=TRUE,
-#                                   degrees_of_freedom=4)
-# #
-# resurv.fit <- ReSurv(individual_data,
-#               hazard_model="cox",
-#               hparameters=list(early_stopping = FALSE,
-#                              patience = 20,
-#                               network_structure = NULL,
-#                               num_nodes = c(10,10),
-#                               activation = "LeakyReLU",
-#                               lr = 0.005,
-#                               xi=1,
-#                               epsilon = 0,
-#                               tie="Efron",
-#                               batch_size=as.integer(1000),
-#                               epochs=as.integer(100)
-#                               ))
+
 #
 #
-# out <- predict(resurv.fit,
-#                individual_data)
-#
+
 
 # # #
 #
