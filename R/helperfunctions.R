@@ -255,8 +255,8 @@ pkg.env$fit_deep_surv <- function(data,
   torch <- reticulate::import("torch")
 
   #Source python code for left truncated deepsurv
-  reticulate::source_python("./inst/python/coxnetwork_custom.py")
-
+  # reticulate::source_python(".\\inst\\python\\coxnetwork_custom.py")
+  reticulate::source_python(system.file("python", "coxnetwork_custom.py", package = "ReSurv"))
   # reticulate::py_run_file(system.file("python", "coxnetwork_custom.py", package = "ReSurv"))
   # print('test')
   #create network structure, if correct class specified in network_strucutre use this, otherwise use other variables.
@@ -297,9 +297,6 @@ pkg.env$fit_deep_surv <- function(data,
   #
   # epochs = as.integer(hparameters$epochs)
 
-  verbose = T
-
-
 
   # Setup CoxPH model, as imported from python script.
   model <- CoxPH(
@@ -325,9 +322,10 @@ pkg.env$fit_deep_surv <- function(data,
     batch_size = hparameters$batch_size,
     epochs = hparameters$epochs,
     callbacks = r_to_py(callbacks),
-    verbose = verbose,
+    verbose = hparameters$verbose,
     val_data=data$validation_data,
-    val_batch_size=hparameters$batch_size
+    val_batch_size=hparameters$batch_size,
+    num_workers=hparameters$num_workers
   )
 
   return(model)
@@ -505,7 +503,23 @@ pkg.env$m_to_q_hazard_2 <- function(i,
 }
 
 
+pkg.env$spline_hp <- function(hparameters,IndividualData){
+  "
+  Returns spline hyperparameters in case they are not provided from the user.
 
+  "
+
+  tmp <- list()
+
+  tmp$nk <- ifelse(is.null(hparameters$nk),nrow(IndividualData$training.data)/4,hparameters$nk)
+
+  tmp$nbin <- ifelse(is.null(hparameters$nbin),NULL,hparameters$nbin)
+
+  tmp$phi <- ifelse(is.null(hparameters$phi),NULL,hparameters$phi)
+
+  return(tmp)
+
+}
 
 
 

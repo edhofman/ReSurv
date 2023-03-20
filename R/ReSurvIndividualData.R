@@ -141,19 +141,23 @@ ReSurv.IndividualData <- function(IndividualData,
     # The following steps are data specific.
     # They need to be generalized.
 
+    tmp <- pkg.env$spline_hp(hparameters,IndividualData)
+
     baseline_out <- pkg.env$hazard_baseline_model(data=IndividualData$training.data,
                                                   cox=model.out$cox,
                                                   hazard=NULL,
                                                   baseline=baseline,
                                                   conversion_factor=IndividualData$conversion_factor,
-                                                  nk=50,
-                                                  nbin=48,
-                                                  phi=1)
+                                                  nk=tmp$nk,
+                                                  nbin=tmp$nbin,
+                                                  phi=tmp$phi)
 
     ##################################################################################
 
     l = length(model.out$beta_ams)
 
+    bsln <- c(baseline_out$bs_hazard$hazard)
+    expg <- exp(model.out$beta_ams)
 
     }
 
@@ -170,8 +174,28 @@ ReSurv.IndividualData <- function(IndividualData,
     model.out <- pkg.env$fit_deep_surv(datads_pp,
                                        hparameters=hparameters)
 
-    return(model.out)
 
+
+    bsln <- model.out$compute_baseline_hazards(
+      input = datads_pp$x_train,
+      target = datads_pp$y_train,
+      batch_size = hparameters$batch_size)
+
+    data_tofcst_pp = pkg.env$deep_surv_pp(X=cbind(X,Xc),
+                                     Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")],
+                                     training_test_split = 1)
+
+    Xb <- model.out$predict(input=data_tofcst_pp$x_train,
+                            batch_size=hparameters$batch_size,
+                            num_workers=hparameters$num_workers)
+
+    X_ams <- cbind(X_i, Xb)
+
+    beta_ams = unique(round(X_ams,10) )[,ncol(X_ams)] #if no round some systems has too high precision.
+
+    expg <- exp(beta_ams)
+
+    l = length(beta_ams)
 
     }
 
@@ -180,7 +204,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
   #need placeholder for latest i mirror cl behaviour
-  tmp= sapply(1:l,function(x) c(baseline_out$bs_hazard$hazard)*exp(model.out$beta_ams[x]))
+  tmp= sapply(1:l,function(x) bsln*expg[x])
 
   hazard_cl <- (sapply(seq_along(hz_names_i$time),
                        pkg.env$hazard_f,
@@ -191,6 +215,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
   hazard = as.matrix(cbind(hazard_cl,
                            tmp ))
+
   colnames(hazard) <- c("CL",hz_names_i$names_hazard )
 
   max_DP <- max(IndividualData$training$DP_rev_o)
