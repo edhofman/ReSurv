@@ -315,7 +315,7 @@ class _CoxPHBase(_CoxBase):
         # Here we are computing when expg when there are no events.
         #   Could be made faster, by only computing when there are events.
         return (df_target
-                .sort(self.duration_col)
+                .sort_values(self.duration_col)
                 .groupby(self.duration_col)
                 .agg({self.event_col: 'sum'})                
                 .assign(risk = risk_set)
