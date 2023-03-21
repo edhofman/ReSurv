@@ -13,6 +13,7 @@ IndividualData(
   calendar_period,
   input_time_unit = 1/12,
   output_time_unit = 1/4,
+  years = 4,
   continuous_features_spline = TRUE,
   degrees_of_freedom = 4
 )

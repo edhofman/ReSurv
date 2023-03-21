@@ -26,6 +26,7 @@
 #' @importFrom stats as.formula
 #' @importFrom data.table data.table
 #'
+#'
 #' @return Pre-processed data ready for individual reserving.
 #'
 #' @references
@@ -40,6 +41,7 @@ IndividualData <- function(data,
                            calendar_period,
                            input_time_unit=1/12,
                            output_time_unit=1/4,
+                           years=4,
                            continuous_features_spline=TRUE,
                            degrees_of_freedom=4){
 
@@ -61,8 +63,8 @@ IndividualData <- function(data,
 
   # The following checks warn you if there is a missing accident period or reporting period
   # in the data. They do not interrupt the code.
-  pkg.env$check.all.present(tmp.ap)
-  pkg.env$check.all.present(tmp.cp)
+  pkg.env$check.all.present(tmp.ap, check.on='accident periods')
+  pkg.env$check.all.present(tmp.cp, check.on='calendar periods')
 
   dim1=max(tmp.ap)
   dim2=max(tmp.dp)
@@ -83,7 +85,7 @@ IndividualData <- function(data,
     mutate(AP_i=tmp.ap,
            DP_i=tmp.dp,
            RP_i=tmp.cp,
-           DP_rev_i = years/time_unit - DP_i+1,
+           DP_rev_i = years/input_time_unit - DP_i+1,
            TR_i = AP_i-1, #just setting truncation to max year simulated. and accounting for
            I=1) %>%
     as.data.frame()
