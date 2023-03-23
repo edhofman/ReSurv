@@ -38,275 +38,125 @@ individual_data <- IndividualData(input_data,
                                   input_time_unit=1/12,
                                   output_time_unit=1/4,
                                   years=4,
-                                  continuous_features_spline=TRUE,
+                                  continuous_features_spline=F,
                                   degrees_of_freedom=4)
 
 ```
 
-
 ```{r}
-# cox
-individual_data2 <- IndividualData(input_data,
-                                  id="claim_number",
-                                  categorical_features="claim_type",
-                                  continuous_features = NULL,
-                                  accident_period="AM",
-                                  calendar_period="RM",
-                                  input_time_unit=1/12,
-                                  output_time_unit=1/4,
-                                  years=4,
-                                  continuous_features_spline=TRUE,
-                                  degrees_of_freedom=4)
-
-
-```
-
-```{r}
+# # # ## Model fit ----
 resurv.fit <- ReSurv(individual_data,
-              hazard_model="deepsurv",
-              hparameters=list(num_nodes=c(10,10),
-                 activation = "LeakyReLU",
-                 batch_size=as.integer(1000),
-                 epochs=as.integer(100),
-                 xi=1,
-                 epsilon = 0,
-                 verbose=T,
-                 tie="Efron",
-                 patience = 20,
-                 lr = 0.005,
-                 num_workers=0,
-                 early_stopping=FALSE))
+                          hazard_model = "deepsurv",
+                          hparameters=list(num_nodes=c(10,10),
+                                          early_stopping = FALSE,
+                                          patience = 20,
+                                          network_structure = NULL,
+                                          num_nodes = c(10,10),
+                                          activation = "LeakyReLU",
+                                          lr = 0.005,
+                                          xi=1,
+                                          epsilon = 0,
+                                          batch_size=as.integer(1000),
+                                          epochs=as.integer(100),
+                                          num_workers=0,
+                                          tie="Efron"))
 
 ```
-
 
 ```{r}
-resurv.fit2 <- ReSurv(individual_data2,
-              hazard_model="cox",
-              hparameters=list(nk=50,
-                               nbin=48,
-                               phi=1
-                              ))
+# # # ## Model fit ----
+resurv.fit <- ReSurv(individual_data,
+                          hazard_model = "cox",
+                          hparameters = list(nk=50, 
+                                             nbin=48, 
+                                             phi=1))
+
 ```
-
-
 
 ```{r eval=FALSE, include=FALSE}
 library(fastDummies)
-  formula_ct <- as.formula(individual_data2$string_formula_i)
 
-  X_i <- pkg.env$model.matrix.creator(data= individual_data2$training.data,
-                                        select_columns = c('AP_i',individual_data2$categorical_features))
-
-  hz_names_i = pkg.env$model.matrix.extract.hazard.names(X=X_i,
-                                                         string_formula=individual_data2$string_formula_i,
-                                                         data=individual_data2$training.data)
-
-  ##################################################################################
-  # By now I created a separate function that runs the code. We need to think if there is a smart
-  # way of creating only one matrix. We do the same procudure twice.
-  # Create X matrix
-
-  X <- pkg.env$model.matrix.creator(data= individual_data2$training.data,
-                            select_columns = individual_data2$categorical_features)
-
-  scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
-  Xc <- individual_data2$training.data %>%
-    summarize(across(all_of(individual_data2$continuous_features),
-                     scaler))
-
-
-library(survival)
-model.out <- pkg.env$fit_cox_model(data=individual_data2$training,
-                                                     formula_ct,
-                                                     X,
-                                                     X_i)
-
-
-cox <- coxph(formula_ct, data=individual_data2$training)
-beta_2 <- cox$coef
-beta<-c(0,beta_2)
-
-
-Xb <- as.matrix(X)%*%beta
-
-X_ams <- cbind(X_i, Xb)
-
-
-
-##################################################################################
-    # The following steps are data specific.
-    # They need to be generalized.
-library(bshazard)
-baseline="spline"
-baseline_out <- pkg.env$hazard_baseline_model(data=individual_data2$training.data,
-                                                  cox=model.out$cox,
-                                                  hazard=NULL,
-                                                  baseline=baseline,
-                                                  conversion_factor=individual_data2$conversion_factor,
-                                                  nk=50,
-                                                  nbin=48,
-                                                  phi=1)
-
-    ##################################################################################
-results1 <- list(X_ams=X_ams,
-                 Xb=Xb,
-                 beta_ams=unique(round(X_ams,10) )[,ncol(X_ams)])
-    
-    
-```
-
-```{r eval=FALSE, include=FALSE}
-#Arguments 
-
-hazard_model="deep_surv"
-tie='efron'
-baseline="spline"
-continuous_features_scaling_method="minmax"
-random_seed=1
 hparameters=list(num_nodes=c(10,10),
-                 activation = "LeakyReLU",
-                 batch_size=as.integer(1000),
-                 epochs=as.integer(100),
-                 xi=1,
-                 epsilon = 0,
-                 tie="Efron",
-                 patience = 20,
-                 lr = 0.005,
-                 early_stopping=FALSE)
-
-
-
-
-
-```
-
-```{r eval=FALSE, include=FALSE}
-# Routine
-library(fastDummies)
-formula_ct <- as.formula(individual_data$string_formula_i)
-
-X_i <- pkg.env$model.matrix.creator(data= individual_data$training.data,
-                                      select_columns = c('AP_i',individual_data$categorical_features))
-
-hz_names_i = pkg.env$model.matrix.extract.hazard.names(X=X_i,
-                                                       string_formula=individual_data$string_formula_i,
-                                                       data=individual_data$training.data)
-
-##################################################################################
-# By now I created a separate function that runs the code. We need to think if there is a smart
-# way of creating only one matrix. We do the same procudure twice.
-# Create X matrix
+    early_stopping = FALSE,
+    patience = 20,
+    network_structure = NULL,
+    num_nodes = c(10,10),
+    activation = "LeakyReLU",
+    lr = 0.005,
+    xi=1,
+    epsilon = 0,
+    batch_size=as.integer(1000),
+    epochs=as.integer(100),
+    num_workers=0,
+    tie="Efron")
 
 X <- pkg.env$model.matrix.creator(data= individual_data$training.data,
-                          select_columns = individual_data$categorical_features)
+                                      select_columns = individual_data$categorical_features)
 
-scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
-Xc <- individual_data$training.data %>%
-  summarize(across(all_of(individual_data$continuous_features),
-                   scaler))
+    scaler <- pkg.env$scaler(continuous_features_scaling_method='minmax')
 
-```
+    Xc <- individual_data$training.data %>%
+      summarize(across(all_of(individual_data$continuous_features),
+                       scaler))
 
+    training_test_split = pkg.env$check.traintestsplit(.8)
 
-```{r eval=FALSE, include=FALSE}
-#
-#
-percentage_data_training=.8
-training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
-
-datads_pp = pkg.env$deep_surv_pp(X=cbind(X,Xc),
+    datads_pp = pkg.env$deep_surv_pp(X=cbind(X,Xc),
                            Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")],
                            training_test_split = training_test_split)
 
-
-#Import python modules
-torchtuples <- reticulate::import("torchtuples")
-torch <- reticulate::import("torch")
-
-#Source python code for left truncated deepsurv
-reticulate::source_python("C:\\Users\\gpitt\\Documents\\GitHub\\ReSurv\\inst\\python/coxnetwork_custom.py")
-
-network_structure=NULL
-
-if(!("torch.nn.modules.container.Sequential" %in% class(network_structure$net))){
-    net <- torch$nn$Sequential()
-    input_shape =  datads_pp$x_train$shape[[1]]
-    for( i in 1:length(hparameters$num_nodes)+1){
-      if( i > length(hparameters$num_nodes)){
-        # net$append(torch$nn$Linear(input_shape, as.integer(1)))
-        net$add_module('2',torch$nn$Linear(input_shape, as.integer(1)))
-      }
-      else{
-        net$add_module('0',torch$nn$Linear(input_shape,as.integer(hparameters$num_nodes[i])))
-        net$add_module('1',torch$nn[[hparameters$activation]]())
-        input_shape = as.integer(hparameters$num_nodes[i])
-      }
-    }
-  }
+    
+    
+    
+    model.out <- pkg.env$fit_deep_surv(datads_pp,
+                                       hparameters=hparameters)
 
 
 
-  verbose = T
+    bsln <- model.out$compute_baseline_hazards(
+      input = datads_pp$x_train,
+      target = datads_pp$y_train,
+      batch_size = hparameters$batch_size)
 
 
-#
-  # Setup CoxPH model, as imported from python script.
-  model <- CoxPH(
-    net = net,
-    optimizer = torchtuples$optim$Adam(lr=hparameters$lr),
-    xi=hparameters$xi,
-    eps=hparameters$epsilon,
-    tie = hparameters$tie
-  )
+    newdata.mx <- pkg.env$df.2.fcst.nn.pp(data=individual_data$training.data,
+                                          newdata=newdata,
+                                          continuous_features=individual_data$continuous_features,
+                                          categorical_features=individual_data$categorical_features)
 
+    x_fc= reticulate::np_array(as.matrix(newdata.mx), dtype = "float32")
 
-  #If early stopping specified add to callbacks.
-  if(hparameters$early_stopping==TRUE){
-    callbacks = list(torchtuples$callbacks$EarlyStopping(patience=hparameters$patience))
-  }else{
-    callbacks = NULL
-  }
+    beta_ams <- model.out$predict(input=x_fc,
+                            batch_size=hparameters$batch_size,
+                            num_workers=hparameters$num_workers)
 
-  #fit model
-  model$fit(
-    input = datads_pp$x_train,
-    target = datads_pp$y_train,
-    batch_size = hparameters$batch_size,
-    epochs = hparameters$epochs,
-    callbacks = r_to_py(callbacks),
-    verbose = verbose,
-    val_data=datads_pp$validation_data,
-    val_batch_size=hparameters$batch_size
-  )
-
-
-
-  
-```
-
-```{r eval=FALSE, include=FALSE}
-data_tofcst_pp = pkg.env$deep_surv_pp(X=cbind(X,Xc),
-                                     Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")],
-                                     training_test_split = 1)
-
-Xb <- model$predict(input=data_tofcst_pp$x_train, batch_size=hparameters$batch_size)
-
-bsln <- as.numeric(model$compute_baseline_hazards(
-      input = data_tofcst_pp$x_train,
-      target = data_tofcst_pp$y_train,
-      batch_size = hparameters$batch_size))
-
-
-    X_ams <- cbind(X_i, Xb)
-
-    beta_ams = unique(round(X_ams,10) )[,ncol(X_ams)] #if no round some systems has too high precision.
-
+    # X_ams <- cbind(X_i, Xb)
+    #
+    # beta_ams = unique(round(X_ams,10) )[,ncol(X_ams)] #if no round some systems has too high precision.
+    #
     expg <- exp(beta_ams)
+    
+    hazard_frame <- cbind(newdata,expg)
+    bsln <- data.frame(baseline=bsln, DP_rev_i=as.integer(names(bsln)))
+    
+    hazard_frame <- hazard_frame %>%
+      full_join(bsln,
+                by="DP_rev_i") %>%
+      as.data.frame()
+    
+     hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
 
-    l = length(beta_ams)
     
-    
-    
+    # l = length(beta_ams)
+
 ```
+
+
+
+
+
+
+
+
+
 
