@@ -222,46 +222,66 @@ ReSurv.IndividualData <- function(IndividualData,
 
   ############################################################
   #check
-  hazard_q <- matrix(nrow=max_DP, ncol=(ncol(hazard)-1)*IndividualData$conversion_factor)
+  #hazard_q <- matrix(nrow=max_DP, ncol=(ncol(hazard)-1)*IndividualData$conversion_factor)
+  #eta_o <- c()
+
+
   ############################################################
 
   hazard_data_frame <- pkg.env$hazard_data_frame(hazard=hazard,
-                                                 conversion_factor = IndividualData$conversion_factor)
+                                                 conversion_factor = IndividualData$conversion_factor,
+                                                 continuous_features = IndividualData$continuous_features)
 
-  #group to quarters, this is relatively time consuming
+  development_factor_o <- matrix(nrow=max_DP, ncol=(nrow(hazard_data_frame$groups)-1) )
+
+  latest_observed <- pkg.env$latest_observed_values(
+    data=IndividualData$training.data,
+    groups = hazard_data_frame$groups,
+    time_scale = "i",
+    categorical_features = IndividualData$categorical_features,
+    continuous_features = IndividualData$continuous_features
+  )
+
+  #group to quarters, this is relatively time consuming,
+  #Note: the eta-approximation is not covariat dependent.
   for( i in 1:max_DP){ #Loop through each output period, to find weights
-    frame_tmp <- data.table(IndividualData$training) %>% filter(TR_o<i) %>% #All claims that haven't been truncated at said reverse development
-      filter(DP_rev_o>=i) %>% #Claims that still hasn't been reported
-      mutate(time_w = round(ifelse(DP_rev_o==i, DP_rev_i, AP_i-1+1/(IndividualData$conversion_factor)*(i-AP_o+1) ),10) ) %>% #If a claim is reported in the corresponding development period save said reporting time, otherwise we need the corresponding limit for each acciedent period in the development period.
-      mutate(weight = ifelse(DP_rev_o==i, (DP_rev_i-1)%%(1/(IndividualData$conversion_factor))+1, 1/(IndividualData$conversion_factor) )) %>% #If reported in said period give weight corresponding to amount of input_time period spend in output time_period, otherwise give width length of output as weight.
-      mutate(p_month = (AP_i-1)%%(1/(IndividualData$conversion_factor))+1) %>% #Entering month in development period
-      group_by(p_month, time_w) %>%
-      summarize(weight=sum(weight) )
+     # frame_tmp <- data.frame(IndividualData$training) %>% filter(TR_o<i) %>% #All claims that haven't been truncated at said reverse development
+     #   filter(DP_rev_o>=i) %>% #Claims that still hasn't been reported
+     #   mutate(time_w = round(ifelse(DP_rev_o==i, DP_rev_i, AP_i-1+1/(IndividualData$conversion_factor)*(i-AP_o+1) ),10) ) %>% #If a claim is reported in the corresponding development period save said reporting time, otherwise we need the corresponding limit for each acciedent period in the development period.
+     #   #mutate(weight = ifelse(DP_rev_o==i, (DP_rev_i-1)%%(1/(IndividualData$conversion_factor))+1, 1/(IndividualData$conversion_factor) )) %>% #If reported in said period give weight corresponding to amount of input_time period spend in output time_period, otherwise give width length of output as weight.
+     #   #mutate(weight_eta = ifelse(DP_rev_o==i, (DP_rev_i-1)%%(1/(IndividualData$conversion_factor))+1, 0 )) %>% #If reported in said period give weight corresponding to amount of input_time period spend in output time_period, otherwise give width length of output as weight.
+     #   mutate(observed = ifelse(DP_rev_o==i, 1, 0 )) %>%
+     #   mutate(exposure = ifelse(DP_rev_o==i, 0, 1 )) %>%
+     #   mutate(p_month = (AP_i-1)%%(1/(IndividualData$conversion_factor))+1) %>% #Entering month in development period
+     #   group_by(p_month, AP_i, time_w) %>%
+     #   dplyr::summarise(observed=sum(observed),
+     #                    exposure = sum(exposure), .groups="drop" )
 
-    #frame_tmp2 <- frame_tmp %>%  reshape2::dcast(time_w ~p_month, value.var="weight") #create parrelogram structure for output development period, that hold weights for each input development period
+    development_periods <- data.frame(IndividualData$training) %>%
+      select(AP_i, AP_o) %>%
+      distinct() %>% #All claims that haven't been truncated at said reverse development
+      mutate(min_dp =  AP_i+1/(IndividualData$conversion_factor)*(i-AP_o),
+             max_dp =  AP_i-1+1/(IndividualData$conversion_factor)*(i-AP_o+1))
 
-
-    # hazard_q[i,] <- mapply(pkg.env$m_to_q_hazard,
-    #                        1:ncol(hazard_q),
-    #                        MoreArgs=list(hazard=hazard,
-    #                        frame_tmp=frame_tmp,
-    #                        frame_tmp2=frame_tmp2,
-    #                        conversion_factor = IndividualData$conversion_factor))
-
-    hazard_q[i,] <- mapply(pkg.env$m_to_q_hazard_2,
-                           2:max(hazard_data_frame$group), #start from 2 since group 1 is chain ladder
-                           MoreArgs=list(hazard_data_frame=hazard_data_frame,
-                                         frame_tmp=frame_tmp,
+    development_factor_o[i,] <- mapply(pkg.env$i_to_o_development_factor,
+                           2:max(hazard_data_frame$groups$group), #start from 2 since group 1 is chain ladder
+                           MoreArgs=list(hazard_data_frame=hazard_data_frame$hazard_group,
+                                         development_periods = development_periods,
+                                         observed_pr_dp = latest_observed$observed_pr_dp,
+                                         latest_cumulative = latest_observed$latest_cumulative,
                                          conversion_factor = IndividualData$conversion_factor))
+    #hazard_o[i,] <- unlist(grouped_hazard[1,])
+    #eta_o[i] <- unlist(grouped_hazard[2,1]) #since not accident-period dependent, eta is the same for every output period
+
     }
 
    #create monthly development factors, though not outputted later on.
 
 
-  df_monthly <- (2+hazard)/(2-hazard)
+  df_i <- (2+hazard)/(2-hazard)
 
   #Remove last row,since doesn't make sense
-  df_monthly <- as.data.frame(df_monthly[1:(nrow(df_monthly)-1),]) %>%
+  df_i <- as.data.frame(df_i[1:(nrow(df_i)-1),]) %>%
     map_df(rev) %>%
     mutate(DM=row_number())
 
@@ -279,20 +299,22 @@ hazard_cl <- (sapply(seq_along(hz_names_o$time),
                      exit= hz_names_o$exit,
                      event= hz_names_o$event))
 
-q_hazard = as.matrix(cbind(hazard_cl, hazard_q )   )
+#df_o_model  <- ( 1 +(1-eta_o)*hazard_o)/(1-eta_o*hazard_o)
+df_cl <- (2+hazard_cl)/(2-hazard_cl)
 
-colnames(q_hazard) <- c("CL",hz_names_o$names_hazard )
-
-
-df_quarterly <- (2+q_hazard)/(2-q_hazard)
+df_o <- as.matrix(cbind(df_cl, development_factor_o))
 
 
-df_quarterly <- as.data.frame(df_quarterly[1:(nrow(df_quarterly)-1),]) %>%
+colnames(df_o) <- c("CL",hazard_data_frame$groups$covariate[2:length(hazard_data_frame$groups$covariate)] )
+
+
+
+df_o <- as.data.frame(df_o[1:(nrow(df_o)-1),]) %>%
   map_df(rev) %>%
   mutate(DP_i=row_number())
 
-out=list(df = df_quarterly,
-         hazard= q_hazard,
+out=list(df_output = df_o,
+         df_input = df_i,
          IndividualData=IndividualData)
 
 class(out) <- c('ReSurvFit')
