@@ -3,6 +3,7 @@
 #' @importFrom reshape2 melt
 #' @import survival
 #' @import forecast
+#' @import reticulate
 
 pkg.env <- new.env()
 
@@ -186,8 +187,8 @@ pkg.env$deep_surv_pp <- function(X,
 
   #convert to array for later numpy transforamtion
   data_train <- as.array(as.matrix(X[id_train,]))
-  y_train <- as.array(as.matrix(Y[id_train,]))
   data_val <- as.array(as.matrix(X[!id_train,]))
+  y_train <- as.array(as.matrix(Y[id_train,]))
   y_val <- as.array(as.matrix(Y[!id_train,]))
 
 
@@ -217,29 +218,32 @@ pkg.env$deep_surv_pp <- function(X,
 
 pkg.env$fit_cox_model <- function(data,
                           formula_ct,
-                          X,
-                          X_ams){
+                          newdata){
   "This function is the fitting routine for the cox model."
 
   cox <- coxph(formula_ct, data=data)
-  beta_2 <- cox$coef
-  beta<-c(0,beta_2)
+  cox_lp <- predict(cox,newdata=newdata,'lp',reference='zero')
+
+  # beta_2 <- cox$coef
+  # beta<-c(0,beta_2)
 
 
-  Xb <- as.matrix(X)%*%beta
+  # Xb <- as.matrix(X)%*%beta
 
-  X_ams <- cbind(X_ams, Xb)
+  # X_ams <- cbind(X_ams, Xb)
 
-  beta_ams = unique(round(X_ams,10) )[,ncol(X_ams)] #if no round some systems has too high precision.
+  # beta_ams = unique(round(X_ams,10) )[,ncol(X_ams)] #if no round some systems has too high precision.
 
 
   list(
     cox=cox,
-    beta=beta,
-    beta_2=beta_2,
-    Xb=Xb,
-    X_ams=X_ams,
-    beta_ams=beta_ams
+    cox_lp=cox_lp,
+    expg = exp(cox_lp)
+    # beta=beta,
+    # beta_2=beta_2,
+    # Xb=Xb,
+    # X_ams=X_ams,
+    # beta_ams=beta_ams
   )
 }
 
@@ -247,10 +251,12 @@ pkg.env$fit_cox_model <- function(data,
 
 pkg.env$fit_deep_surv <- function(data,
                                   hparameters,
-                                  network_structure=NULL){
+                                  network_structure=NULL,
+                                  newdata){
 
 
   # #Import python modules
+
   torchtuples <- reticulate::import("torchtuples")
   torch <- reticulate::import("torch")
 
@@ -743,7 +749,51 @@ pkg.env$spline_hp <- function(hparameters,IndividualData){
 }
 
 
+pkg.env$create.df.2.fcst <- function(IndividualData){
+
+  l1 <- lapply(IndividualData$training.data %>% select(IndividualData$categorical_features), levels)
+  l2 <- lapply(IndividualData$training.data %>% select(IndividualData$continuous_features), unique)
+  l3 <- list()
+  l4 <- list()
+
+  if(!("AP_i"%in%c(IndividualData$categorical_features,IndividualData$continuous_features))){
+    l3$AP_i <- unique(IndividualData$full.data[,'AP_i'])
+  }else{
+    l3 <- NULL
+  }
+
+  l4$DP_rev_i <- min(IndividualData$training.data[,'DP_i']):max(IndividualData$training.data[,'DP_i'])
+
+  cross_df(c(l1,l2,l3,l4)) %>%
+    as.data.frame()
+
+}
 
 
+
+pkg.env$df.2.fcst.nn.pp <- function(data,
+                                    newdata,
+                                    continuous_features,
+                                    categorical_features){
+
+  tmp <- newdata[continuous_features]
+
+  for(cft in continuous_features){
+
+    mnv <- min(data[cft])
+    mxv <- max(data[cft])
+
+    tmp[,cft] <-(tmp[,cft]-mnv)/(mxv-mnv)
+
+  }
+
+  Xc=as.matrix.data.frame(tmp)
+
+  X=pkg.env$model.matrix.creator(data= newdata,
+                                 select_columns = categorical_features)
+
+  return(cbind(X,Xc))
+
+}
 
 

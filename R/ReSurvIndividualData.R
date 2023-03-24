@@ -107,39 +107,20 @@ ReSurv.IndividualData <- function(IndividualData,
 
   formula_ct <- as.formula(IndividualData$string_formula_i)
 
-  X_i <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                                        select_columns = c('AP_i',IndividualData$categorical_features))
+  # X_i <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
+  #                                       select_columns = c('AP_i',IndividualData$categorical_features))
 
-  hz_names_i = pkg.env$model.matrix.extract.hazard.names(X=X_i,
-                                                         string_formula=IndividualData$string_formula_i,
-                                                         data=IndividualData$training.data)
+  # hz_names_i = pkg.env$model.matrix.extract.hazard.names(X=X_i,
+  #                                                        string_formula=IndividualData$string_formula_i,
+  #                                                        data=IndividualData$training.data)
 
-  ##################################################################################
-  # By now I created a separate function that runs the code. We need to think if there is a smart
-  # way of creating only one matrix. We do the same procudure twice.
-  # Create X matrix
-
-  X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                            select_columns = IndividualData$categorical_features)
-
-  scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
-  Xc <- IndividualData$training.data %>%
-    summarize(across(all_of(IndividualData$continuous_features),
-                     scaler))
-
-  ##################################################################################
-  # Here we place the differen fitting routines
+  newdata <- pkg.env$create.df.2.fcst(IndividualData)
 
   if(hazard_model=="cox"){
 
-    model.out <- pkg.env$fit_cox_model(data=IndividualData$training,
-                                                     formula_ct,
-                                                     X,
-                                                     X_i)
-
-    ##################################################################################
-    # The following steps are data specific.
-    # They need to be generalized.
+    model.out <- pkg.env$fit_cox_model(data=IndividualData$training.data,
+                                       formula_ct=formula_ct,
+                                       newdata=newdata)
 
     tmp <- pkg.env$spline_hp(hparameters,IndividualData)
 
@@ -152,23 +133,42 @@ ReSurv.IndividualData <- function(IndividualData,
                                                   nbin=tmp$nbin,
                                                   phi=tmp$phi)
 
-    ##################################################################################
+    bsln <- data.frame(baseline=baseline_out$bs_hazard$hazard,
+                       DP_rev_i=ceiling(baseline_out$bs_hazard$time))  #$hazard
+    # colnames(bsln)=c('baseline','DP_rev_i')
 
-    l = length(model.out$beta_ams)
+    # expg <- exp(model.out$beta_ams)
 
-    bsln <- c(baseline_out$bs_hazard$hazard)
-    expg <- exp(model.out$beta_ams)
+    hazard_frame <- cbind(newdata, model.out$expg)
+    colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
+
+    # hazard_frame <- hazard_frame %>%
+    #   full_join(bsln,
+    #             by="DP_rev_i") %>%
+    #   as.data.frame()
+    #
+    # hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
+    #
+    # return(hazard_frame)
 
     }
 
   if(hazard_model=="deepsurv"){
+
+    X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
+                                      select_columns = IndividualData$categorical_features)
+
+    scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
+
+    Xc <- IndividualData$training.data %>%
+      summarize(across(all_of(IndividualData$continuous_features),
+                       scaler))
 
     training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
 
     datads_pp = pkg.env$deep_surv_pp(X=cbind(X,Xc),
                            Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")],
                            training_test_split = training_test_split)
-
 
 
     model.out <- pkg.env$fit_deep_surv(datads_pp,
@@ -181,27 +181,42 @@ ReSurv.IndividualData <- function(IndividualData,
       target = datads_pp$y_train,
       batch_size = hparameters$batch_size)
 
-    data_tofcst_pp = pkg.env$deep_surv_pp(X=cbind(X,Xc),
-                                     Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")],
-                                     training_test_split = 1)
 
-    Xb <- model.out$predict(input=data_tofcst_pp$x_train,
-                            batch_size=hparameters$batch_size,
-                            num_workers=hparameters$num_workers)
+    newdata.mx <- pkg.env$df.2.fcst.nn.pp(data=IndividualData$training.data,
+                                          newdata=newdata,
+                                          continuous_features=IndividualData$continuous_features,
+                                          categorical_features=IndividualData$categorical_features)
 
-    X_ams <- cbind(X_i, Xb)
+    x_fc= reticulate::np_array(as.matrix(newdata.mx), dtype = "float32")
 
-    beta_ams = unique(round(X_ams,10) )[,ncol(X_ams)] #if no round some systems has too high precision.
+    beta_ams <- model.out$predict(input=x_fc,
+                                  batch_size=hparameters$batch_size,
+                                  num_workers=hparameters$num_workers)
+
+    # X_ams <- cbind(X_i, Xb)
+    #
+    # beta_ams = unique(round(X_ams,10) )[,ncol(X_ams)] #if no round some systems has too high precision.
+    #
 
     expg <- exp(beta_ams)
 
-    l = length(beta_ams)
+    hazard_frame <- cbind(newdata,expg)
+    bsln <- data.frame(baseline=bsln, DP_rev_i=as.integer(names(bsln)))
 
-    }
+  }
+
 
   ##################################################################################
 
 
+  hazard_frame <- hazard_frame %>%
+    full_join(bsln,
+              by="DP_rev_i") %>%
+    as.data.frame()
+
+  hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
+
+  return(hazard_frame)
 
   #need placeholder for latest i mirror cl behaviour
   tmp= sapply(1:l,function(x) bsln*expg[x])
