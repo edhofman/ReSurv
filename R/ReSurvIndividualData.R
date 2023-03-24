@@ -109,7 +109,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
   # X_i <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
   #                                       select_columns = c('AP_i',IndividualData$categorical_features))
-
+  #
   # hz_names_i = pkg.env$model.matrix.extract.hazard.names(X=X_i,
   #                                                        string_formula=IndividualData$string_formula_i,
   #                                                        data=IndividualData$training.data)
@@ -216,22 +216,18 @@ ReSurv.IndividualData <- function(IndividualData,
 
   hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
 
-  return(hazard_frame)
+  #return(hazard_frame)
 
   #need placeholder for latest i mirror cl behaviour
-  tmp= sapply(1:l,function(x) bsln*expg[x])
 
-  hazard_cl <- (sapply(seq_along(hz_names_i$time),
-                       pkg.env$hazard_f,
-                       enter= hz_names_i$enter,
-                       time=hz_names_i$time,
-                       exit=hz_names_i$exit,
-                       event=hz_names_i$event))
+  # hazard_cl <- (sapply(seq_along(hz_names_i$time),
+  #                      pkg.env$hazard_f,
+  #                      enter= hz_names_i$enter,
+  #                      time=hz_names_i$time,
+  #                      exit=hz_names_i$exit,
+  #                      event=hz_names_i$event))
 
-  hazard = as.matrix(cbind(hazard_cl,
-                           tmp ))
 
-  colnames(hazard) <- c("CL",hz_names_i$names_hazard )
 
   max_DP <- max(IndividualData$training$DP_rev_o)
 
@@ -243,16 +239,16 @@ ReSurv.IndividualData <- function(IndividualData,
 
   ############################################################
 
-  hazard_data_frame <- pkg.env$hazard_data_frame(hazard=hazard,
+  hazard_data_frame <- pkg.env$hazard_data_frame(hazard=hazard_frame,
                                                  conversion_factor = IndividualData$conversion_factor,
+                                                 categorical_features = IndividualData$categorical_features,
                                                  continuous_features = IndividualData$continuous_features)
 
-  development_factor_o <- matrix(nrow=max_DP, ncol=(nrow(hazard_data_frame$groups)-1) )
+  development_factor_o <- matrix(nrow=max_DP, ncol=(nrow(hazard_data_frame$groups)) )
 
   latest_observed <- pkg.env$latest_observed_values(
     data=IndividualData$training.data,
     groups = hazard_data_frame$groups,
-    time_scale = "i",
     categorical_features = IndividualData$categorical_features,
     continuous_features = IndividualData$continuous_features
   )
@@ -279,7 +275,7 @@ ReSurv.IndividualData <- function(IndividualData,
              max_dp =  AP_i-1+1/(IndividualData$conversion_factor)*(i-AP_o+1))
 
     development_factor_o[i,] <- mapply(pkg.env$i_to_o_development_factor,
-                           2:max(hazard_data_frame$groups$group), #start from 2 since group 1 is chain ladder
+                           1:max(hazard_data_frame$groups$group), #start from 2 since group 1 is chain ladder
                            MoreArgs=list(hazard_data_frame=hazard_data_frame$hazard_group,
                                          development_periods = development_periods,
                                          observed_pr_dp = latest_observed$observed_pr_dp,
@@ -293,43 +289,47 @@ ReSurv.IndividualData <- function(IndividualData,
    #create monthly development factors, though not outputted later on.
 
 
-  df_i <- (2+hazard)/(2-hazard)
+  # df_i <- (2+hazard)/(2-hazard)
+  #
+  # #Remove last row,since doesn't make sense
+  # df_i <- as.data.frame(df_i[1:(nrow(df_i)-1),]) %>%
+  #   map_df(rev) %>%
+  #   mutate(DM=row_number())
 
-  #Remove last row,since doesn't make sense
-  df_i <- as.data.frame(df_i[1:(nrow(df_i)-1),]) %>%
-    map_df(rev) %>%
-    mutate(DM=row_number())
-
-  X_o <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                                        select_columns = c('AP_o',IndividualData$categorical_features))
-
-  hz_names_o = pkg.env$model.matrix.extract.hazard.names(X=X_o,
-                                                         string_formula=IndividualData$string_formula_o,
-                                                         data=IndividualData$training.data)
-
-hazard_cl <- (sapply(seq_along(hz_names_o$time),
-                     pkg.env$hazard_f,
-                     enter= hz_names_o$enter,
-                     time= hz_names_o$time,
-                     exit= hz_names_o$exit,
-                     event= hz_names_o$event))
+#   X_o <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
+#                                         select_columns = c('AP_o',IndividualData$categorical_features))
+#
+#   hz_names_o = pkg.env$model.matrix.extract.hazard.names(X=X_o,
+#                                                          string_formula=IndividualData$string_formula_o,
+#                                                          data=IndividualData$training.data)
+#
+# hazard_cl <- (sapply(seq_along(hz_names_o$time),
+#                      pkg.env$hazard_f,
+#                      enter= hz_names_o$enter,
+#                      time= hz_names_o$time,
+#                      exit= hz_names_o$exit,
+#                      event= hz_names_o$event))
 
 #df_o_model  <- ( 1 +(1-eta_o)*hazard_o)/(1-eta_o*hazard_o)
-df_cl <- (2+hazard_cl)/(2-hazard_cl)
+# df_cl <- (2+hazard_cl)/(2-hazard_cl)
 
-df_o <- as.matrix(cbind(df_cl, development_factor_o))
+# df_o <- as.matrix(cbind(df_cl, development_factor_o))
+
+if(ncol(hazard_data_frame$groups) == 3){
+colnames(development_factor_o) <- c(paste0("AP_o_",hazard_data_frame$groups$AP_o,",", hazard_data_frame$groups$covariate ))
+}
+  else{
+    colnames(development_factor_o) <- c(hazard_data_frame$groups$covariate )
+  }
+#
 
 
-colnames(df_o) <- c("CL",hazard_data_frame$groups$covariate[2:length(hazard_data_frame$groups$covariate)] )
-
-
-
-df_o <- as.data.frame(df_o[1:(nrow(df_o)-1),]) %>%
+df_o <- as.data.frame(development_factor_o[1:(nrow(development_factor_o)-1),]) %>%
   map_df(rev) %>%
-  mutate(DP_i=row_number())
+  mutate(DP_o=row_number())
 
 out=list(df_output = df_o,
-         df_input = df_i,
+         #df_input = df_i,
          IndividualData=IndividualData)
 
 class(out) <- c('ReSurvFit')

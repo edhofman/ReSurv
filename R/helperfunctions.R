@@ -394,83 +394,116 @@ pkg.env$hazard_f<-function(i,
 
   c(O/E)}
 
-pkg.env$dissect_hazard_name <- function(names_hazard, name = "AP"){
-
-  "
-  Get accident period and covariates to use for later grouping.
-
-  "
-
-  names_hazard <- as.character(names_hazard)
-  start_position <- gregexpr('_', names_hazard)[[1]][2] +1
-  end_position <- gregexpr(',', names_hazard)[[1]][1] -1
-
-  AP <- substr(names_hazard, start_position, end_position )
-
-  covariate <- substr(names_hazard, end_position+2, nchar(names_hazard) )
-  if(name == "AP"){
-    return(
-      as.numeric(AP)
-    )
-  }
-  if(name=="covariate"){
-    return(
-      covariate
-    )
-  }
-}
+# pkg.env$dissect_hazard_name <- function(names_hazard, name = "AP"){
+#
+#   "
+#   Get accident period and covariates to use for later grouping.
+#
+#   "
+#
+#   names_hazard <- as.character(names_hazard)
+#   start_position <- gregexpr('_', names_hazard)[[1]][2] +1
+#   end_position <- gregexpr(',', names_hazard)[[1]][1] -1
+#
+#   AP <- substr(names_hazard, start_position, end_position )
+#
+#   covariate <- substr(names_hazard, end_position+2, nchar(names_hazard) )
+#   if(name == "AP"){
+#     return(
+#       as.numeric(AP)
+#     )
+#   }
+#   if(name=="covariate"){
+#     return(
+#       covariate
+#     )
+#   }
+# }
 
 pkg.env$hazard_data_frame <- function(hazard, conversion_factor,
                                       eta_old=1/2,
+                                      categorical_features,
                                       continuous_features){
 
   "
   Convert hazard matrix to dataframe and add grouping variables.
 
   "
-  dev_f <- (1+(1-eta_old)*hazard)/(1-eta_old*hazard)
 
-  dev_f <- dev_f[1:(nrow(dev_f)-1),]
+  if(length(continuous_features)==1 & "AP_i" %in% continuous_features){
+    continuous_features_group=NULL
+    hazard_frame_tmp <- hazard %>%
+      mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>%
+      mutate(dev_f_i = ifelse(dev_f_i<0,1,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
+      group_by(!!sym(categorical_features), AP_i) %>%
+      arrange(DP_rev_i) %>%
+      mutate(cum_dev_f_i = cumprod(dev_f_i)) %>%
+      mutate(S_i = 1/cum_dev_f_i,
+             S_i_lead = lead(S_i, default = 0)) %>%
+      select(-c(expg, baseline, hazard))
 
-  dev_f <- rbind(dev_f, c(rep(1, ncol(dev_f))))
+  hazard_frame <- hazard %>%
+    left_join(hazard_frame_tmp, c(categorical_features,
+                                  continuous_features_group,
+                              "AP_i",
+                              "DP_rev_i" )) %>%
+    mutate(dev_f_i = coalesce(dev_f_i,1),
+           S_i = coalesce(S_i,1),
+           S_i_lead = coalesce(S_i_lead,1),
+           cum_dev_f_i = coalesce(cum_dev_f_i,1))
 
-  dev_f <- dev_f[c(nrow(dev_f),1:(nrow(dev_f)-1)),]
+  }else{
+    continuous_features_group=continuous_features[!("AP_i" %in% continuous_features)]
+    hazard_frame %>%
+      mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>%
+      group_by(!!sym(categorical_features),!!sym(continuous_features_group), AP_i)
 
-  cum_dev_factor <- cumprod(dev_f)
+    hazard_frame_tmp <- hazard %>%
+      mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>%
+      mutate(dev_f_i = ifelse(dev_f_i<0,1,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
+      group_by(!!sym(categorical_features), AP_i) %>%
+      arrange(DP_rev_i) %>%
+      mutate(cum_dev_f_i = cumprod(dev_f_i)) %>%
+      mutate(S_i = 1/cum_dev_f_i,
+             S_i_lead = lead(S_i, default = 0)) %>%
+    select(-c(expg, baseline, hazard))
 
-  s_curve <- 1/cum_dev_factor
+    hazard_frame <- hazard %>%
+      left_join(hazard_frame_tmp, c(categorical_features,
+                                    continuous_features_group,
+                                    "AP_i",
+                                    "DP_rev_i")) %>%
+      mutate(dev_f_i = coalesce(dev_f_i,1),
+             S_i = coalesce(S_i,1),
+             S_i_lead = coalesce(S_i_lead,1),
+             cum_dev_f_i = coalesce(cum_dev_f_i,1))
+  }
 
-  hazard <- as.data.frame(hazard)
+  hazard_frame$covariate <- pkg.env$name_covariates(
+    hazard_frame,
+    categorical_features,
+    continuous_features_group
+  )
 
-  hazard$DP_rev_i <- 1:nrow(hazard)
-  s_curve$DP_rev_i <- 1:nrow(hazard)
+  hazard_frame$AP_o  <- ceiling(hazard_frame$AP_i*conversion_factor)
 
-  hazard_t <- reshape2::melt(hazard, id.vars = "DP_rev_i")
-  cum_dev_factor_t <- reshape2::melt(s_curve, id.vars = "DP_rev_i") %>%
-    group_by(variable) %>%
-    mutate(value = ifelse(value <0,0,value)) %>%
-    mutate(S_i_lead = lead(value, default = 0)) #for the initial development the factor doesn't make sense, and could become negatie, we set to 1
-
-  hazard_t$AP_i <- sapply(hazard_t$variable, pkg.env$dissect_hazard_name)
-  hazard_t$covariate <- mapply(pkg.env$dissect_hazard_name, hazard_t$variable,  MoreArgs = list(name= "covariate"))
-  hazard_t$AP_o  <- ceiling(hazard_t$AP_i*conversion_factor)
-
-  hazard_t$S_i = cum_dev_factor_t$value
-  hazard_t$S_i_lead = cum_dev_factor_t$S_i_lead
 
   #Group is pr. covariate, output accident period
   if("AP_i" %in% continuous_features){
-  groups <- unique(data.frame(AP_o = hazard_t$AP_o, covariate = hazard_t$covariate)) %>%
+  groups <- unique(data.frame(AP_o = hazard_frame$AP_o, covariate = hazard_frame$covariate)) %>%
     mutate(group = row_number())
-  hazard_group <- hazard_t %>%  left_join(groups, by=c("AP_o", "covariate")) %>%
-    select(DP_rev_i, AP_i, value, group, S_i, S_i_lead)
+  hazard_group <- hazard_frame %>%  left_join(groups, by=c("AP_o", "covariate")) %>%
+    select(DP_rev_i, AP_i, hazard , group, S_i, S_i_lead, dev_f_i)
+
+
 
   }
   else{
-    groups <- unique(data.frame(covariate = hazard_t$covariate)) %>%
+    groups <- unique(data.frame(covariate = hazard_frame$covariate)) %>%
       mutate(group = row_number())
-    hazard_group <- hazard_t %>%  left_join(groups, by=c("covariate")) %>%
-      select(DP_rev_i, AP_i, value, group, S_i, S_i_lead)
+    hazard_group <- hazard_frame %>%  left_join(groups, by=c("covariate")) %>%
+      hazard_group <- hazard_frame %>%  left_join(groups, by=c("AP_o", "covariate")) %>%
+      select(DP_rev_i, AP_i, hazard , group, S_i, S_i_lead, dev_f_i)
   }
 
 
@@ -479,7 +512,7 @@ pkg.env$hazard_data_frame <- function(hazard, conversion_factor,
   )
 }
 
-pkg.env$latest_observed_values <- function(data, groups, time_scale = "i", categorical_features, continuous_features){
+pkg.env$latest_observed_values <- function(data, groups,  categorical_features, continuous_features){
   "
   Retrieve total amount of observed claims
 
@@ -487,8 +520,6 @@ pkg.env$latest_observed_values <- function(data, groups, time_scale = "i", categ
 
   data_reserve <- data %>%
     filter(DP_rev_i>TR_i)
-
-  if(time_scale == "i"){
 
   max_DP_i <- data_reserve %>% group_by(AP_i) %>%
     summarise(DP_max_rev =min(max(DP_rev_i)-DP_i)+1 ) %>%
@@ -499,8 +530,8 @@ pkg.env$latest_observed_values <- function(data, groups, time_scale = "i", categ
     mutate(AP_i = as.numeric(AP_i)) %>%
     left_join(max_DP_i, by="AP_i")
 
-  if(is.null(continuous_features) | length(continuous_features) == 1 & "AP_i" %in% continuous_features){
-  observed_so_far <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+  if(is.null(continuous_features)){ #length(continuous_features) == 1 & "AP_i" %in% continuous_features
+   observed_so_far <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
                                                  DP_max_rev) %>%
     summarise(latest_I=sum(I), .groups = "drop")
 
@@ -530,16 +561,32 @@ pkg.env$latest_observed_values <- function(data, groups, time_scale = "i", categ
 
   } else{
 
-    continuous_features <- continuous_features[!("AP_i" %in% continuous_features)]
+    if(length(continuous_features)==1 & "AP_i" %in% continuous_features){
+      continuous_features<-NULL
+    }
+    else{
+      continuous_features <- continuous_features[!("AP_i" %in% continuous_features)]
+    }
 
+
+    if(is.null(continuous_features)){
     observed_so_far <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
-                                                   !!sym(categorical_features),
                                                    DP_max_rev) %>%
       summarise(latest_I=sum(I), .groups = "drop")
     observed_dp_rev_i <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
-                                                     !!sym(categorical_features),
                                                      DP_rev_i, DP_i) %>%
       summarise(I=sum(I), .groups = "drop")
+    }
+    else{
+      observed_so_far <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+                                                     !!sym(continuous_features),
+                                                     DP_max_rev) %>%
+        summarise(latest_I=sum(I), .groups = "drop")
+      observed_dp_rev_i <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+                                                       !!sym(continuous_features),
+                                                       DP_rev_i, DP_i) %>%
+        summarise(I=sum(I), .groups = "drop")
+    }
 
     observed_so_far$covariate <- pkg.env$name_covariates(
       observed_so_far,
@@ -562,12 +609,6 @@ pkg.env$latest_observed_values <- function(data, groups, time_scale = "i", categ
 
   }
 
-  }
-  else{
-
-  ' implement for continuous feateus'
-  }
-
   return(list(latest_cumulative = observed_so_far_out, observed_pr_dp = observed_dp_rev_i_out))
 
 }
@@ -576,13 +617,13 @@ pkg.env$name_covariates <- function(data,
                                     categorical_features,
                                     continuous_features){
   if(is.null(continuous_features)){
-    df <- data[,categorical_features]
+    df <- data %>%  select(all_of(categorical_features))
     name_seperate <- suppressMessages(map2_dfc(colnames(df), df, paste, sep = '_'))
     name_combined <- apply( name_seperate , 1 , paste , collapse = ", " )
   return(name_combined)
   }
   else{
-    df <- observed_so_far[,c(IndividualDatacategorical_features,continuous_features)]
+    df <- data %>%  select(all_of(categorical_features), all_of(continuous_features))
     name_seperate <- suppressMessages(map2_dfc(colnames(df), df, paste, sep = '_'))
     name_combined <- apply( name_seperate , 1 , paste , collapse = ", " )
 
