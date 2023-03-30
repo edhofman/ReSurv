@@ -107,13 +107,6 @@ ReSurv.IndividualData <- function(IndividualData,
 
   formula_ct <- as.formula(IndividualData$string_formula_i)
 
-  # X_i <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-  #                                       select_columns = c('AP_i',IndividualData$categorical_features))
-  #
-  # hz_names_i = pkg.env$model.matrix.extract.hazard.names(X=X_i,
-  #                                                        string_formula=IndividualData$string_formula_i,
-  #                                                        data=IndividualData$training.data)
-
   newdata <- pkg.env$create.df.2.fcst(IndividualData)
 
   if(hazard_model=="cox"){
@@ -135,21 +128,11 @@ ReSurv.IndividualData <- function(IndividualData,
 
     bsln <- data.frame(baseline=baseline_out$bs_hazard$hazard,
                        DP_rev_i=ceiling(baseline_out$bs_hazard$time))  #$hazard
-    # colnames(bsln)=c('baseline','DP_rev_i')
-
-    # expg <- exp(model.out$beta_ams)
 
     hazard_frame <- cbind(newdata, model.out$expg)
     colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
 
-    # hazard_frame <- hazard_frame %>%
-    #   full_join(bsln,
-    #             by="DP_rev_i") %>%
-    #   as.data.frame()
-    #
-    # hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
-    #
-    # return(hazard_frame)
+
 
     }
 
@@ -193,11 +176,6 @@ ReSurv.IndividualData <- function(IndividualData,
                                   batch_size=hparameters$batch_size,
                                   num_workers=hparameters$num_workers)
 
-    # X_ams <- cbind(X_i, Xb)
-    #
-    # beta_ams = unique(round(X_ams,10) )[,ncol(X_ams)] #if no round some systems has too high precision.
-    #
-
     expg <- exp(beta_ams)
 
     hazard_frame <- cbind(newdata,expg)
@@ -239,103 +217,119 @@ ReSurv.IndividualData <- function(IndividualData,
 
   ############################################################
 
-  hazard_data_frame <- pkg.env$hazard_data_frame(hazard=hazard_frame,
-                                                 conversion_factor = IndividualData$conversion_factor,
+  #Add development and relevant survival values to the hazard_frame
+  hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
                                                  categorical_features = IndividualData$categorical_features,
                                                  continuous_features = IndividualData$continuous_features)
 
-  development_factor_o <- matrix(nrow=max_DP, ncol=(nrow(hazard_data_frame$groups)) )
+  hazard_frame_grouped <- pkg.env$covariate_mapping(
+    hazard_frame = hazard_frame_updated,
+    categorical_features = IndividualData$categorical_features,
+    continuous_features = IndividualData$continuous_features,
+    conversion_factor = IndividualData$conversion_factor
+    )
 
-  latest_observed <- pkg.env$latest_observed_values(
+
+  latest_observed <- pkg.env$latest_observed_values_i(
     data=IndividualData$training.data,
-    groups = hazard_data_frame$groups,
+    groups = hazard_frame_grouped$groups,
     categorical_features = IndividualData$categorical_features,
     continuous_features = IndividualData$continuous_features
   )
 
-  #group to quarters, this is relatively time consuming,
-  #Note: the eta-approximation is not covariat dependent.
-  for( i in 1:max_DP){ #Loop through each output period, to find weights
-     # frame_tmp <- data.frame(IndividualData$training) %>% filter(TR_o<i) %>% #All claims that haven't been truncated at said reverse development
-     #   filter(DP_rev_o>=i) %>% #Claims that still hasn't been reported
-     #   mutate(time_w = round(ifelse(DP_rev_o==i, DP_rev_i, AP_i-1+1/(IndividualData$conversion_factor)*(i-AP_o+1) ),10) ) %>% #If a claim is reported in the corresponding development period save said reporting time, otherwise we need the corresponding limit for each acciedent period in the development period.
-     #   #mutate(weight = ifelse(DP_rev_o==i, (DP_rev_i-1)%%(1/(IndividualData$conversion_factor))+1, 1/(IndividualData$conversion_factor) )) %>% #If reported in said period give weight corresponding to amount of input_time period spend in output time_period, otherwise give width length of output as weight.
-     #   #mutate(weight_eta = ifelse(DP_rev_o==i, (DP_rev_i-1)%%(1/(IndividualData$conversion_factor))+1, 0 )) %>% #If reported in said period give weight corresponding to amount of input_time period spend in output time_period, otherwise give width length of output as weight.
-     #   mutate(observed = ifelse(DP_rev_o==i, 1, 0 )) %>%
-     #   mutate(exposure = ifelse(DP_rev_o==i, 0, 1 )) %>%
-     #   mutate(p_month = (AP_i-1)%%(1/(IndividualData$conversion_factor))+1) %>% #Entering month in development period
-     #   group_by(p_month, AP_i, time_w) %>%
-     #   dplyr::summarise(observed=sum(observed),
-     #                    exposure = sum(exposure), .groups="drop" )
+  expected_i <- pkg.env$predict_i(
+    hazard_data_frame = hazard_frame_grouped$hazard_group,
+    latest_cumulative = latest_observed$latest_cumulative
+  )
 
-    development_periods <- data.frame(IndividualData$training) %>%
-      select(AP_i, AP_o) %>%
-      distinct() %>% #All claims that haven't been truncated at said reverse development
-      mutate(min_dp =  AP_i+1/(IndividualData$conversion_factor)*(i-AP_o),
-             max_dp =  AP_i-1+1/(IndividualData$conversion_factor)*(i-AP_o+1))
+  df_i <- pkg.env$retrieve_df_i(
+    hazard_data_frame = hazard_frame_grouped$hazard_group,
+    groups = hazard_frame_grouped$groups
+  )
 
-    development_factor_o[i,] <- mapply(pkg.env$i_to_o_development_factor,
-                           1:max(hazard_data_frame$groups$group), #start from 2 since group 1 is chain ladder
-                           MoreArgs=list(hazard_data_frame=hazard_data_frame$hazard_group,
-                                         development_periods = development_periods,
+  hazard_frame_input <- pkg.env$input_hazard_frame(
+    hazard_frame = hazard_frame_grouped$hazard_group,
+    expected_i = expected_i ,
+    categorical_features = IndividualData$categorical_features,
+    continuous_features = IndividualData$continuous_features,
+    df_i = df_i,
+    groups = hazard_frame_grouped$groups)
+
+  ############################################################
+  # If input dimension not equal to output dimension, we perform a grouping #
+
+  if(IndividualData$conversion_factor != 1){
+
+  development_factor_o <- matrix(nrow=max_DP, ncol=(nrow(hazard_frame_grouped$groups)) )
+
+  development_periods <- distinct(select(data.frame(IndividualData$training), AP_i, AP_o))
+
+  # Calculate the minimum and maximum development periods for each row in development_periods for each DP_rev_o
+  dp_ranges <- t(lapply(1:max_DP, function(DP_rev_o) {
+    cbind(DP_rev_o, development_periods,
+          min_dp = with(development_periods, AP_i+1/(IndividualData$conversion_factor)*(DP_rev_o-AP_o)),
+          max_dp = with(development_periods, AP_i-1+1/(IndividualData$conversion_factor)*(DP_rev_o-AP_o+1)))
+  }
+  ))
+
+  dp_ranges <- do.call(rbind, dp_ranges)
+
+  expected_o <-pkg.env$predict_o(expected_i = expected_i,
+                                 groups = hazard_frame_grouped$groups,
+                                 conversion_factor = IndividualData$conversion_factor)
+
+  development_factor_o <- mapply(pkg.env$i_to_o_development_factor,
+                           1:max(hazard_frame_grouped$groups$group_o),
+                           MoreArgs=list(hazard_data_frame=hazard_frame_grouped$hazard_group,
+                                         expected_i = expected_i,
+                                         dp_ranges = dp_ranges,
+                                         groups = hazard_frame_grouped$groups,
                                          observed_pr_dp = latest_observed$observed_pr_dp,
                                          latest_cumulative = latest_observed$latest_cumulative,
                                          conversion_factor = IndividualData$conversion_factor))
-    #hazard_o[i,] <- unlist(grouped_hazard[1,])
-    #eta_o[i] <- unlist(grouped_hazard[2,1]) #since not accident-period dependent, eta is the same for every output period
-
-    }
-
-   #create monthly development factors, though not outputted later on.
 
 
-  # df_i <- (2+hazard)/(2-hazard)
-  #
-  # #Remove last row,since doesn't make sense
-  # df_i <- as.data.frame(df_i[1:(nrow(df_i)-1),]) %>%
-  #   map_df(rev) %>%
-  #   mutate(DM=row_number())
 
-#   X_o <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-#                                         select_columns = c('AP_o',IndividualData$categorical_features))
-#
-#   hz_names_o = pkg.env$model.matrix.extract.hazard.names(X=X_o,
-#                                                          string_formula=IndividualData$string_formula_o,
-#                                                          data=IndividualData$training.data)
-#
-# hazard_cl <- (sapply(seq_along(hz_names_o$time),
-#                      pkg.env$hazard_f,
-#                      enter= hz_names_o$enter,
-#                      time= hz_names_o$time,
-#                      exit= hz_names_o$exit,
-#                      event= hz_names_o$event))
-
-#df_o_model  <- ( 1 +(1-eta_o)*hazard_o)/(1-eta_o*hazard_o)
-# df_cl <- (2+hazard_cl)/(2-hazard_cl)
-
-# df_o <- as.matrix(cbind(df_cl, development_factor_o))
-
-if(ncol(hazard_data_frame$groups) == 3){
-colnames(development_factor_o) <- c(paste0("AP_o_",hazard_data_frame$groups$AP_o,",", hazard_data_frame$groups$covariate ))
-}
-  else{
-    colnames(development_factor_o) <- c(hazard_data_frame$groups$covariate )
+#We only have 3 groups if AP is included as a covariate
+  if(ncol(hazard_frame_grouped$groups) == 5){
+    colnames(development_factor_o) <- unique(c(paste0("AP_o_",hazard_frame_grouped$groups$AP_o,",", hazard_frame_grouped$groups$covariate )))
   }
-#
+  else{
+    colnames(development_factor_o) <- c(hazard_frame_grouped$groups$covariate )
+  }
+
+  df_o <- as.data.frame(development_factor_o[1:(nrow(development_factor_o)-1),]) %>%
+    map_df(rev) %>%
+    mutate(DP_o=row_number())
 
 
-df_o <- as.data.frame(development_factor_o[1:(nrow(development_factor_o)-1),]) %>%
-  map_df(rev) %>%
-  mutate(DP_o=row_number())
+  hazard_frame_output <- pkg.env$output_hazard_frame(
+    hazard_frame_input=hazard_frame_input,
+    expected_o=expected_o,
+    categorical_features=IndividualData$categorical_features,
+    continuous_features=IndividualData$continuous_features,
+    df_o=df_o,
+    groups = hazard_frame_grouped$groups
+  )
 
-out=list(df_output = df_o,
-         #df_input = df_i,
-         IndividualData=IndividualData)
+  out=list(df_output = df_o,
+           df_input = df_i,
+           hazard_frame_input = hazard_frame_input,
+           hazard_frame_output = hazard_frame_output,
+           IndividualData=IndividualData)
 
-class(out) <- c('ReSurvFit')
+  class(out) <- c('ReSurvFit')
 
-out
+  return(out)
+  }
 
+  out=list(df_input = df_i,
+           hazard_frame_input = hazard_frame_input,
+           IndividualData=IndividualData)
+
+  class(out) <- c('ReSurvFit')
+
+  return(out)
 }
 
 

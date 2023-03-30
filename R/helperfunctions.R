@@ -420,7 +420,7 @@ pkg.env$hazard_f<-function(i,
 #   }
 # }
 
-pkg.env$hazard_data_frame <- function(hazard, conversion_factor,
+pkg.env$hazard_data_frame <- function(hazard,
                                       eta_old=1/2,
                                       categorical_features,
                                       continuous_features){
@@ -430,106 +430,158 @@ pkg.env$hazard_data_frame <- function(hazard, conversion_factor,
 
   "
 
-  if(length(continuous_features)==1 & "AP_i" %in% continuous_features){
+  #Need special handling if we ahve continuous variables
+  if( (length(continuous_features)==1 & "AP_i" %in% continuous_features) | is.null(continuous_features)){
+    #Make sure continuous is null, only applied when AP_i is only continuous feature
     continuous_features_group=NULL
+
+    #Calculate input development factors and corresponding survival probabilities
     hazard_frame_tmp <- hazard %>%
-      mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>%
+      mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>% #Follows from the assumption that claims are distributed evenly in the input period
       mutate(dev_f_i = ifelse(dev_f_i<0,1,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
       group_by(!!sym(categorical_features), AP_i) %>%
       arrange(DP_rev_i) %>%
       mutate(cum_dev_f_i = cumprod(dev_f_i)) %>%
-      mutate(S_i = 1/cum_dev_f_i,
-             S_i_lead = lead(S_i, default = 0)) %>%
+      mutate(S_i = ifelse(cum_dev_f_i==0,0,1/cum_dev_f_i), # to handle the ifelse statement from above
+             S_i_lead = lead(S_i, default = 0),
+             S_i_lag = lag(S_i, default = 1)) %>%
       select(-c(expg, baseline, hazard))
 
-  hazard_frame <- hazard %>%
-    left_join(hazard_frame_tmp, c(categorical_features,
-                                  continuous_features_group,
+     #we need the lead and lag values for later calcualtion of expected amounts, store in the dataset.
+     hazard_frame <- hazard %>%
+       left_join(hazard_frame_tmp, c(categorical_features,
                               "AP_i",
                               "DP_rev_i" )) %>%
-    mutate(dev_f_i = coalesce(dev_f_i,1),
+       mutate(dev_f_i = coalesce(dev_f_i,1),
            S_i = coalesce(S_i,1),
            S_i_lead = coalesce(S_i_lead,1),
+           S_i_lag = coalesce(S_i_lag, 1),
            cum_dev_f_i = coalesce(cum_dev_f_i,1))
 
-  }else{
+    } else {
+      #Equivalent to above expect we now also join by continuous features
+      continuous_features_group=continuous_features[!("AP_i" %in% continuous_features)]
+      hazard_frame_tmp <- hazard %>%
+        mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>%
+        mutate(dev_f_i = ifelse(dev_f_i<0,0,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
+        group_by(!!sym(categorical_features), AP_i) %>%
+        arrange(DP_rev_i) %>%
+        mutate(cum_dev_f_i = cumprod(dev_f_i)) %>%
+        mutate(S_i = ifelse(cum_dev_f_i==0,0,1/cum_dev_f_i),
+               S_i_lead = lead(S_i, default = 0),
+               S_i_lag = lag(S_i, default = 1)) %>%
+      select(-c(expg, baseline, hazard))
+
+      hazard_frame <- hazard %>%
+        left_join(hazard_frame_tmp, c(categorical_features,
+                                      continuous_features_group,
+                                      "AP_i",
+                                      "DP_rev_i")) %>%
+        mutate(dev_f_i = coalesce(dev_f_i,1),
+               S_i = coalesce(S_i,1),
+               S_i_lead = coalesce(S_i_lead,1),
+               S_i_lag = coalesce(S_i_lag, 1),
+               cum_dev_f_i = coalesce(cum_dev_f_i,1))
+    }
+  return(hazard_frame)
+}
+
+pkg.env$covariate_mapping <- function(hazard_frame,
+                                      categorical_features,
+                                      continuous_features,
+                                      conversion_factor)
+  {
+  "
+  Create a dimension table, that holds a link between inputted categorical features and the group, that is used for expected_values
+  "
+
+  #Need to handle Accident period effect seperatly
+  if( (length(continuous_features)==1 & "AP_i" %in% continuous_features)){
+    continuous_features_group = NULL
+    }
+  else{
     continuous_features_group=continuous_features[!("AP_i" %in% continuous_features)]
-    hazard_frame %>%
-      mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>%
-      group_by(!!sym(categorical_features),!!sym(continuous_features_group), AP_i)
-
-    hazard_frame_tmp <- hazard %>%
-      mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>%
-      mutate(dev_f_i = ifelse(dev_f_i<0,1,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
-      group_by(!!sym(categorical_features), AP_i) %>%
-      arrange(DP_rev_i) %>%
-      mutate(cum_dev_f_i = cumprod(dev_f_i)) %>%
-      mutate(S_i = 1/cum_dev_f_i,
-             S_i_lead = lead(S_i, default = 0)) %>%
-    select(-c(expg, baseline, hazard))
-
-    hazard_frame <- hazard %>%
-      left_join(hazard_frame_tmp, c(categorical_features,
-                                    continuous_features_group,
-                                    "AP_i",
-                                    "DP_rev_i")) %>%
-      mutate(dev_f_i = coalesce(dev_f_i,1),
-             S_i = coalesce(S_i,1),
-             S_i_lead = coalesce(S_i_lead,1),
-             cum_dev_f_i = coalesce(cum_dev_f_i,1))
   }
 
+  ## The next steps generate a grouping key, used for aggregating from input periods to output periods
   hazard_frame$covariate <- pkg.env$name_covariates(
     hazard_frame,
     categorical_features,
     continuous_features_group
   )
 
-  hazard_frame$AP_o  <- ceiling(hazard_frame$AP_i*conversion_factor)
-
-
   #Group is pr. covariate, output accident period
   if("AP_i" %in% continuous_features){
-  groups <- unique(data.frame(AP_o = hazard_frame$AP_o, covariate = hazard_frame$covariate)) %>%
-    mutate(group = row_number())
-  hazard_group <- hazard_frame %>%  left_join(groups, by=c("AP_o", "covariate")) %>%
-    select(DP_rev_i, AP_i, hazard , group, S_i, S_i_lead, dev_f_i)
 
+    groups <- unique(data.frame(AP_i = hazard_frame$AP_i, covariate = hazard_frame$covariate)) %>%
+      mutate(group_i = row_number())
 
+    hazard_group <- hazard_frame %>%  left_join(groups, by=c("AP_i", "covariate"))
 
   }
   else{
     groups <- unique(data.frame(covariate = hazard_frame$covariate)) %>%
-      mutate(group = row_number())
-    hazard_group <- hazard_frame %>%  left_join(groups, by=c("covariate")) %>%
-      hazard_group <- hazard_frame %>%  left_join(groups, by=c("AP_o", "covariate")) %>%
-      select(DP_rev_i, AP_i, hazard , group, S_i, S_i_lead, dev_f_i)
+      mutate(group_i = row_number())
+
+    hazard_group <- hazard_frame %>%  left_join(groups, by=c("covariate"))
   }
 
+  #If we have to group for later output, add the relevant groups as well
+  groups$group_o <- groups$group_i
+  groups$AP_o  <- ceiling(groups$AP_i*conversion_factor)
+  # The only time the groups will be different, is when we are including accident period as a covariate
+  if(conversion_factor != 1 & "AP_i" %in% continuous_features){
 
+      groups_o <- unique(data.frame(AP_o = ceiling(hazard_group$AP_i*conversion_factor), covariate = hazard_group$covariate)) %>%
+        mutate(group_o = row_number())
+
+      groups <- groups %>% select(-group_o) %>%
+        left_join(groups_o, by=c("AP_o", "covariate"))
+
+  }
   return(
     list(hazard_group=hazard_group, groups = groups)
   )
+
+
+
 }
 
-pkg.env$latest_observed_values <- function(data, groups,  categorical_features, continuous_features){
+
+pkg.env$latest_observed_values_i <- function(data, groups,  categorical_features, continuous_features){
   "
   Retrieve total amount of observed claims
 
   "
 
-  data_reserve <- data %>%
-    filter(DP_rev_i>TR_i)
+  data_reserve <- data
 
+  trunc = max(data_reserve$DP_i)
+
+  max_observed_ap_dp <- data_reserve %>%
+    group_by(AP_i) %>%
+    summarize(max_DP_i = max(DP_i), .groups="drop")
+
+  #create grid to hold observed values for all possible times (also where we have no observations)
+  observed_grid <- expand.grid(AP_i = unique(data_reserve$AP_i),
+                               DP_rev_i = unique(data_reserve$DP_rev_i),
+                               group_i = groups$group_i ) %>%
+    mutate(DP_i = trunc-DP_rev_i+1) %>%
+    left_join(max_observed_ap_dp, by = "AP_i") %>%
+    filter(DP_i <= max_DP_i) %>%
+    select(-c(max_DP_i))
+
+  #Max possible development time per accident period
   max_DP_i <- data_reserve %>% group_by(AP_i) %>%
     summarise(DP_max_rev =min(max(DP_rev_i)-DP_i)+1 ) %>%
     distinct()
 
   data_reserve2 <- data_reserve %>%
-    select(AP_i, AP_o, DP_rev_i, DP_i, categorical_features, continuous_features, I) %>%
+    select(AP_i, AP_o, DP_rev_i, DP_i, all_of(categorical_features), all_of(continuous_features), I) %>%
     mutate(AP_i = as.numeric(AP_i)) %>%
     left_join(max_DP_i, by="AP_i")
 
+  #The reason for the if statement is due to the !!sym logic, because !!sym(NULL) is not valid
   if(is.null(continuous_features)){ #length(continuous_features) == 1 & "AP_i" %in% continuous_features
    observed_so_far <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
                                                  DP_max_rev) %>%
@@ -539,7 +591,7 @@ pkg.env$latest_observed_values <- function(data, groups,  categorical_features, 
                                                  DP_rev_i, DP_i) %>%
     summarise(I=sum(I), .groups = "drop")
 
-
+  #Combine covariate values into single variable
   observed_so_far$covariate <- pkg.env$name_covariates(
     observed_so_far,
     categorical_features,
@@ -551,15 +603,20 @@ pkg.env$latest_observed_values <- function(data, groups,  categorical_features, 
     continuous_features
   )
 
+  # Latest cumulative
   observed_so_far_out <- observed_so_far %>%  left_join(groups, by=c("covariate")) %>%
-    select(AP_i, group, DP_max_rev, latest_I)
+    select(AP_i, group_i, DP_max_rev, latest_I)
 
-  observed_dp_rev_i_out <- observed_dp_rev_i %>%  left_join(groups, by=c("covariate")) %>%
-    select(AP_i, group, DP_rev_i, DP_i, I)
+  observed_dp_rev_i_tmp <- observed_dp_rev_i %>%  left_join(groups, by=c("covariate")) %>%
+    select(AP_i, group_i, DP_rev_i, DP_i, I)
+
+  #Observed pr. development period
+  observed_dp_rev_i_out <- observed_grid %>%
+    left_join(observed_dp_rev_i_tmp, by=c("AP_i", "DP_i", "DP_rev_i", "group_i"))
 
 
 
-  } else{
+  } else{ #Very similiar to above, expect we now also take the continuous features into account
 
     if(length(continuous_features)==1 & "AP_i" %in% continuous_features){
       continuous_features<-NULL
@@ -568,7 +625,7 @@ pkg.env$latest_observed_values <- function(data, groups,  categorical_features, 
       continuous_features <- continuous_features[!("AP_i" %in% continuous_features)]
     }
 
-
+    #If-statment due to grouping by continous vair
     if(is.null(continuous_features)){
     observed_so_far <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
                                                    DP_max_rev) %>%
@@ -600,12 +657,15 @@ pkg.env$latest_observed_values <- function(data, groups,  categorical_features, 
       continuous_features
     )
 
-    observed_so_far_out <- observed_so_far %>%  left_join(groups, by=c("AP_o", "covariate")) %>%
-      select(AP_i, group, DP_max_rev,latest_I )
+    observed_so_far_out <- observed_so_far %>%  left_join(groups, by=c("AP_i", "covariate")) %>%
+      select(AP_i, group_i, DP_max_rev,latest_I )
 
-    observed_dp_rev_i_out <- observed_dp_rev_i %>%  left_join(groups, by=c("AP_o", "covariate")) %>%
-      select(AP_i, group, DP_rev_i, DP_i, I)
+    observed_dp_rev_i_tmp <- observed_dp_rev_i %>%  left_join(groups, by=c("AP_i", "covariate")) %>%
+      select(AP_i, group_i, DP_rev_i, DP_i, I)
 
+    observed_dp_rev_i_out <- observed_grid %>%
+      left_join(observed_dp_rev_i_tmp, by=c("AP_i", "DP_i", "DP_rev_i", "group_i")) %>%
+      inner_join(groups[,c("AP_i", "group_i")], by =c("AP_i", "group_i")) #filter only relevant combinations
 
   }
 
@@ -616,6 +676,10 @@ pkg.env$latest_observed_values <- function(data, groups,  categorical_features, 
 pkg.env$name_covariates <- function(data,
                                     categorical_features,
                                     continuous_features){
+  "
+  Create groups based upon combination of covariates.
+  Here we craete the name of the group
+  "
   if(is.null(continuous_features)){
     df <- data %>%  select(all_of(categorical_features))
     name_seperate <- suppressMessages(map2_dfc(colnames(df), df, paste, sep = '_'))
@@ -631,144 +695,441 @@ pkg.env$name_covariates <- function(data,
   }
 
 
+
+}
+
+pkg.env$predict_i <- function(hazard_data_frame,
+                              latest_cumulative
+){
+  "
+  Calculate expected incremential claim number on input scale
+
+   "
+
+  # #select relevant hazard values
+  grouped_hazard_0 <- hazard_data_frame %>% #for the last development, if we included group '0', we would be extrapolating for half a parallelogram - doesn't make sense
+    left_join(latest_cumulative, by=c("group_i", "AP_i"))
+
+  # Predict expected numbers, this is also used grouping methodology
+  expected <-  grouped_hazard_0 %>%
+    select(DP_rev_i, AP_i, group_i, S_i, S_i_lag, DP_max_rev, latest_I ) %>%
+    left_join(hazard_data_frame %>%
+                mutate(DP_rev_i = DP_rev_i +1) %>%
+                select(DP_rev_i, AP_i, group_i, S_i) %>%
+                rename(S_ultimate_i = S_i), by=c("DP_max_rev"="DP_rev_i",
+                                                 "AP_i" = "AP_i",
+                                                 "group_i" = "group_i")) %>%
+    mutate(U=case_when(
+      S_ultimate_i ==0 ~ 0,
+      AP_i != 1 ~ 1/S_ultimate_i * latest_I,
+      TRUE ~ latest_I)) %>%
+    mutate(I_expected = U*(S_i_lag-S_i)) %>%
+    mutate(IBNR = ifelse(DP_rev_i < DP_max_rev, I_expected, NA)) %>%
+    select(AP_i, group_i, DP_rev_i, I_expected, IBNR)
+
+  return(expected)
+
+
+}
+
+pkg.env$retrieve_df_i <- function(hazard_data_frame,
+                              groups
+){
+  "
+  Return data frame only containing input development factors.
+  "
+
+  df_i <- hazard_data_frame %>%
+    select(group_i, DP_rev_i, dev_f_i) %>%
+    distinct() %>%
+    reshape2::dcast(DP_rev_i ~group_i, value.var="dev_f_i") %>%
+    select(-DP_rev_i)
+
+  #We only have 5 columns in the case of AP being included as covariate
+  if(ncol(groups) == 5){
+    colnames(df_i) <- c(paste0("AP_i_",groups$AP_i,",", groups$covariate ))
+  }
+  else{
+    colnames(df_i) <- c(groups$covariate )
+  }
+  #
+
+
+  df_i <- as.data.frame(df_i[1:(nrow(df_i)-1),]) %>%
+    map_df(rev) %>%
+    mutate(DP_i=row_number())
+
+  return(df_i)
+
+
+}
+
+
+pkg.env$input_hazard_frame <- function(
+    hazard_frame,
+    expected_i,
+    categorical_features,
+    continuous_features,
+    df_i,
+    groups)
+{
+  "
+  Create a hazard frame with relevant input-period specific values for later output
+
+  "
+  if("AP_i" %in% continuous_features & length(continuous_features) == 1){
+    continuous_features <- NULL
+  }
+  else{
+    continuous_features <- continuous_features[!("AP_i" %in% continuous_features)]
+  }
+  hazard_frame_input_relevant <- hazard_frame %>%
+    select(- c(cum_dev_f_i, S_i, S_i_lead, S_i_lag, covariate))
+
+  #If AP is included as a grouping variable
+  if(ncol(groups)==5){
+    df_i_long <- df_i %>%
+      reshape2::melt(id.vars="DP_i") %>%
+      left_join(groups %>%
+                  mutate(covariate = paste0("AP_i_", AP_i, ",", covariate) ) %>%
+                           select(c(covariate, group_i)), by=c("variable" = "covariate"))
+
+    colnames(df_i_long) <- c("DP_i", "covariate", "df_i", "group_i")
+
+  }
+  else{
+
+    df_i_long <- df_i %>%
+      reshape2::melt(id.vars="DP_i") %>%
+      left_join(groups[,c("covariate", "group_i")], by=c("variable" = "covariate")) %>%
+      mutate(DP_i = DP_i +1) #to get correct DP_i
+
+    colnames(df_i_long) <- c("DP_i", "covariate", "df_i", "group_i")
+  }
+
+
+  max_DP_rev_i = max(expected_i$DP_rev_i)
+
+
+
+  hazard_frame_input <- expected_i %>%
+    mutate(DP_i = max_DP_rev_i-DP_rev_i +1) %>%
+    left_join(hazard_frame_input_relevant, by =c("group_i", "AP_i", "DP_rev_i")) %>%
+    left_join(df_i_long[, c("DP_i", "group_i", "df_i")], by = c("DP_i", "group_i")) %>%
+    replace_na(list(df_i = 1))
+
+  #Ordering
+  hazard_frame_input <- hazard_frame_input[,c(categorical_features,
+                                                continuous_features,
+                                                "AP_i",
+                                                "DP_rev_i",
+                                                "expg",
+                                                "baseline",
+                                                "hazard",
+                                                "df_i",
+                                                "group_i",
+                                                "I_expected",
+                                                "IBNR")]
+  return(hazard_frame_input)
+
+}
+
+
+pkg.env$predict_o <- function(
+    expected_i,
+    groups,
+    conversion_factor
+){
+  "
+  Calculate expected incremential claim number on output scale
+
+   "
+
+  # Predict expected numbers, this is also used grouping methodology
+  expected <-  expected_i %>%
+    left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
+    mutate(AP_o = ceiling(AP_i*conversion_factor),
+           DP_rev_o = ceiling((DP_rev_i-(AP_i-1)%%(1/conversion_factor) ) *conversion_factor)) %>%
+    filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parrallelogram in the end of the development time
+    group_by(AP_o, DP_rev_o, group_o) %>%
+    summarize(I_expected = sum(I_expected),
+              IBNR = sum(IBNR), .groups="drop") %>%
+    select(AP_o, group_o, DP_rev_o, I_expected, IBNR)
+
+  return(expected)
+
+
 }
 
 pkg.env$i_to_o_development_factor <- function(i,
                                   hazard_data_frame,
-                                  #frame_tmp,
-                                  development_periods,
+                                  expected_i,
+                                  dp_ranges,
+                                  groups,
                                   observed_pr_dp,
                                   latest_cumulative,
                                   conversion_factor){
   "
-  now: Group input development factor to output.
-  OLD: Group input hazard to output.
+  Group input development factor to output.
 
   "
+  # Add output groupings to relevant frames
+  hazard_data_frame <- hazard_data_frame %>%
+    left_join(groups[,c("group_i", "group_o")], by =c("group_i"))
 
+  observed_pr_dp_o  <- observed_pr_dp %>%
+    left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
+    group_by(AP_i, group_o, DP_rev_i, DP_i) %>%
+    summarize(I = sum(I, na.rm=T), .groups = "drop")
 
-  # #select relevant hazard values
-   grouped_hazard_0 <- hazard_data_frame %>%  filter(group==i) %>%
-      left_join(development_periods, by=c("AP_i")) %>%
-     filter(DP_rev_i >= min_dp,
-            DP_rev_i<=max_dp) %>%
-     left_join(latest_cumulative, by=c("group", "AP_i")) %>%
-     left_join(observed_pr_dp, by=c("group", "AP_i", "DP_rev_i"))
+  latest_cumulative_o <- latest_cumulative %>%
+    left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
+    group_by(AP_i, group_o, DP_max_rev) %>%
+    summarize(latest_I = sum(latest_I, na.rm=T), .groups = "drop")
 
-   #Where we do not have any observed we extrapolate based on fitted hazard
-   no_observations <-  grouped_hazard_0 %>%
-     filter(is.na(I)) %>%
-     select(DP_rev_i, AP_i, group, S_i, S_i_lead, DP_max_rev, latest_I ) %>%
-     left_join(hazard_data_frame %>%
-                 select(DP_rev_i, AP_i, group, S_i) %>%
-                 rename(S_ultimate_i = S_i), by=c("DP_max_rev"="DP_rev_i",
-                                       "AP_i" = "AP_i",
-                                       "group" = "group")) %>%
-     mutate(U=1/S_ultimate_i * latest_I) %>%
-     mutate(I_expected = U*(S_i-S_i_lead)) %>%  #in theory one could say U*S_i- ifelse(DP_max_rev==DP_rev_i-1, latest_I, U*S_i_lead ), but this might lead to negative expected as we are not sure latest equal the same as distribution estimate
-     select(AP_i, group, DP_rev_i, I_expected)
+  expected_i <-  expected_i %>%
+    left_join(groups[,c("group_i", "group_o")], by =c("group_i"))
 
-   cumulative_observed <- observed_pr_dp %>%
-     group_by(AP_i, group) %>%
+  # #select relevant hazard value group and add output variables, and other variables to help with grouping
+   grouped_hazard_0 <- hazard_data_frame %>%
+     filter(group_o==i) %>%
+     mutate(DP_rev_o = ceiling((DP_rev_i-(AP_i-1)%%(1/conversion_factor) ) *conversion_factor)) %>%
+     filter(DP_rev_o > 0) %>%  #for the last development, if we included group '0', we would be extrapolating for half a parallelogram - doesn't make sense
+     left_join(dp_ranges, by=c("AP_i", "DP_rev_o")) %>%
+     left_join(latest_cumulative_o, by=c("group_o", "AP_i")) %>%
+     left_join(observed_pr_dp_o, by=c("group_o", "AP_i", "DP_rev_i"))
+
+   # Create cumulative observed to find exposure for each period
+   cumulative_observed <- observed_pr_dp_o %>%
+     filter(group_o == i) %>%
+     group_by(AP_i) %>%
      arrange(DP_i) %>%
-     mutate(exposure = cumsum(I)) %>%
+     mutate(exposure = cumsum(ifelse(is.na(I),0,I) )) %>%
      mutate(DP_rev_i = DP_rev_i -1) %>%  #as we want this as exposure we join by the previous development period
-     select(AP_i, group, DP_rev_i, exposure)
+     select(AP_i, group_o, DP_rev_i, exposure)
 
    exposures <- grouped_hazard_0 %>%
-     group_by(AP_i, group) %>%
+     group_by(AP_i, DP_rev_o, group_o) %>%
      filter(DP_rev_i == max(DP_rev_i)) %>%
-     left_join(cumulative_observed, by=c("AP_i", "group", "DP_rev_i"))
+     left_join(cumulative_observed, by=c("AP_i", "group_o",
+                                        "max_dp"="DP_rev_i"))
 
    #Where we do not have any observed correct exposure we extrapolate based on fitted hazard
    no_exposure <-  exposures %>%
      filter(is.na(exposure)) %>%
-     select(DP_rev_i, AP_i, group, S_i, S_i_lead, DP_max_rev, latest_I ) %>%
+     select(DP_rev_i,  DP_rev_o, AP_i, group_o, S_i, S_i_lead, DP_max_rev, latest_I ) %>%
      left_join(hazard_data_frame %>%
-                 select(DP_rev_i, AP_i, group, S_i) %>%
+                 mutate(DP_rev_i = DP_rev_i +1) %>%
+                 select(DP_rev_i, AP_i, group_o, S_i) %>%
                  rename(S_ultimate_i = S_i), by=c("DP_max_rev"="DP_rev_i",
                                                   "AP_i" = "AP_i",
-                                                  "group" = "group")) %>%
-     mutate(U=1/S_ultimate_i * latest_I) %>%
-     mutate(exposure_expected = U*(S_i_lead)) %>%  #in theory one could say U*S_i- ifelse(DP_max_rev==DP_rev_i-1, latest_I, U*S_i_lead ), but this might lead to negative expected as we are not sure latest equal the same as distribution estimate
-     select(AP_i, group, exposure_expected)
+                                                  "group_o" = "group_o")) %>%
+     mutate(U=ifelse(S_ultimate_i ==0, 0, 1/S_ultimate_i * latest_I)) %>%
+     mutate(exposure_expected = U*(S_i)) %>%  #in theory one could say U*S_i- ifelse(DP_max_rev==DP_rev_i-1, latest_I, U*S_i_lead ), but this might lead to negative expected as we are not sure latest equal the same as distribution estimate
+     select(AP_i, group_o, DP_rev_o, DP_rev_i, exposure_expected)
 
-
+    #Take seen exposure if possible, otherwise extrapolated exposure
    exposures_combined <- exposures  %>%
-     left_join(no_exposure, by  = c("AP_i",
-                                        "group")) %>%
+     left_join(no_exposure, by  = c(   "AP_i",
+                                    "DP_rev_o",
+                                    "DP_rev_i",
+                                    "group_o")) %>%
      mutate(exposure_combined = coalesce(exposure, exposure_expected))
 
-
+  #Take seen observed if possible otherwise extrapolated observed
    grouped_hazard_1 <- grouped_hazard_0 %>%
-     left_join(no_observations, by  = c("AP_i",
-                                        "group",
+     left_join(expected_i, by  = c("AP_i",
+                                        "group_o",
                                         "DP_rev_i")) %>%
-     mutate(I_combined = coalesce(I, I_expected))
+     mutate(I_combined = coalesce(I, I_expected,0))
 
+   #group to output scale
    grouped_hazard_2 <- grouped_hazard_1 %>%
-     group_by(AP_i, group) %>%
+     group_by(AP_i, DP_rev_o, group_o) %>%
      summarize(observed = sum(I_combined), .groups="drop") %>%
-     left_join(exposures_combined, by=c("AP_i", "group"))
+     left_join(exposures_combined, by=c("AP_i", "group_o", "DP_rev_o"))
+
+   output_dev_factor <- grouped_hazard_2 %>%
+     group_by(DP_rev_o) %>%
+     summarise(dev_f_o = (sum(observed)+  sum(exposure_combined))/sum(exposure_combined) )
 
 
-   # OLD #Get correct values and convert to ultimates before calculating weights.
-   # input_period_weights <- grouped_hazard_0 %>%
-   #   group_by(AP_i, DP_max_rev, group ) %>%
-   #   summarize(I=mean(I), .groups = "drop") %>% #we have duplicates pr. AP_i but they will always be same pr. AP_i
-   #   left_join(hazard_data_frame[,c("AP_i", "group", "DP_rev_i", "S_i")], by=c("AP_i" = "AP_i",
-   #                                                                             "group" = "group",
-   #                                                                    "DP_max_rev" = "DP_rev_i")) %>%
-   #   mutate(U=I*1/S_i) %>%
-   #   mutate(i_period_weight = U/sum(U))
-
-  # OLD: #Join the weights, which also give an indication of which development periods, pr. accident period is relevant in the parallelogram
-  #  grouped_hazard_1 <- grouped_hazard_0 %>%   inner_join(frame_tmp, by = c("p_month" = "p_month", "DP_rev_i" = "time_w", "AP_i" = "AP_i")) %>%
-  #   mutate(spend = (DP_rev_i-AP_i)%%(1/conversion_factor)+1) %>% #assuming average reporting times of 0.5 pr. development period in
-  #   #filter(!is.na(weight)) %>%
-  #   group_by(AP_i) %>%
-  #   mutate(#value_cum = cumsum(value),
-  #          #weight_new = ifelse(spend==1/conversion_factor,1/2*(S_i - S_i_lead)+(S_i_lead),1/2*(S_i - S_i_lead)),
-  #          weight_new_2 = 1/2*(S_i + S_i_lead)) %>% #probability weighted approach, for each parellelogram we assume reporting half way through
-  #   #arrange(AP_i, desc(DP_rev_i)) %>%  #here one weights by cumulative remaining hazard in parallelogram
-  #   #mutate(value_cum_rev = cumsum(value)) %>%
-  #   ungroup()
-
-  #  old #If we have no rows in grouped_hazard_1 it is because we are in the lower triangle, here we allow for taking the average of the observed during other periods, or the probability approach
-  # if(nrow(grouped_hazard_1 == 0)){
-  #   frame_tmp_2 <- frame_tmp %>%  group_by(p_month, time_w) %>%
-  #     dplyr::summarise(weight_eta=sum(weight_eta), .groups="drop" )
-  #
-  #   grouped_hazard_1 <- grouped_hazard_0 %>%   inner_join(frame_tmp_2, by = c("p_month" = "p_month", "DP_rev_i" = "time_w")) %>%
-  #     mutate(spend = (DP_rev_i-AP_i)%%(1/conversion_factor)+1) %>% #assuming average reporting times of 0.5 pr. development period in
-  #     group_by(AP_i) %>%
-  #     mutate(#value_cum = cumsum(value),
-  #       #weight_new = ifelse(spend==1/conversion_factor,1/2*(S_i - S_i_lead)+(S_i_lead),1/2*(S_i - S_i_lead)),
-  #       weight_new_2 = 1/2*(S_i + S_i_lead)) %>% #probability weighted approach, for each parellelogram we assume reporting half way through
-  #     #arrange(AP_i, desc(DP_rev_i)) %>%  #here one weights by cumulative remaining hazard in parallelogram
-  #     #mutate(value_cum_rev = cumsum(value)) %>%
-  #     ungroup()
-  #
-  # }
-
-
-
-#   Old
-#   #hazard2 <- sum(h_tmp_3$value_cum*h_tmp_3$weight) / sum(h_tmp_3$weight) #weighing by observed claims in each area in the parallelogram
-#   #hazard2_2 <- sum(h_tmp_3$value_cum*(1-h_tmp_3$value_cum_s_i)) / sum(1-h_tmp_3$value_cum_s_i)
-#   hazard_o <- sum(sum(grouped_hazard_1$value*grouped_hazard_1$weight_new_2) / sum(grouped_hazard_1$weight_new_2)) #weighting by probability
-#   eta_o <- 1/ hazard_o - sum(grouped_hazard_1$exposure)/sum(grouped_hazard_1$observed)
-#
-#   #(1+(1-eta_o)*hazard_o)/(1-eta_o*hazard_o)
-
-#  return(list(hazard_o, eta_o) )
-
-   development_factor = sum(grouped_hazard_2$observed, grouped_hazard_2$exposure_combined)/sum(grouped_hazard_2$exposure_combined)
-   return(development_factor)
+   return(output_dev_factor$dev_f_o)
 
    }
 
+pkg.env$output_hazard_frame <- function(
+    hazard_frame_input,
+    expected_o,
+    categorical_features,
+    continuous_features,
+    df_o,
+    groups)
+  {
+  "
+  Create output hazard frame
 
+  "
+  if("AP_i" %in% continuous_features & length(continuous_features) == 1){
+    continuous_features <- NULL
+  }
+  else{
+    continuous_features <- continuous_features[!("AP_i" %in% continuous_features)]
+  }
+
+  #Relevant variables, we do not include hazard, baseline, expg as they currently only live on input-level
+  hazard_frame_input_relevant <- hazard_frame_input %>%
+    select(all_of(categorical_features), all_of(continuous_features), group_i) %>%
+    left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
+    select(-c(group_i)) %>%
+    distinct()
+
+  #If AP is included as a grouping variable
+  if(ncol(groups)==5){
+    df_o_long <- df_o %>%
+      reshape2::melt(id.vars="DP_o") %>%
+      left_join(groups[,c("AP_o","covariate", "group_o")] %>%
+                  mutate(covariate = paste0("AP_o_", AP_o, ", ", covariate)), by=c("variable" = "covariate"))
+
+    colnames(df_o_long) <- c("DP_o", "covariate", "df_o", "group_o")
+
+  }
+  else{
+
+    df_o_long <- df_o %>%
+      reshape2::melt(id.vars="DP_o") %>%
+      left_join(groups[,c("covariate", "group_o")], by=c("variable" = "covariate")) %>%
+      mutate(DP_o = DP_o +1) #to get correct
+
+    colnames(df_o_long) <- c("DP_o", "covariate", "df_o", "group_o")
+  }
+
+
+  max_DP_rev_o = max(expected_o$DP_rev_o)
+
+  hazard_frame_output <- expected_o %>%
+    mutate(DP_o = max_DP_rev_o-DP_rev_o +1) %>%
+    left_join(hazard_frame_input_relevant, by =c("group_o")) %>%
+    left_join(df_o_long[, c("DP_o", "group_o", "df_o")], by = c("DP_o", "group_o")) %>%
+    replace_na(list(df_o = 1))
+
+  hazard_frame_output <- hazard_frame_output[,c(categorical_features,
+                         continuous_features,
+                         "AP_o",
+                         "DP_rev_o",
+                         "df_o",
+                         "group_o",
+                         "I_expected",
+                         "IBNR")]
+  return(hazard_frame_output)
+
+}
+
+pkg.env$i_to_o_hazard<- function(i,
+                                              hazard_data_frame,
+                                              #frame_tmp,
+                                              development_periods,
+                                              observed_pr_dp,
+                                              latest_cumulative,
+                                              conversion_factor){
+  "
+  WIP
+  Group input hazard to output.
+
+  "
+
+  " SHOULD be called from the following loop in the ReSurvIndividualData.R
+
+    #group to quarters, this is relatively time consuming,
+  #Note: the eta-approximation is not covariat dependent.
+  for( i in 1:max_DP){ #Loop through each output period, to find weights
+     # frame_tmp <- data.frame(IndividualData$training) %>% filter(TR_o<i) %>% #All claims that haven't been truncated at said reverse development
+     #   filter(DP_rev_o>=i) %>% #Claims that still hasn't been reported
+     #   mutate(time_w = round(ifelse(DP_rev_o==i, DP_rev_i, AP_i-1+1/(IndividualData$conversion_factor)*(i-AP_o+1) ),10) ) %>% #If a claim is reported in the corresponding development period save said reporting time, otherwise we need the corresponding limit for each acciedent period in the development period.
+     #   #mutate(weight = ifelse(DP_rev_o==i, (DP_rev_i-1)%%(1/(IndividualData$conversion_factor))+1, 1/(IndividualData$conversion_factor) )) %>% #If reported in said period give weight corresponding to amount of input_time period spend in output time_period, otherwise give width length of output as weight.
+     #   #mutate(weight_eta = ifelse(DP_rev_o==i, (DP_rev_i-1)%%(1/(IndividualData$conversion_factor))+1, 0 )) %>% #If reported in said period give weight corresponding to amount of input_time period spend in output time_period, otherwise give width length of output as weight.
+     #   mutate(observed = ifelse(DP_rev_o==i, 1, 0 )) %>%
+     #   mutate(exposure = ifelse(DP_rev_o==i, 0, 1 )) %>%
+     #   mutate(p_month = (AP_i-1)%%(1/(IndividualData$conversion_factor))+1) %>% #Entering month in development period
+     #   group_by(p_month, AP_i, time_w) %>%
+     #   dplyr::summarise(observed=sum(observed),
+     #                    exposure = sum(exposure), .groups='drop )
+
+
+  Grouoped hazard called from something of the like:
+      development_factor_o[i,] <- mapply(pkg.env$i_to_o_development_factor,
+                           1:max(hazard_data_frame$groups$group),
+                           MoreArgs=list(hazard_data_frame=hazard_data_frame$hazard_group,
+                                         development_periods = development_periods,
+                                         observed_pr_dp = latest_observed$observed_pr_dp,
+                                         latest_cumulative = latest_observed$latest_cumulative,
+                                         conversion_factor = IndividualData$conversion_factor))
+
+
+    #hazard_o[i,] <- unlist(grouped_hazard[1,])
+    #eta_o[i] <- unlist(grouped_hazard[2,1]) #since not accident-period dependent, eta is the same for every output period
+
+  }
+
+
+
+
+  "
+
+
+ #Get correct values and convert to ultimates before calculating weights.
+  input_period_weights <- grouped_hazard_0 %>%
+    group_by(AP_i, DP_max_rev, group ) %>%
+    summarize(I=mean(I), .groups = "drop") %>% #we have duplicates pr. AP_i but they will always be same pr. AP_i
+    left_join(hazard_data_frame[,c("AP_i", "group", "DP_rev_i", "S_i")], by=c("AP_i" = "AP_i",
+                                                                              "group" = "group",
+                                                                     "DP_max_rev" = "DP_rev_i")) %>%
+    mutate(U=I*1/S_i) %>%
+    mutate(i_period_weight = U/sum(U))
+
+  #Join the weights, which also give an indication of which development periods, pr. accident period is relevant in the parallelogram
+   grouped_hazard_1 <- grouped_hazard_0 %>%   inner_join(frame_tmp, by = c("p_month" = "p_month", "DP_rev_i" = "time_w", "AP_i" = "AP_i")) %>%
+    mutate(spend = (DP_rev_i-AP_i)%%(1/conversion_factor)+1) %>% #assuming average reporting times of 0.5 pr. development period in
+    #filter(!is.na(weight)) %>%
+    group_by(AP_i) %>%
+    mutate(#value_cum = cumsum(value),
+           #weight_new = ifelse(spend==1/conversion_factor,1/2*(S_i - S_i_lead)+(S_i_lead),1/2*(S_i - S_i_lead)),
+           weight_new_2 = 1/2*(S_i + S_i_lead)) %>% #probability weighted approach, for each parellelogram we assume reporting half way through
+    #arrange(AP_i, desc(DP_rev_i)) %>%  #here one weights by cumulative remaining hazard in parallelogram
+    #mutate(value_cum_rev = cumsum(value)) %>%
+    ungroup()
+
+ #If we have no rows in grouped_hazard_1 it is because we are in the lower triangle, here we allow for taking the average of the observed during other periods, or the probability approach
+  if(nrow(grouped_hazard_1 == 0)){
+    frame_tmp_2 <- frame_tmp %>%  group_by(p_month, time_w) %>%
+      dplyr::summarise(weight_eta=sum(weight_eta), .groups="drop" )
+
+    grouped_hazard_1 <- grouped_hazard_0 %>%   inner_join(frame_tmp_2, by = c("p_month" = "p_month", "DP_rev_i" = "time_w")) %>%
+      mutate(spend = (DP_rev_i-AP_i)%%(1/conversion_factor)+1) %>% #assuming average reporting times of 0.5 pr. development period in
+      group_by(AP_i) %>%
+      mutate(#value_cum = cumsum(value),
+        #weight_new = ifelse(spend==1/conversion_factor,1/2*(S_i - S_i_lead)+(S_i_lead),1/2*(S_i - S_i_lead)),
+        weight_new_2 = 1/2*(S_i + S_i_lead)) %>% #probability weighted approach, for each parellelogram we assume reporting half way through
+      #arrange(AP_i, desc(DP_rev_i)) %>%  #here one weights by cumulative remaining hazard in parallelogram
+      #mutate(value_cum_rev = cumsum(value)) %>%
+      ungroup()
+
+  }
+
+
+
+
+    #hazard2 <- sum(h_tmp_3$value_cum*h_tmp_3$weight) / sum(h_tmp_3$weight) #weighing by observed claims in each area in the parallelogram
+    #hazard2_2 <- sum(h_tmp_3$value_cum*(1-h_tmp_3$value_cum_s_i)) / sum(1-h_tmp_3$value_cum_s_i)
+    hazard_o <- sum(sum(grouped_hazard_1$value*grouped_hazard_1$weight_new_2) / sum(grouped_hazard_1$weight_new_2)) #weighting by probability
+    eta_o <- 1/ hazard_o - sum(grouped_hazard_1$exposure)/sum(grouped_hazard_1$observed)
+
+    #(1+(1-eta_o)*hazard_o)/(1-eta_o*hazard_o)
+
+    return(list(hazard_o, eta_o) )
+
+
+}
 
 
 pkg.env$spline_hp <- function(hparameters,IndividualData){

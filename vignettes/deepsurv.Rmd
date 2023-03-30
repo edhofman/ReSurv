@@ -31,7 +31,7 @@ input_data <- data_generator(random_seed = 1964)
 # # # ## Model fit ----
 individual_data <- IndividualData(input_data,
                                   id="claim_number",
-                                  continuous_features='AP_i',
+                                  continuous_features=NULL,
                                   categorical_features="claim_type",
                                   accident_period="AM",
                                   calendar_period="RM",
