@@ -15,6 +15,7 @@
 #' @param random_seed random seed set for reproducibility
 #' @param hparameters list of hyperparameters for 'deep_surv' and 'xgboost'. It will be disregarded for 'cox'.
 #' @param percentage_data_training percentage of data used for training on the upper triangle.
+#' @param grouping_method Use probability or exposure approach to group from input to output development factors.
 #'
 #'
 #' @return ReSurv fit.
@@ -30,7 +31,8 @@ ReSurv <- function(IndividualData,
                    continuous_features_scaling_method="minmax",
                    random_seed=1,
                    hparameters=list(),
-                   percentage_data_training=.8
+                   percentage_data_training=.8,
+                   grouping_method = "exposure"
 ){
 
   UseMethod("ReSurv")
@@ -54,6 +56,7 @@ ReSurv <- function(IndividualData,
 #' @param random_seed random seed set for reproducibility
 #' @param hparameters list of hyperparameters for 'deep_surv' and 'xgboost'. It will be disregarded for 'cox'.
 #' @param percentage_data_training percentage of data used for training on the upper triangle.
+#' @param grouping_method Use probability or exposure approach to group from input to output development factors.
 #'
 #' @return ReSurv fit.
 #' @export
@@ -64,7 +67,8 @@ ReSurv.default <- function(IndividualData,
                            continuous_features_scaling_method="minmax",
                            random_seed=1,
                            hparameters=list(),
-                           percentage_data_training=.8){
+                           percentage_data_training=.8,
+                           grouping_method = "exposure"){
 
   message('The object provided must be of class IndividualData')
 
@@ -89,6 +93,7 @@ ReSurv.default <- function(IndividualData,
 #' @param random_seed random seed set for reproducibility
 #' @param hparameters list of hyperparameters for 'deep_surv' and 'xgboost'. It will be disregarded for 'cox'.
 #' @param percentage_data_training percentage of data used for training on the upper triangle.
+#' @param grouping_method Use probability or exposure approach to group from input to output development factors.
 #'
 #' @return ReSurv fit.
 #' @export
@@ -99,7 +104,8 @@ ReSurv.IndividualData <- function(IndividualData,
                                continuous_features_scaling_method="minmax",
                                random_seed=1,
                                hparameters=list(),
-                               percentage_data_training=.8
+                               percentage_data_training=.8,
+                               grouping_method = "exposure"
                                ){
 
 
@@ -239,7 +245,8 @@ ReSurv.IndividualData <- function(IndividualData,
 
   expected_i <- pkg.env$predict_i(
     hazard_data_frame = hazard_frame_grouped$hazard_group,
-    latest_cumulative = latest_observed$latest_cumulative
+    latest_cumulative = latest_observed$latest_cumulative,
+    grouping_method = "exposure"
   )
 
   df_i <- pkg.env$retrieve_df_i(
@@ -286,7 +293,8 @@ ReSurv.IndividualData <- function(IndividualData,
                                          groups = hazard_frame_grouped$groups,
                                          observed_pr_dp = latest_observed$observed_pr_dp,
                                          latest_cumulative = latest_observed$latest_cumulative,
-                                         conversion_factor = IndividualData$conversion_factor))
+                                         conversion_factor = IndividualData$conversion_factor,
+                                         grouping_method = grouping_method))
 
 
 

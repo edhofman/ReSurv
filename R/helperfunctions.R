@@ -368,7 +368,7 @@ pkg.env$hazard_baseline_model <- function(data,
                                  nk=nk,
                                  nbin=nbin,
                                  phi=phi)
-    bs_hazard <- tibble(DP_rev_i = bs_hazard$time,
+    bs_hazard <- tibble(time = bs_hazard$time,
                          hazard = bs_hazard$hazard)
   }
 
@@ -523,12 +523,13 @@ pkg.env$covariate_mapping <- function(hazard_frame,
     groups <- unique(data.frame(covariate = hazard_frame$covariate)) %>%
       mutate(group_i = row_number())
 
+    expand.grid()
+
     hazard_group <- hazard_frame %>%  left_join(groups, by=c("covariate"))
   }
 
   #If we have to group for later output, add the relevant groups as well
   groups$group_o <- groups$group_i
-  groups$AP_o  <- ceiling(groups$AP_i*conversion_factor)
   # The only time the groups will be different, is when we are including accident period as a covariate
   if(conversion_factor != 1 & "AP_i" %in% continuous_features){
 
@@ -699,11 +700,12 @@ pkg.env$name_covariates <- function(data,
 }
 
 pkg.env$predict_i <- function(hazard_data_frame,
-                              latest_cumulative
+                              latest_cumulative,
+                              grouping_method
 ){
   "
-  Calculate expected incremential claim number on input scale
-
+  Calculate expected incremential claim number on input scale.
+  Grouping is used when doing granularity increased development factors in i_to_o_development_factor
    "
 
   # #select relevant hazard values
@@ -713,6 +715,7 @@ pkg.env$predict_i <- function(hazard_data_frame,
   # Predict expected numbers, this is also used grouping methodology
   expected <-  grouped_hazard_0 %>%
     select(DP_rev_i, AP_i, group_i, S_i, S_i_lag, DP_max_rev, latest_I ) %>%
+    mutate(gm = grouping_method) %>%
     left_join(hazard_data_frame %>%
                 mutate(DP_rev_i = DP_rev_i +1) %>%
                 select(DP_rev_i, AP_i, group_i, S_i) %>%
@@ -720,6 +723,7 @@ pkg.env$predict_i <- function(hazard_data_frame,
                                                  "AP_i" = "AP_i",
                                                  "group_i" = "group_i")) %>%
     mutate(U=case_when(
+      grouping_method == "probability" ~ 1,
       S_ultimate_i ==0 ~ 0,
       AP_i != 1 ~ 1/S_ultimate_i * latest_I,
       TRUE ~ latest_I)) %>%
@@ -868,7 +872,8 @@ pkg.env$i_to_o_development_factor <- function(i,
                                   groups,
                                   observed_pr_dp,
                                   latest_cumulative,
-                                  conversion_factor){
+                                  conversion_factor,
+                                  grouping_method){
   "
   Group input development factor to output.
 
@@ -887,8 +892,20 @@ pkg.env$i_to_o_development_factor <- function(i,
     group_by(AP_i, group_o, DP_max_rev) %>%
     summarize(latest_I = sum(latest_I, na.rm=T), .groups = "drop")
 
-  expected_i <-  expected_i %>%
+  #For probability approach to grouping method we assume equal exposure for each accident period
+  if(grouping_method == "probability"){
+  expected_i <-  pkg.env$predict_i(
+    hazard_data_frame = hazard_frame_grouped$hazard_group,
+    latest_cumulative = latest_observed$latest_cumulative,
+    grouping_method = "probability"
+  ) %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i"))
+  } else{
+    expected_i <-  expected_i %>%
+      left_join(groups[,c("group_i", "group_o")], by =c("group_i"))
+
+  }
+
 
   # #select relevant hazard value group and add output variables, and other variables to help with grouping
    grouped_hazard_0 <- hazard_data_frame %>%
@@ -916,32 +933,43 @@ pkg.env$i_to_o_development_factor <- function(i,
 
    #Where we do not have any observed correct exposure we extrapolate based on fitted hazard
    no_exposure <-  exposures %>%
-     filter(is.na(exposure)) %>%
-     select(DP_rev_i,  DP_rev_o, AP_i, group_o, S_i, S_i_lead, DP_max_rev, latest_I ) %>%
+     select(DP_rev_i,  DP_rev_o, AP_i, group_o, S_i, DP_max_rev, latest_I ) %>%
+     mutate(gm = grouping_method) %>%
      left_join(hazard_data_frame %>%
                  mutate(DP_rev_i = DP_rev_i +1) %>%
                  select(DP_rev_i, AP_i, group_o, S_i) %>%
                  rename(S_ultimate_i = S_i), by=c("DP_max_rev"="DP_rev_i",
                                                   "AP_i" = "AP_i",
                                                   "group_o" = "group_o")) %>%
-     mutate(U=ifelse(S_ultimate_i ==0, 0, 1/S_ultimate_i * latest_I)) %>%
+     mutate(U=ifelse(
+       S_ultimate_i ==0, 0,
+       1/S_ultimate_i * latest_I) ) %>%
+     mutate(U = ifelse(gm=="probability", 1 ,U)) %>%
      mutate(exposure_expected = U*(S_i)) %>%  #in theory one could say U*S_i- ifelse(DP_max_rev==DP_rev_i-1, latest_I, U*S_i_lead ), but this might lead to negative expected as we are not sure latest equal the same as distribution estimate
      select(AP_i, group_o, DP_rev_o, DP_rev_i, exposure_expected)
 
     #Take seen exposure if possible, otherwise extrapolated exposure
    exposures_combined <- exposures  %>%
+     mutate(gm = grouping_method) %>%
      left_join(no_exposure, by  = c(   "AP_i",
                                     "DP_rev_o",
                                     "DP_rev_i",
                                     "group_o")) %>%
-     mutate(exposure_combined = coalesce(exposure, exposure_expected))
+     mutate(exposure_combined = ifelse(gm == "probability",
+                                       coalesce(exposure_expected,0),
+                                       coalesce(exposure, exposure_expected))
+            )
 
   #Take seen observed if possible otherwise extrapolated observed
    grouped_hazard_1 <- grouped_hazard_0 %>%
+     mutate(gm = grouping_method) %>%
      left_join(expected_i, by  = c("AP_i",
                                         "group_o",
                                         "DP_rev_i")) %>%
-     mutate(I_combined = coalesce(I, I_expected,0))
+     mutate(I_combined = ifelse(gm == "probability",
+                                coalesce(I_expected,0),
+                                coalesce(I, I_expected,0))
+            )
 
    #group to output scale
    grouped_hazard_2 <- grouped_hazard_1 %>%
