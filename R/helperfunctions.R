@@ -109,7 +109,8 @@ pkg.env$vgrepl <- Vectorize(grepl, vectorize.args = "pattern")
 
 
 pkg.env$model.matrix.creator <- function(data,
-                                 select_columns){
+                                         select_columns,
+                                         remove_first_dummy = FALSE){
   "
   This function encodes the matrices that we need for model fitting.
 
@@ -118,14 +119,17 @@ pkg.env$model.matrix.creator <- function(data,
   #individual_data$training.data
   X <- data %>%
     dummy_cols(select_columns = select_columns, #individual_data$categorical_features
-                            remove_selected_columns = T)
+               remove_selected_columns = T,
+               remove_first_dummy = remove_first_dummy)
 
   tmp.cond=as.logical(apply(pkg.env$vgrepl(pattern=select_columns,
-                                   x=colnames(X)), #individual_data$categorical_features
+                                           x=colnames(X)), #individual_data$categorical_features
                             MARGIN=1,
                             sum))
 
-  X <- X[,tmp.cond]
+  X <- X %>%
+    select(colnames(X)[tmp.cond] ) %>%
+    as.data.frame()
 
   return(X)
 
