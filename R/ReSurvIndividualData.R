@@ -22,6 +22,7 @@
 #'
 #' @import reticulate
 #' @import tidyverse
+#' @import xgboost
 #'
 #' @export
 ReSurv <- function(IndividualData,
@@ -189,9 +190,48 @@ ReSurv.IndividualData <- function(IndividualData,
 
   }
 
+  if(hazard_model == "xgboost"){
+
+    X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
+                                  select_columns = IndividualData$categorical_features,
+                                  remove_first_dummy=T)
+
+    scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
+
+    Xc <- IndividualData$training.data %>%
+      summarize(across(all_of(IndividualData$continuous_features),
+                       scaler))
+
+    training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
+
+
+    X=cbind(X,Xc)
+
+    Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")]
+
+    datads_pp <- pkg.env$xgboost_pp(X,Y, training_test_split)
+
+    model.out <- pkg.env$fit_xgboost(datads_pp,
+                                     hparameters=hparameters)
+
+    bsln <- pkg.env$baseline.xgboost(model.out, datads_pp)
+
+    newdata.mx <- pkg.env$df.2.fcst.xgboost.pp(data=IndividualData$training.data,
+                                          newdata=newdata,
+                                          continuous_features=IndividualData$continuous_features,
+                                          categorical_features=IndividualData$categorical_features)
+
+    expg <- exp(predict(model.out,newdata.mx))
+
+    hazard_frame <- cbind(newdata,expg)
+
+    bsln <- data.frame(baseline=bsln, DP_rev_i=as.integer(unique(IndividualData$training.data$DP_rev_i)))
+    bsln <- bsln[,2:3]
+    colnames(bsln)[1]="baseline"
+  }
+
 
   ##################################################################################
-
 
   hazard_frame <- hazard_frame %>%
     full_join(bsln,

@@ -45,6 +45,7 @@ individual_data <- IndividualData(input_data,
 
 ```{r}
 # # # ## Model fit ----
+library(reticulate)
 resurv.fit <- ReSurv(individual_data,
                           hazard_model = "deepsurv",
                           hparameters=list(num_nodes=c(10,10),
@@ -61,15 +62,41 @@ resurv.fit <- ReSurv(individual_data,
                                           num_workers=0,
                                           tie="Efron"))
 
+
+
+```
+
+```{r eval=FALSE, include=FALSE}
+
+print(head(resurv.fit$hazard_frame_input))
+
+```
+
+
+```{r}
+# # # ## Model fit ----
+resurv.fit.cox <- ReSurv(individual_data,
+                          hazard_model = "cox",
+                         baseline="spline",
+                          hparameters = list(params=50, 
+                                             nbin=48, 
+                                             phi=1))
+
 ```
 
 ```{r}
 # # # ## Model fit ----
-resurv.fit <- ReSurv(individual_data,
-                          hazard_model = "cox",
-                          hparameters = list(nk=50, 
-                                             nbin=48, 
-                                             phi=1))
+resurv.fit.xgboost <- ReSurv(individual_data,
+                          hazard_model = "xgboost",
+                          hparameters = list(params=list(booster="gbtree",
+                                             eta=.01,
+                                             subsample=.5,
+                                             alpha=1,
+                                             lambda=1,
+                                             min_child_weight=.2),
+                                             print_every_n = 1,
+                                             nrounds=10,
+                                             early_stopping_rounds = 500))
 
 ```
 
