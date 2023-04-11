@@ -30,7 +30,7 @@ ReSurv <- function(IndividualData,
                    tie='efron',
                    baseline="spline",
                    continuous_features_scaling_method="minmax",
-                   random_seed=1,
+                   random_seed=1964,
                    hparameters=list(),
                    percentage_data_training=.8,
                    grouping_method = "exposure"
@@ -156,21 +156,27 @@ ReSurv.IndividualData <- function(IndividualData,
 
     training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
 
-    datads_pp = pkg.env$deep_surv_pp(X=cbind(X,Xc),
-                           Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")],
+    X = cbind(X,Xc)
+
+    Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
+
+    datads_pp = pkg.env$deep_surv_pp(X=X,
+                           Y=Y,
                            training_test_split = training_test_split)
 
 
     model.out <- pkg.env$fit_deep_surv(datads_pp,
                                        hparameters=hparameters)
 
+    # bsln <- model.out$compute_baseline_hazards(
+    #   input = datads_pp$x_train,
+    #   target = datads_pp$y_train,
+    #   batch_size = hparameters$batch_size)
 
-
-    bsln <- model.out$compute_baseline_hazards(
-      input = datads_pp$x_train,
-      target = datads_pp$y_train,
-      batch_size = hparameters$batch_size)
-
+    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+                                  model.out = model.out,
+                                  X=X,
+                                  Y=Y)
 
     newdata.mx <- pkg.env$df.2.fcst.nn.pp(data=IndividualData$training.data,
                                           newdata=newdata,
@@ -186,7 +192,8 @@ ReSurv.IndividualData <- function(IndividualData,
     expg <- exp(beta_ams)
 
     hazard_frame <- cbind(newdata,expg)
-    bsln <- data.frame(baseline=bsln, DP_rev_i=as.integer(names(bsln)))
+    bsln <- data.frame(baseline=bsln,
+                       DP_rev_i=sort(as.integer(unique(IndividualData$training.data$DP_rev_i))))
 
   }
 
@@ -214,7 +221,10 @@ ReSurv.IndividualData <- function(IndividualData,
     model.out <- pkg.env$fit_xgboost(datads_pp,
                                      hparameters=hparameters)
 
-    bsln <- pkg.env$baseline.xgboost(model.out, datads_pp)
+    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+                                  model.out = model.out,
+                                  X=X,
+                                  Y=Y)
 
     newdata.mx <- pkg.env$df.2.fcst.xgboost.pp(data=IndividualData$training.data,
                                           newdata=newdata,
@@ -225,9 +235,9 @@ ReSurv.IndividualData <- function(IndividualData,
 
     hazard_frame <- cbind(newdata,expg)
 
-    bsln <- data.frame(baseline=bsln, DP_rev_i=as.integer(unique(IndividualData$training.data$DP_rev_i)))
-    bsln <- bsln[,2:3]
-    colnames(bsln)[1]="baseline"
+    bsln <- data.frame(baseline=bsln,
+                       DP_rev_i=sort(as.integer(unique(IndividualData$training.data$DP_rev_i))))
+
   }
 
 

@@ -295,29 +295,28 @@ class _CoxPHBase(_CoxBase):
     def _compute_baseline_hazards(self, input, df_target, max_duration, batch_size, eval_=True, num_workers=0):
         if max_duration is None:
             max_duration = np.inf
-        
+        #this doesn't take the effron risk set adjustment into account.
         labels = df_target[self.duration_col]
 
         event_set = np.zeros((labels.unique().size,labels.size)) #Create temporaty set on which we store the event for each development time in batch
-        risk_set = np.zeros((labels.unique().size, labels.size)) #Create temporary set on which we store the risk set for each relevant time. 
+        risk_set = np.zeros((labels.unique().size, labels.size)) #Create temporary set on which we store the risk set for each relevant time.
         unique = labels.unique().tolist()
         unique.sort()
-
+        #
         for i in(range(len(unique))): #create correct exposure and risk set
             event_set[i,:] = (labels == unique[i])
             risk_set[i,:] = (df_target[self.duration_col]>= unique[i]) * (df_target[self.truncation_col] < unique[i])
-
+        #
         pred = np.exp(self.predict(input, batch_size, True, eval_, num_workers=num_workers))
+        #
+        risk_set = risk_set.dot(pred) #- 1/2*(event_set.dot(pred).sum(-1).reshape(-1,1))
 
-        risk_set = risk_set.dot(pred) - 1/2*(event_set.dot(pred).sum(-1).reshape(-1,1))
-
-
-        # Here we are computing when expg when there are no events.
+                # Here we are computing when expg when there are no events.
         #   Could be made faster, by only computing when there are events.
         return (df_target
                 .sort_values(self.duration_col)
                 .groupby(self.duration_col)
-                .agg({self.event_col: 'sum'})                
+                .agg({self.event_col: 'sum'})
                 .assign(risk = risk_set)
                 .pipe(lambda x: x[self.event_col]/x['risk'])
                 .fillna(0.)
@@ -325,6 +324,53 @@ class _CoxPHBase(_CoxBase):
                 .iloc[::-1]
                 .loc[lambda x: x.index <= max_duration]
                 .rename('baseline_hazards'))
+
+                
+        # event_set = np.zeros((labels.unique().size,labels.size)) #Create temporaty set on which we store the event for each development time in batch
+        # risk_set = np.zeros((labels.unique().size, labels.size)) #Create temporary set on which we store the risk set for each relevant time. 
+        # efron_set = np.zeros((labels.unique().size, labels.size))
+        # unique = labels.unique().tolist()
+        # unique.sort()
+        # 
+        # 
+        # for i in(range(len(unique))): #This handles ties the efron way (see https://people.math.aau.dk/~rw/Undervisning/DurationAnalysis/Slides/lektion3.pdf slide 24)
+        #     event_set[i,:] = (labels == unique[i]) #Handles censoring
+        #     risk_set[i,:] = (df_target[self.duration_col]>= unique[i]) * (df_target[self.truncation_col] < unique[i])
+        #     tmp =  np.arange(0,np.sum(event_set[i,:]))
+        #     efron_set[i, tmp.astype(int).tolist()] = tmp #Diffrent set,since we need a special risk set for each claim during a tied event time.
+        # 
+        # pred = np.exp(self.predict(input, batch_size, True, eval_, num_workers=num_workers))
+        # 
+        # h_risk = risk_set.dot(pred)
+        # 
+        # h_events0 = event_set.dot(pred)
+        # 
+        # efron_risk = (1/np.sum(event_set,1)).mul(h_events0).reshape(-1,1).dot(np.ones(1,len(labels.tolist())))
+        # 
+        # efron_risk = efron_risk.mul(efron_set)
+        # 
+        # #if no exposure in relevant risk group, set to 0 (would also be handled by events_summed multiplication, but inf*0 = inf in python)
+        # h_risk[h_risk.abs()==float('inf')]= 1
+        # 
+        # events_sort,_ = event_set.sort(-1, descending=True)
+        # efron_risk = (h_risk.reshape(-1,1).sub(efron_risk)).dot(events_sort.t()).diagonal() #only need the diagonal column,can probably be done smarter
+        # efron_risk[efron_risk.abs()==float('inf')]= 0
+        # # Here we are computing when expg when there are no events.
+        # #   Could be made faster, by only computing when there are events.
+        # return (df_target
+        #         .sort_values(self.duration_col)
+        #         .groupby(self.duration_col)
+        #         .agg({self.event_col: 'sum'})                
+        #         .assign(risk = efron_risk)
+        #         .pipe(lambda x: 1/x['risk'])
+        #         .fillna(0.)
+        #         .sort_index(ascending=False)
+        #         .iloc[::-1]
+        #         .loc[lambda x: x.index <= max_duration]
+        #         .rename('baseline_hazards'))
+        #         
+                  
+                
 
     def _predict_cumulative_hazards(self, input, max_duration, batch_size, verbose, baseline_hazards_,
                                     eval_=True, num_workers=0):

@@ -170,7 +170,7 @@ pkg.env$model.matrix.extract.hazard.names <- function(X,
 
 pkg.env$MinMaxScaler <- function(x, na.rm = TRUE) {
   "MinMax Scaler"
-  return((x- min(x)) /(max(x)-min(x)))
+  return(2*(x- min(x)) /(max(x)-min(x))-1)
 }
 
 pkg.env$scaler <- function(continuous_features_scaling_method){
@@ -182,13 +182,25 @@ pkg.env$scaler <- function(continuous_features_scaling_method){
 
 
 pkg.env$deep_surv_pp <- function(X,
-                    Y,
-                    training_test_split){
+                                 Y,
+                                 training_test_split){
 
   # data_transformed <- cbind(X, Y)
+  X <- cbind(X, DP_rev_i = Y$DP_rev_i) %>%
+    arrange(DP_rev_i) %>%
+    select(-DP_rev_i)
 
-  id_train <- sample(c(TRUE,FALSE), nrow(X), replace=T, prob= c(training_test_split,1-training_test_split) )
+  Y <- Y %>%
+    arrange(DP_rev_i) %>%
+    as.data.frame()
 
+  #id_train <- sample(c(TRUE,FALSE), nrow(X), replace=T, prob= c(training_test_split,1-training_test_split) )
+
+  tmp <- as.data.frame(seq(1,dim(X)[1]))
+  colnames(tmp) <- "id"
+
+  samples_cn <- tmp %>% sample_frac(size=training_test_split)
+  id_train <- tmp$id %in% samples_cn$id
 
   #convert to array for later numpy transforamtion
   data_train <- as.array(as.matrix(X[id_train,]))
@@ -204,8 +216,8 @@ pkg.env$deep_surv_pp <- function(X,
 
   validation_data = reticulate::tuple(reticulate::np_array(data_val, dtype = "float32"),
                                       reticulate::tuple(reticulate::np_array(y_val[,1], dtype = "float32"), #duration
-                                reticulate::np_array(y_val[,2], dtype = "float32"), #event
-                                reticulate::np_array(y_val[,3], dtype = "float32"))) #truncation
+                                                        reticulate::np_array(y_val[,2], dtype = "float32"), #event
+                                                        reticulate::np_array(y_val[,3], dtype = "float32"))) #truncation
 
   x_train = reticulate::np_array(data_train, dtype = "float32")
 
@@ -226,7 +238,7 @@ pkg.env$fit_cox_model <- function(data,
                           newdata){
   "This function is the fitting routine for the cox model."
 
-  cox <- coxph(formula_ct, data=data)
+  cox <- survival::coxph(formula_ct, data=data, ties="efron")
   cox_lp <- predict(cox,newdata=newdata,'lp',reference='zero')
 
   # beta_2 <- cox$coef
@@ -1170,7 +1182,7 @@ pkg.env$spline_hp <- function(hparameters,IndividualData){
   Returns spline hyperparameters in case they are not provided from the user.
 
   "
-
+  if(length(hparameters)>0){
   tmp <- list()
 
   tmp$nk <- ifelse(is.null(hparameters$nk),nrow(IndividualData$training.data)/4,hparameters$nk)
@@ -1180,7 +1192,7 @@ pkg.env$spline_hp <- function(hparameters,IndividualData){
   tmp$phi <- ifelse(is.null(hparameters$phi),NULL,hparameters$phi)
 
   return(tmp)
-
+  }
 }
 
 
@@ -1218,7 +1230,7 @@ pkg.env$df.2.fcst.nn.pp <- function(data,
     mnv <- min(data[cft])
     mxv <- max(data[cft])
 
-    tmp[,cft] <-(tmp[,cft]-mnv)/(mxv-mnv)
+    tmp[,cft] <-2*(tmp[,cft]-mnv)/(mxv-mnv)-1
 
   }
 
@@ -1246,7 +1258,7 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
       mnv <- min(data[cft])
       mxv <- max(data[cft])
 
-      tmp[,cft] <-(tmp[,cft]-mnv)/(mxv-mnv)
+      tmp[,cft] <-2*(tmp[,cft]-mnv)/(mxv-mnv)-1
 
     }
     Xc=as.matrix.data.frame(tmp)
@@ -1285,6 +1297,26 @@ pkg.env$xgboost_pp <-function(X,Y, training_test_split){
     group_by(DP_rev_i) %>%
     mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
 
+  ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X))), label=tmp_train$I)
+  attr(ds_train_m, 'truncation') <- tmp_train$TR_i
+  attr(ds_train_m, 'claim_arrival') <- tmp_train$DP_rev_i
+
+
+  attr(ds_train_m, 'risk_sets') <- risks_in_the_tie(starts_i=tmp_train$TR_i,
+                                                    stops_i=tmp_train$DP_rev_i,
+                                                    stops = unique(tmp_train$DP_rev_i))
+  attr(ds_train_m, 'event_sets') <- events_in_the_tie(starts_i=tmp_train$TR_i,
+                                                      stops_i=tmp_train$DP_rev_i,
+                                                      stops = unique(tmp_train$DP_rev_i))
+
+  attr(ds_train_m, 'efron_c') <- tmp_train$efron_c
+
+  attr(ds_train_m, 'tieid') <- unname(table(tmp_train$DP_rev_i))
+
+  attr(ds_train_m, 'groups') <- rep( as.integer(names(table(tmp_train$end_time))),
+                                     attr(ds_train_m, 'tieid'))
+
+  if(training_test_split<1){
   tmp_test <- tmp %>%
     anti_join(samples_cn)%>%
     arrange(DP_rev_i) %>%
@@ -1294,48 +1326,35 @@ pkg.env$xgboost_pp <-function(X,Y, training_test_split){
 
   # ds_all_m <- xgboost::xgb.DMatrix( as.matrix(tmp,ncol=1),
   #                          label=tmp$I)
-  ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X))), label=tmp_train$I)
-  ds_test_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_test %>% select(colnames(X)), label=tmp_test$I))
+   ds_test_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_test %>% select(colnames(X)), label=tmp_test$I))
 
-  attr(ds_train_m, 'truncation') <- tmp_train$TR_i
+
   attr(ds_test_m, 'truncation') <- tmp_test$TR_i
-  attr(ds_train_m, 'claim_arrival') <- tmp_train$DP_rev_i
   attr(ds_test_m, 'claim_arrival') <- tmp_test$DP_rev_i
-
-
-  attr(ds_train_m, 'risk_sets') <- risks_in_the_tie(starts_i=tmp_train$TR_i,
-                                                    stops_i=tmp_train$DP_rev_i,
-                                                    stops = unique(tmp_train$DP_rev_i))
 
   attr(ds_test_m, 'risk_sets') <- risks_in_the_tie(starts_i=tmp_test$TR_i,
                                                    stops_i=tmp_test$DP_rev_i,
                                                    stops = unique(tmp_test$DP_rev_i))
 
   #
-
-  attr(ds_train_m, 'event_sets') <- events_in_the_tie(starts_i=tmp_train$TR_i,
-                                                      stops_i=tmp_train$DP_rev_i,
-                                                      stops = unique(tmp_train$DP_rev_i))
   attr(ds_test_m, 'event_sets') <- events_in_the_tie(starts_i=tmp_test$TR_i,
                                                      stops_i=tmp_test$DP_rev_i,
                                                      stops = unique(tmp_test$DP_rev_i))
-
   #
-  attr(ds_train_m, 'efron_c') <- tmp_train$efron_c
   attr(ds_test_m, 'efron_c') <- tmp_test$efron_c
 
-  attr(ds_train_m, 'tieid') <- unname(table(tmp_train$DP_rev_i))
   attr(ds_test_m, 'tieid') <- unname(table(tmp_test$DP_rev_i))
 
-
-  attr(ds_train_m, 'groups') <- rep( as.integer(names(table(tmp_train$end_time))),
-                                     attr(ds_train_m, 'tieid'))
   attr(ds_test_m, 'groups') <- rep( as.integer(names(table(tmp_test$end_time))),
                                     attr(ds_test_m, 'tieid'))
 
   return(list(ds_train_m=ds_train_m,
               ds_test_m=ds_test_m))
-
+  }
+  else{
+    return(list(ds_train_m=ds_train_m,
+                ds_test_m=NULL))
+  }
 }
 
 
@@ -1360,18 +1379,48 @@ pkg.env$fit_xgboost <- function(datads_pp,
 
 }
 
-pkg.env$baseline.xgboost <- function(model.out, datads_pp){
+pkg.env$baseline.efron <- function(preds, dtrain){
 
-  risk_sets <- attr(datads_pp$ds_train_m, 'risk_sets')
-  preds <- predict(model.out, datads_pp$ds_train_m)
-  tieid<- attr(datads_pp$ds_train_m, 'tieid')
+  risk_sets <- attr(dtrain, 'risk_sets')
+  event_sets <- attr(dtrain, 'event_sets')
+  efron_c<-attr(dtrain, 'efron_c')
+  tieid<- attr(dtrain, 'tieid')
+
   exp_p_sum <- sapply(risk_sets,FUN=exp_sum_computer, ypred=preds)
+  exp_p_tie <- sapply(event_sets,FUN=exp_sum_computer, ypred=preds)
 
-  tieid/(exp_p_sum)
+  exp_p_sum <- rep(sapply(risk_sets,FUN=exp_sum_computer, ypred=preds), tieid)
+  exp_p_tie <-  rep(sapply(event_sets,FUN=exp_sum_computer, ypred=preds), tieid)
+
+  alpha_i <- 1/(exp_p_sum-efron_c*exp_p_tie)
+
+  baseline <- sapply(event_sets, FUN = function(x,values){sum(values[x]) }, values=alpha_i)
+
+  baseline
 
 }
 
+pkg.env$baseline.calc <- function(hazard_model, model.out, X, Y){
 
+  #for baseline need full training data
+  datads_pp <- pkg.env$xgboost_pp(X,Y, training_test_split = 1)
+
+  if(hazard_model=="deepsurv"){
+    datads_pp_nn = pkg.env$deep_surv_pp(X=X,
+                                     Y=Y,
+                                     training_test_split = 1)
+
+    predict_bsln <- model.out$predict(input=datads_pp_nn$x_train)
+
+  }
+  if(hazard_model == "xgboost"){
+    predict_bsln <- predict(model.out,datads_pp$ds_train_m)
+  }
+  bsln <- pkg.env$baseline.efron(predict_bsln, datads_pp$ds_train_m)
+
+  bsln
+
+}
 
 
 
