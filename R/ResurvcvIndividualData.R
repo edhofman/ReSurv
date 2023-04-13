@@ -18,9 +18,12 @@ ReSurvCV <- function(IndividualData,
                      hparameters_grid,
                      folds,
                      random_seed,
+                     continuous_features_scaling_method="minmax",
                      print_every_n = NULL,
                      nrounds= NULL,
                      early_stopping_rounds = NULL,
+                     epochs=1,
+                     num_workers  =0,
                      verbose.cv=F,
                      verbose=F){
 
@@ -44,9 +47,13 @@ ReSurvCV.default <- function(IndividualData,
                              hparameters_grid,
                              folds,
                              random_seed,
+                             continuous_features_scaling_method="minmax",
                              print_every_n = NULL,
                              nrounds= NULL,
                              early_stopping_rounds = NULL,
+                             epochs=1,
+                             num_workers  =0,
+                             verbose = F,
                              verbose.cv){
 
   message('The object provided must be of class IndividualData')
@@ -70,10 +77,13 @@ ReSurvCV.IndividualData <- function(IndividualData,
                                   hparameters_grid,
                                   folds,
                                   random_seed,
+                                  continuous_features_scaling_method="minmax",
                                   print_every_n = NULL,
                                   nrounds= NULL,
+                                  epochs=NULL,
+                                  num_workers = 0,
                                   verbose.cv=F,
-                                  verbose,
+                                  verbose = F,
                                   early_stopping_rounds = NULL){
 
 
@@ -83,9 +93,11 @@ ReSurvCV.IndividualData <- function(IndividualData,
                    replace=TRUE,
                    prob=rep(1/folds,folds))
 
+  hparameters_grid <- pkg.env$nn_hparameter_nodes_grid(hparameters_grid, cv=T)
 
   hparameters.f <- expand.grid(hparameters_grid,
-                               KEEP.OUT.ATTRS = FALSE)
+                               KEEP.OUT.ATTRS = FALSE,
+                               stringsAsFactors = FALSE)
 
 
   if(model == "LTRCtrees"){
@@ -140,6 +152,19 @@ ReSurvCV.IndividualData <- function(IndividualData,
                               verbose.cv=verbose.cv)
 
 
+
+  }
+  if(model == "deepsurv"){
+    out.cv <- pkg.env$deep_surv_cv(IndividualData,
+                                 continuous_features_scaling_method = continuous_features_scaling_method,
+                                 folds,
+                                 kfolds,
+                                 hparameters.f,
+                                 epochs = epochs,
+                                 num_workers = num_workers,
+                                 out,
+                                 verbose=verbose,
+                                 verbose.cv=verbose.cv)
 
   }
 

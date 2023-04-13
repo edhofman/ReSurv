@@ -185,24 +185,48 @@ pkg.env$scaler <- function(continuous_features_scaling_method){
 
 pkg.env$deep_surv_pp <- function(X,
                                  Y,
-                                 training_test_split){
+                                 training_test_split,
+                                 samples_TF=NULL){
 
   # data_transformed <- cbind(X, Y)
-  X <- cbind(X, DP_rev_i = Y$DP_rev_i) %>%
-    arrange(DP_rev_i) %>%
-    select(-DP_rev_i)
 
-  Y <- Y %>%
-    arrange(DP_rev_i) %>%
-    as.data.frame()
 
+  if(!is.null(samples_TF)){
+    X <- cbind(X, DP_rev_i = Y$DP_rev_i) %>%
+      mutate(samples_TF = samples_TF) %>%
+      arrange(DP_rev_i) %>%
+      select(-DP_rev_i)
+
+    Y <- Y %>%
+      mutate(samples_TF = samples_TF) %>%
+      arrange(DP_rev_i) %>%
+      as.data.frame()
+  }else{
+    X <- cbind(X, DP_rev_i = Y$DP_rev_i) %>%
+      arrange(DP_rev_i) %>%
+      select(-DP_rev_i)
+
+    Y <- Y %>%
+      arrange(DP_rev_i) %>%
+      as.data.frame()
+  }
   #id_train <- sample(c(TRUE,FALSE), nrow(X), replace=T, prob= c(training_test_split,1-training_test_split) )
 
   tmp <- as.data.frame(seq(1,dim(X)[1]))
   colnames(tmp) <- "id"
 
-  samples_cn <- tmp %>% sample_frac(size=training_test_split)
-  id_train <- tmp$id %in% samples_cn$id
+  if(is.null(samples_TF)){
+
+    samples_cn <- tmp %>% sample_frac(size=training_test_split)
+    id_train <- tmp$id %in% samples_cn$id
+
+  }else{
+
+    cond <- samples_TF
+    samples_cn <- tmp %>% select(id) %>% filter(cond)
+    id_train <- tmp$id %in% samples_cn$id
+  }
+
 
   #convert to array for later numpy transforamtion
   data_train <- as.array(as.matrix(X[id_train,]))
@@ -283,7 +307,10 @@ pkg.env$fit_LTRCtrees <- function(data,
 
 
 pkg.env$fit_deep_surv <- function(data,
-                                  hparameters,
+                                  params,
+                                  verbose,
+                                  epochs,
+                                  num_workers,
                                   network_structure=NULL,
                                   newdata){
 
@@ -296,60 +323,45 @@ pkg.env$fit_deep_surv <- function(data,
   #Source python code for left truncated deepsurv
   # reticulate::source_python(".\\inst\\python\\coxnetwork_custom.py")
   reticulate::source_python(system.file("python", "coxnetwork_custom.py", package = "ReSurv"))
-  # reticulate::py_run_file(system.file("python", "coxnetwork_custom.py", package = "ReSurv"))
-  # print('test')
-  #create network structure, if correct class specified in network_strucutre use this, otherwise use other variables.
-  # if(!("torch.nn.modules.container.Sequential" %in% class(network_structure$net))){
-  #   net <- torch$nn$Sequential()
-  #   input_shape =  data$x_train$shape[[1]]
-  #   for( i in 1:length(hparameters$num_nodes)+1){
-  #     if( i > length(hparameters$num_nodes)){
-  #       net$append(torch$nn$Linear(input_shape, as.integer(1)))
-  #     }else{
-  #       net$append(torch$nn$Linear(input_shape,as.integer(hparameters$num_nodes[i])))
-  #       net$append(torch$nn[[activation]]() )
-  #
-  #       input_shape = as.integer(hparameters$num_nodes[i])
-  #     }
-  #   }
-  # }
 
+
+  #if an optuna-algorithm is to be fitted, keep for now.
   if(!("torch.nn.modules.container.Sequential" %in% class(network_structure$net))){
     net <- torch$nn$Sequential()
     input_shape =  data$x_train$shape[[1]]
-    for( i in 1:length(hparameters$num_nodes)+1){
-      if( i > length(hparameters$num_nodes)){
+    for( i in 1:(params$num_layers+1)){
+      if( i > params$num_layers){
         # net$append(torch$nn$Linear(input_shape, as.integer(1)))
-        net$add_module('2',torch$nn$Linear(input_shape, as.integer(1)))
+        net$add_module(paste0(i,"_l"),torch$nn$Linear(input_shape, as.integer(1), bias=FALSE))
       }
       else{
-        net$add_module('0',torch$nn$Linear(input_shape,as.integer(hparameters$num_nodes[i])))
-        net$add_module('1',torch$nn[[hparameters$activation]]())
-        input_shape = as.integer(hparameters$num_nodes[i])
+        net$add_module(paste0(i,"_l"),torch$nn$Linear(input_shape,as.integer(params[[paste0("node_",i)]] )))
+        net$add_module(paste0(i,"_a"),torch$nn[[params$activation]]())
+        input_shape = as.integer(params[[paste0("node_",i)]] )
       }
     }
   }
 
 
   #Setup batchsize, epochs and verbose settings
-  # batch_size = as.integer(hparameters$batch_size)
+  # batch_size = as.integer(params$batch_size)
   #
-  # epochs = as.integer(hparameters$epochs)
+  # epochs = as.integer(params$epochs)
 
 
   # Setup CoxPH model, as imported from python script.
   model <- CoxPH(
     net = net,
-    optimizer = torchtuples$optim$Adam(lr=hparameters$lr),
-    xi=hparameters$xi,
-    eps=hparameters$epsilon,
-    tie = hparameters$tie
+    optimizer = torchtuples$optim[[params$optim]](lr=params$lr),
+    xi=params$xi,
+    eps=params$eps,
+    tie = params$tie
   )
 
 
   #If early stopping specified add to callbacks.
-  if(hparameters$early_stopping==TRUE){
-    callbacks = list(torchtuples$callbacks$EarlyStopping(patience=hparameters$patience))
+  if(params$early_stopping==TRUE){
+    callbacks = list(torchtuples$callbacks$EarlyStopping(patience=as.integer(params$patience)))
   }else{
     callbacks = NULL
   }
@@ -358,13 +370,13 @@ pkg.env$fit_deep_surv <- function(data,
   model$fit(
     input = data$x_train,
     target = data$y_train,
-    batch_size = hparameters$batch_size,
-    epochs = hparameters$epochs,
+    batch_size = as.integer(params$batch_size),
+    epochs = epochs,
     callbacks = r_to_py(callbacks),
-    verbose = hparameters$verbose,
+    verbose = verbose,
     val_data=data$validation_data,
-    val_batch_size=hparameters$batch_size,
-    num_workers=hparameters$num_workers
+    val_batch_size=params$batch_size,
+    num_workers=num_workers
   )
 
   return(model)
@@ -1296,6 +1308,32 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
 
 }
 
+pkg.env$benchmark_id <- function(X,
+                                 Y,
+                                 newdata.mx
+                                         ){
+  "
+  Find benchmark value used in baseline calculation.
+  "
+
+  benchmark <- cbind(X,DP_rev_i = Y$DP_rev_i) %>%
+    arrange(DP_rev_i) %>%
+    first() %>%
+    select(-DP_rev_i) %>%
+    as.vector() %>%
+    unlist() %>%
+    unname()
+
+
+  benchmark_id <- which(apply(newdata.mx, 1, function(x) sum(benchmark == x) == length(benchmark) ))[1]
+
+
+
+  return(benchmark_id)
+
+}
+
+
 ## xgboost ----
 
 pkg.env$xgboost_pp <-function(X,
@@ -1459,6 +1497,8 @@ pkg.env$baseline.calc <- function(hazard_model,
 
   if(hazard_model == "xgboost"){
     predict_bsln <- predict(model.out,datads_pp$ds_train_m)
+
+    benchmark_values <- py_to_r(datads_pp_nn$x_train)[1,]
   }
 
   if(hazard_model == "LTRCtrees"){
@@ -1468,7 +1508,7 @@ pkg.env$baseline.calc <- function(hazard_model,
                                   as.data.frame()))
 
   }
-
+  predict_bsln <- predict_bsln - predict_bsln[1] #make relative to intial value, same approach as cox
   bsln <- pkg.env$baseline.efron(predict_bsln, datads_pp$ds_train_m)
 
   bsln
@@ -1587,6 +1627,115 @@ pkg.env$ltrcart_cv <- function(IndividualData,
   return(out)
 
 }
+
+# nn cv -----
+pkg.env$nn_hparameter_nodes_grid <- function(hparameters, cv = FALSE){
+  "
+  Expand hyperparameter grid for network structure
+  "
+  if("num_layers" %in% names(hparameters)){
+    if(cv == TRUE){
+      for ( i in 1:hparameters$num_layers){
+        hparameters[[paste0("node_",i)]] <- hparameters$num_nodes
+       }
+    }
+    else{
+      if (hparameters$num_layers == length(hparameters$num_nodes)){
+        for ( i in 1:hparameters$num_layers){
+          hparameters[[paste0("node_",i)]] <- hparameters$num_nodes[i]
+        }
+      } else if(length(hparameters$num_nodes) == 1) {
+        for ( i in 1:hparameters$num_layers){
+          hparameters[[paste0("node_",i)]] <- hparameters$num_nodes
+        }
+      } else{
+        warning(paste0("Num_nodes hyperparameter not inputted correctly.
+                      Please either input one number, which will be used for all layer, or the same amount of nodes as layers.
+                       Defaulting to first element in Num_nodes list for all layers."))
+        for ( i in 1:hparameters$num_layers){
+          hparameters[[paste0("node_",i)]] <- hparameters$num_nodes[1]
+        }
+      }
+
+    }
+    hparameters[["num_nodes"]] <- NULL }
+  return(hparameters)
+}
+
+pkg.env$deep_surv_cv <- function(IndividualData,
+                               continuous_features_scaling_method,
+                               folds,
+                               kfolds,
+                               verbose=1,
+                               epochs,
+                               num_workers,
+                               hparameters.f,
+                               out,
+                               verbose.cv=FALSE){
+
+  "Function to perform K-fold cross-validation with xgboost"
+
+
+  for(hp in 1:dim(hparameters.f)[1]){
+
+    if(verbose.cv){cat(as.character(Sys.time()),
+                       "Testing hyperparameters combination",
+                       hp,
+                       "out of",
+                       dim(hparameters.f)[1], "\n")}
+
+    hparameters <- list(params=as.list.data.frame(hparameters.f[hp,]),
+                        verbose=verbose,
+                        epochs = epochs,
+                        num_workers = num_workers)
+
+    tmp.train.lkh <- vector("numeric",
+                            length=folds)
+    tmp.test.lkh <- vector("numeric",
+                           length=folds)
+
+    X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
+                                      select_columns = IndividualData$categorical_features)
+
+    scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
+
+    Xc <- IndividualData$training.data %>%
+      summarize(across(all_of(IndividualData$continuous_features),
+                       scaler))
+    X=cbind(X,Xc)
+
+    Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")]
+
+    for(i in c(1:folds)){
+
+      datads_pp = pkg.env$deep_surv_pp(X=X,
+                                       Y=Y,
+                                       samples_TF= c(kfolds!=i))
+
+
+
+      model.out.k <- do.call(pkg.env$fit_deep_surv, list(data=datads_pp,
+                                                       params=hparameters$params,
+                                                       verbose = hparameters$verbose,
+                                                       epochs = hparameters$epochs,
+                                                       num_workers = hparameters$num_workers))
+
+
+      best.it <- model.out.k$log$to_pandas()[,1] == min(model.out.k$log$to_pandas()[,1])
+      tmp.train.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['train_loss']))
+      tmp.test.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['val_loss']))
+
+    }
+
+
+    out[hp,c("train.lkh","test.lkh")] = c(mean(tmp.train.lkh),mean(tmp.test.lkh))
+
+  }
+
+  return(out)
+
+}
+
 
 
 

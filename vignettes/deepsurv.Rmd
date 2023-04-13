@@ -65,38 +65,52 @@ resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
 
 ```
 
-```{r eval=FALSE, include=FALSE}
 
+```{r}
 # # # ## Model fit ----
-resurv.cv.ltrctrees <- ReSurvCV(IndividualData=individual_data,
-                               model="LTRCtrees",
-                               hparameters_grid = list(
-                                 minbucket = c(1,2),
-                                 cp=c(.2,.01)),
-                               folds=5,
-                               random_seed=1,
-                               verbose.cv = T)
+library(reticulate)
+resurv.cv.deep_surv <- ReSurvCV(IndividualData=individual_data,
+                               model="deepsurv",
+                               hparameters_grid=list(num_layers = 2L,
+                                                    num_nodes = c(2,10),
+                                                    optim=c("Adam", "SGD"),
+                                                    activation = "LeakyReLU",
+                                                    lr=c(.02),
+                                                    xi=c(.01,.1),
+                                                    eps = c(0,.05),
+                                                    tie = "Efron",
+                                                    batch_size = as.integer(1000),
+                                                    early_stopping = 'TRUE',
+                                                    patience  = 10
+                                                    ),
+                              epochs = as.integer(5),
+                              num_workers = 0,
+                              verbose = F,
+                              folds=2,
+                              random_seed=1)
+
+
 
 ```
-
 
 
 ```{r}
 # # # ## Model fit ----
 library(reticulate)
-resurv.fit <- ReSurv(individual_data,
+resurv.fit.deep_surv <- ReSurv(individual_data,
                           hazard_model = "deepsurv",
-                          hparameters=list(num_nodes=c(10,10),
+                          hparameters=list(num_layers=c(2),
                                           early_stopping = FALSE,
                                           patience = 20,
                                           network_structure = NULL,
                                           num_nodes = c(10,10),
                                           activation = "LeakyReLU",
+                                          optim="Adam",
                                           lr = 0.005,
                                           xi=1,
                                           epsilon = 0,
                                           batch_size=as.integer(1000),
-                                          epochs=as.integer(100),
+                                          epochs=as.integer(10),
                                           num_workers=0,
                                           tie="Efron"))
 
@@ -139,6 +153,19 @@ resurv.fit.xgboost <- ReSurv(individual_data,
 # # # ## Model fit ----
 resurv.fit.ltrctrees <- ReSurv(individual_data,
                                hazard_model = "LTRCtrees")
+
+```
+```{r eval=FALSE, include=FALSE}
+
+# # # ## Model fit ----
+resurv.cv.ltrctrees <- ReSurvCV(IndividualData=individual_data,
+                               model="LTRCtrees",
+                               hparameters_grid = list(
+                                 minbucket = c(1,2),
+                                 cp=c(.2,.01)),
+                               folds=5,
+                               random_seed=1,
+                               verbose.cv = T)
 
 ```
 

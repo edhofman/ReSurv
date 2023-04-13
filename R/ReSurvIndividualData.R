@@ -172,9 +172,19 @@ ReSurv.IndividualData <- function(IndividualData,
                            Y=Y,
                            training_test_split = training_test_split)
 
+    hparameters <- pkg.env$nn_hparameter_nodes_grid(hparameters)
+
+    hparameters <- list(params=as.list.data.frame(hparameters),
+                        verbose=hparameters$verbose,
+                        epochs = hparameters$epochs,
+                        num_workers = hparameters$num_workers)
+
 
     model.out <- pkg.env$fit_deep_surv(datads_pp,
-                                       hparameters=hparameters)
+                                       params=hparameters$params,
+                                       verbose = hparameters$verbose,
+                                       epochs = hparameters$epochs,
+                                       num_workers = hparameters$num_workers)
 
     # bsln <- model.out$compute_baseline_hazards(
     #   input = datads_pp$x_train,
@@ -196,8 +206,16 @@ ReSurv.IndividualData <- function(IndividualData,
     beta_ams <- model.out$predict(input=x_fc,
                                   batch_size=hparameters$batch_size,
                                   num_workers=hparameters$num_workers)
+    #make to hazard relative to initial model, to have similiar interpretation as standard cox
 
-    expg <- exp(beta_ams)
+    benchmark_id <- pkg.env$benchmark_id(X = X,
+                                           Y =Y ,
+                                           newdata.mx = newdata.mx
+    )
+
+    pred_relative <- beta_ams - beta_ams[benchmark_id]
+
+    expg <- exp(pred_relative)
 
     hazard_frame <- cbind(newdata,expg)
     bsln <- data.frame(baseline=bsln,
@@ -239,7 +257,17 @@ ReSurv.IndividualData <- function(IndividualData,
                                           continuous_features=IndividualData$continuous_features,
                                           categorical_features=IndividualData$categorical_features)
 
-    expg <- exp(predict(model.out,newdata.mx))
+    pred <- predict(model.out,newdata.mx)
+
+    #make to hazard relative to initial model, to have similiar interpretation as standard cox
+    benchmark_id <- pkg.env$benchmark_id(X = X,
+                                         Y =Y ,
+                                         newdata.mx = newdata.mx
+    )
+
+    pred_relative <- beta_ams - beta_ams[benchmark_id]
+
+    expg <- exp(pred_relative)
 
     hazard_frame <- cbind(newdata,expg)
 
@@ -282,7 +310,20 @@ ReSurv.IndividualData <- function(IndividualData,
                                   Y=Y,
                                   training_df=IndividualData$training.data)
 
-    hazard_frame <- cbind(newdata, model.out$expg)
+
+    #make to hazard relative to initial model, to have similiar interpretation as standard cox
+
+    pred <- predict(model.out,newdata.mx)
+
+    #make to hazard relative to initial model, to have similiar interpretation as standard cox
+    benchmark_id <- pkg.env$benchmark_id(X = X,
+                                         Y =Y ,
+                                         newdata.mx = newdata.mx
+    )
+
+    pred_relative <- model.out$expg/model.out$expg[benchmark_id]
+
+    hazard_frame <- cbind(newdata, pred_relative)
     colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
 
     bsln <- data.frame(baseline=bsln,
