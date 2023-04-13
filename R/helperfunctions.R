@@ -1482,6 +1482,8 @@ pkg.env$xgboost_cv <- function(IndividualData,
 
   for(hp in 1:dim(hparameters.f)[1]){
 
+    print("Testing hyperparameters combination", hp, "out of", dim(hparameters.f)[1])
+
     hparameters <- list(params=as.list.data.frame(hparameters.f[hp,]),
                         print_every_n=print_every_n,
                         nrounds=nrounds,
