@@ -55,10 +55,11 @@ resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
                                              alpha=1,
                                              lambda=1,
                                              min_child_weight=.2),
-                               print_every_n = 10,
+                               print_every_n = NULL,
                                nrounds=10,
-                               verbose.cv=F
-                               early_stopping_rounds = 500,
+                               verbose=F,
+                               verbose.cv=T,
+                               early_stopping_rounds = 10,
                                folds=5,
                                random_seed=1)
 

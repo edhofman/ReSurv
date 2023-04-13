@@ -20,7 +20,9 @@ ReSurvCV <- function(IndividualData,
                      random_seed,
                      print_every_n = NULL,
                      nrounds= NULL,
-                     early_stopping_rounds = NULL){
+                     early_stopping_rounds = NULL,
+                     verbose.cv=F,
+                     verbose=F){
 
   UseMethod("ReSurvCV")
 
@@ -44,7 +46,8 @@ ReSurvCV.default <- function(IndividualData,
                              random_seed,
                              print_every_n = NULL,
                              nrounds= NULL,
-                             early_stopping_rounds = NULL){
+                             early_stopping_rounds = NULL,
+                             verbose.cv){
 
   message('The object provided must be of class IndividualData')
 
@@ -70,6 +73,7 @@ ReSurvCV.IndividualData <- function(IndividualData,
                                   print_every_n = NULL,
                                   nrounds= NULL,
                                   verbose.cv=F,
+                                  verbose,
                                   early_stopping_rounds = NULL){
 
 
@@ -104,6 +108,7 @@ ReSurvCV.IndividualData <- function(IndividualData,
                               early_stopping_rounds = early_stopping_rounds,
                               hparameters.f,
                               out,
+                              verbose=verbose,
                               verbose.cv=verbose.cv)
 
 

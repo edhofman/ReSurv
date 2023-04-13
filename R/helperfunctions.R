@@ -1323,11 +1323,12 @@ pkg.env$xgboost_pp <-function(X,
     tmp <- tmp %>% select(-samples_TF)
   }
 
+  suppressMessages(
   tmp_train <- tmp %>%
     semi_join(samples_cn)%>%
     arrange(DP_rev_i) %>%
     group_by(DP_rev_i) %>%
-    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
+    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame())
 
   ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X))), label=tmp_train$I)
   attr(ds_train_m, 'truncation') <- tmp_train$TR_i
@@ -1349,11 +1350,13 @@ pkg.env$xgboost_pp <-function(X,
                                      attr(ds_train_m, 'tieid'))
 
   if(training_test_split<1){
-  tmp_test <- tmp %>%
-    anti_join(samples_cn)%>%
-    arrange(DP_rev_i) %>%
-    group_by(DP_rev_i) %>%
-    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
+
+    suppressMessages(
+    tmp_test <- tmp %>%
+                anti_join(samples_cn)%>%
+                arrange(DP_rev_i) %>%
+                group_by(DP_rev_i) %>%
+                mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame())
 
 
   # ds_all_m <- xgboost::xgb.DMatrix( as.matrix(tmp,ncol=1),
@@ -1401,6 +1404,7 @@ pkg.env$fit_xgboost <- function(datads_pp,
                         feval= cox_evaluation_metrix,
                         watchlist = list(train=datads_pp$ds_train_m,
                                          eval=datads_pp$ds_test_m),
+                        verbose= hparameters$verbose,
                         print_every_n = hparameters$print_every_n,
                         early_stopping_rounds = hparameters$early_stopping_rounds,
                         maximize = F)
@@ -1474,6 +1478,7 @@ pkg.env$xgboost_cv <- function(IndividualData,
                                kfolds,
                                print_every_n = NULL,
                                nrounds= NULL,
+                               verbose=1,
                                early_stopping_rounds = NULL,
                                hparameters.f,
                                out,
@@ -1488,11 +1493,12 @@ pkg.env$xgboost_cv <- function(IndividualData,
         "Testing hyperparameters combination",
         hp,
         "out of",
-        dim(hparameters.f)[1], "\n ")}
+        dim(hparameters.f)[1], "\n")}
 
     hparameters <- list(params=as.list.data.frame(hparameters.f[hp,]),
                         print_every_n=print_every_n,
                         nrounds=nrounds,
+                        verbose=verbose,
                         early_stopping_rounds=early_stopping_rounds)
 
     tmp.train.lkh <- vector("numeric",
@@ -1532,7 +1538,7 @@ pkg.env$xgboost_cv <- function(IndividualData,
 
       }
 
-    browser()
+
     out[hp,c("train.lkh","test.lkh")] = c(mean(tmp.train.lkh),mean(tmp.test.lkh))
 
   }

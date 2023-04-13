@@ -12,6 +12,8 @@
   random_seed,
   print_every_n = NULL,
   nrounds = NULL,
+  verbose.cv = F,
+  verbose,
   early_stopping_rounds = NULL
 )
 }

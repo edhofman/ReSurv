@@ -12,7 +12,8 @@
   random_seed,
   print_every_n = NULL,
   nrounds = NULL,
-  early_stopping_rounds = NULL
+  early_stopping_rounds = NULL,
+  verbose.cv
 )
 }
 \arguments{
