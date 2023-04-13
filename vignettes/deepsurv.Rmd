@@ -43,6 +43,29 @@ individual_data <- IndividualData(input_data,
 
 ```
 
+
+```{r}
+
+# # # ## Model fit ----
+resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
+                               model="xgboost",
+                               hparameters_grid=list(booster="gbtree",
+                                             eta=c(.01,.1),
+                                             subsample=.5,
+                                             alpha=1,
+                                             lambda=1,
+                                             min_child_weight=.2),
+                               print_every_n = NULL,
+                               nrounds=10,
+                               verbose=F,
+                               verbose.cv=T,
+                               early_stopping_rounds = 10,
+                               folds=5,
+                               random_seed=1)
+
+```
+
+
 ```{r}
 # # # ## Model fit ----
 library(reticulate)

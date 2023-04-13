@@ -1297,21 +1297,38 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
 
 pkg.env$xgboost_pp <-function(X,
                               Y,
-                              training_test_split){
+                              samples_TF=NULL,
+                              training_test_split=.1){
 
-  tmp=cbind(X,Y) %>%
+  if(!is.null(samples_TF)){
+    xy=cbind(X,Y,samples_TF)
+  }else{
+    xy= cbind(X,Y)
+    }
+
+  tmp=xy %>%
     arrange(DP_rev_i) %>%
     as.data.frame()
 
   tmp[,'id'] = seq(1,dim(tmp)[1])
 
-  samples_cn <- tmp %>% select(id) %>% sample_frac(size=training_test_split)
+  if(is.null(samples_TF)){
 
+    samples_cn <- tmp %>% select(id) %>% sample_frac(size=training_test_split)
+
+  }else{
+
+    cond <- tmp$samples_TF
+    samples_cn <- tmp %>% select(id) %>% filter(cond)
+    tmp <- tmp %>% select(-samples_TF)
+  }
+
+  suppressMessages(
   tmp_train <- tmp %>%
     semi_join(samples_cn)%>%
     arrange(DP_rev_i) %>%
     group_by(DP_rev_i) %>%
-    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
+    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame())
 
   ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X))), label=tmp_train$I)
   attr(ds_train_m, 'truncation') <- tmp_train$TR_i
@@ -1333,11 +1350,13 @@ pkg.env$xgboost_pp <-function(X,
                                      attr(ds_train_m, 'tieid'))
 
   if(training_test_split<1){
-  tmp_test <- tmp %>%
-    anti_join(samples_cn)%>%
-    arrange(DP_rev_i) %>%
-    group_by(DP_rev_i) %>%
-    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
+
+    suppressMessages(
+    tmp_test <- tmp %>%
+                anti_join(samples_cn)%>%
+                arrange(DP_rev_i) %>%
+                group_by(DP_rev_i) %>%
+                mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame())
 
 
   # ds_all_m <- xgboost::xgb.DMatrix( as.matrix(tmp,ncol=1),
@@ -1385,6 +1404,7 @@ pkg.env$fit_xgboost <- function(datads_pp,
                         feval= cox_evaluation_metrix,
                         watchlist = list(train=datads_pp$ds_train_m,
                                          eval=datads_pp$ds_test_m),
+                        verbose= hparameters$verbose,
                         print_every_n = hparameters$print_every_n,
                         early_stopping_rounds = hparameters$early_stopping_rounds,
                         maximize = F)
@@ -1451,6 +1471,82 @@ pkg.env$baseline.calc <- function(hazard_model,
   bsln
 
 }
+
+
+pkg.env$xgboost_cv <- function(IndividualData,
+                               folds,
+                               kfolds,
+                               print_every_n = NULL,
+                               nrounds= NULL,
+                               verbose=1,
+                               early_stopping_rounds = NULL,
+                               hparameters.f,
+                               out,
+                               verbose.cv=FALSE){
+
+  "Function to perform K-fold cross-validation with xgboost"
+
+
+  for(hp in 1:dim(hparameters.f)[1]){
+
+    if(verbose.cv){cat(as.character(Sys.time()),
+        "Testing hyperparameters combination",
+        hp,
+        "out of",
+        dim(hparameters.f)[1], "\n")}
+
+    hparameters <- list(params=as.list.data.frame(hparameters.f[hp,]),
+                        print_every_n=print_every_n,
+                        nrounds=nrounds,
+                        verbose=verbose,
+                        early_stopping_rounds=early_stopping_rounds)
+
+    tmp.train.lkh <- vector("numeric",
+                            length=folds)
+    tmp.test.lkh <- vector("numeric",
+                           length=folds)
+
+    for(i in c(1:folds)){
+
+      X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
+                                        select_columns = IndividualData$categorical_features,
+                                        remove_first_dummy=T)
+
+      scaler <- pkg.env$scaler(continuous_features_scaling_method = "minmax")
+
+      Xc <- IndividualData$training.data %>%
+        summarize(across(all_of(IndividualData$continuous_features),
+                         scaler))
+
+      X=cbind(X,Xc)
+
+      Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")]
+
+      datads_pp =  pkg.env$xgboost_pp(X,
+                                      Y,
+                                      samples_TF= c(kfolds!=i))
+
+
+
+      model.out.k <- do.call(pkg.env$fit_xgboost, list(datads_pp=datads_pp,
+                                                       hparameters=hparameters))
+
+
+      best.it <- model.out.k$best_iteration
+      tmp.train.lkh[i] <- model.out.k$evaluation_log$`train_log_partial likelihood`[best.it]
+      tmp.test.lkh[i] <- model.out.k$evaluation_log$`eval_log_partial likelihood`[best.it]
+
+      }
+
+
+    out[hp,c("train.lkh","test.lkh")] = c(mean(tmp.train.lkh),mean(tmp.test.lkh))
+
+  }
+
+  return(out)
+
+}
+
 
 
 

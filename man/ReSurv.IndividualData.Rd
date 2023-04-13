@@ -12,7 +12,8 @@
   continuous_features_scaling_method = "minmax",
   random_seed = 1,
   hparameters = list(),
-  percentage_data_training = 0.8
+  percentage_data_training = 0.8,
+  grouping_method = "exposure"
 )
 }
 \arguments{
@@ -36,6 +37,8 @@
 \item{hparameters}{list of hyperparameters for 'deep_surv' and 'xgboost'. It will be disregarded for 'cox'.}
 
 \item{percentage_data_training}{percentage of data used for training on the upper triangle.}
+
+\item{grouping_method}{Use probability or exposure approach to group from input to output development factors.}
 }
 \value{
 ReSurv fit.
