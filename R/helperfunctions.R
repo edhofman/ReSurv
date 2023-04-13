@@ -265,6 +265,19 @@ pkg.env$fit_cox_model <- function(data,
 }
 
 
+pkg.env$fit_LTRCtrees <- function(data,
+                                  formula_ct,
+                                  newdata){
+
+  LTRCART.fit <- LTRCART(formula_ct, data=data)
+  # browser()
+  # The following is relative risk predicitons from LTRCtrees
+    LTRCART.pred <- predict(LTRCART.fit, newdata = newdata)
+
+    list(cox=LTRCART.fit,
+         expg = unname(LTRCART.pred))
+    }
+
 
 pkg.env$fit_deep_surv <- function(data,
                                   hparameters,
@@ -357,41 +370,42 @@ pkg.env$fit_deep_surv <- function(data,
 
 # Handling the baseline
 
-pkg.env$hazard_baseline_model <- function(data,
-                                  cox,
-                                  hazard=NULL,
-                                  baseline,
-                                  conversion_factor,
-                                  nk=50,
-                                  nbin=48,
-                                  phi=1){
-
-
-  if(baseline == "breslow"){
-
-    bs_hazard <- basehaz(cox, centered=FALSE) %>%
-      mutate(hazard = hazard-lag(hazard,default=0))
-
-    # bs_hazard2 = tibble(DP_rev_i = bs_hazard$time,
-    #                     hazard=bs_hazard$hazard) %>%
-    #   mutate(hazard = hazard-lag(hazard, default=0))
-  }
-
-  if(baseline == "spline"){
-    bs_hazard=bshazard(pkg.env$formula.editor(continuous_features=NULL,
-                                                categorical_features="1",
-                                                continuous_features_spline=F),
-                                 data=data[(data$AP_i-1)%%(conversion_factor^-1)==0 & data$claim_type==0,],
-                                 nk=nk,
-                                 nbin=nbin,
-                                 phi=phi)
-    bs_hazard <- tibble(time = bs_hazard$time,
-                         hazard = bs_hazard$hazard)
-  }
-
-  return(list(bs_hazard=bs_hazard))
-
-}
+# pkg.env$hazard_baseline_model <- function(data,
+#                                   cox,
+#                                   hazard=NULL,
+#                                   baseline,
+#                                   conversion_factor,
+#                                   nk=50,
+#                                   nbin=48,
+#                                   phi=1){
+#
+#
+#   if(baseline == "breslow"){
+#     browser()
+#     data <- data
+#     bs_hazard <- basehaz(cox, centered=FALSE) %>%
+#       mutate(hazard = hazard-lag(hazard,default=0))
+#
+#     # bs_hazard2 = tibble(DP_rev_i = bs_hazard$time,
+#     #                     hazard=bs_hazard$hazard) %>%
+#     #   mutate(hazard = hazard-lag(hazard, default=0))
+#   }
+#
+#   if(baseline == "spline"){
+#     bs_hazard=bshazard(pkg.env$formula.editor(continuous_features=NULL,
+#                                                 categorical_features="1",
+#                                                 continuous_features_spline=F),
+#                                  data=data[(data$AP_i-1)%%(conversion_factor^-1)==0 & data$claim_type==0,],
+#                                  nk=nk,
+#                                  nbin=nbin,
+#                                  phi=phi)
+#     bs_hazard <- tibble(time = bs_hazard$time,
+#                          hazard = bs_hazard$hazard)
+#   }
+#
+#   return(list(bs_hazard=bs_hazard))
+#
+# }
 
 # Hazard computation
 
@@ -1281,7 +1295,9 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
 
 ## xgboost ----
 
-pkg.env$xgboost_pp <-function(X,Y, training_test_split){
+pkg.env$xgboost_pp <-function(X,
+                              Y,
+                              training_test_split){
 
   tmp=cbind(X,Y) %>%
     arrange(DP_rev_i) %>%
@@ -1400,11 +1416,15 @@ pkg.env$baseline.efron <- function(preds, dtrain){
 
 }
 
-pkg.env$baseline.calc <- function(hazard_model, model.out, X, Y){
+pkg.env$baseline.calc <- function(hazard_model,
+                                  model.out,
+                                  X,
+                                  Y,
+                                  training_df = NULL){
 
   #for baseline need full training data
   datads_pp <- pkg.env$xgboost_pp(X,Y, training_test_split = 1)
-
+  # browser()
   if(hazard_model=="deepsurv"){
     datads_pp_nn = pkg.env$deep_surv_pp(X=X,
                                      Y=Y,
@@ -1413,9 +1433,19 @@ pkg.env$baseline.calc <- function(hazard_model, model.out, X, Y){
     predict_bsln <- model.out$predict(input=datads_pp_nn$x_train)
 
   }
+
   if(hazard_model == "xgboost"){
     predict_bsln <- predict(model.out,datads_pp$ds_train_m)
   }
+
+  if(hazard_model == "LTRCtrees"){
+
+    predict_bsln <- log(predict(model.out, training_df %>%
+                                  arrange(DP_rev_i) %>%
+                                  as.data.frame()))
+
+  }
+
   bsln <- pkg.env$baseline.efron(predict_bsln, datads_pp$ds_train_m)
 
   bsln

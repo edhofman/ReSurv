@@ -122,19 +122,26 @@ ReSurv.IndividualData <- function(IndividualData,
                                        formula_ct=formula_ct,
                                        newdata=newdata)
 
-    tmp <- pkg.env$spline_hp(hparameters,IndividualData)
+    # tmp <- pkg.env$spline_hp(hparameters,IndividualData)
+    # browser()
 
-    baseline_out <- pkg.env$hazard_baseline_model(data=IndividualData$training.data,
-                                                  cox=model.out$cox,
-                                                  hazard=NULL,
-                                                  baseline=baseline,
-                                                  conversion_factor=IndividualData$conversion_factor,
-                                                  nk=tmp$nk,
-                                                  nbin=tmp$nbin,
-                                                  phi=tmp$phi)
+    data <- IndividualData$training.data
 
-    bsln <- data.frame(baseline=baseline_out$bs_hazard$hazard,
-                       DP_rev_i=ceiling(baseline_out$bs_hazard$time))  #$hazard
+    bs_hazard <- basehaz( model.out$cox, centered=FALSE) %>%
+      mutate(hazard = hazard-lag(hazard,default=0))
+
+    # baseline_out <- pkg.env$hazard_baseline_model(data=IndividualData$training.data,
+    #                                               cox=cox.model,
+    #                                               hazard=NULL,
+    #                                               baseline=baseline,
+    #                                               conversion_factor=IndividualData$conversion_factor,
+    #                                               nk=tmp$nk,
+    #                                               nbin=tmp$nbin,
+    #                                               phi=tmp$phi)
+    # browser()
+
+    bsln <- data.frame(baseline=bs_hazard$hazard,
+                       DP_rev_i=ceiling(bs_hazard$time))  #$hazard
 
     hazard_frame <- cbind(newdata, model.out$expg)
     colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
@@ -240,8 +247,51 @@ ReSurv.IndividualData <- function(IndividualData,
 
   }
 
+  if(hazard_model == "LTRCtrees"){
+
+    X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
+                                      select_columns = IndividualData$categorical_features,
+                                      remove_first_dummy=T)
+
+    scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
+
+    Xc <- IndividualData$training.data %>%
+      summarize(across(all_of(IndividualData$continuous_features),
+                       scaler))
+
+    training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
+
+
+    X=cbind(X,Xc)
+
+    Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")]
+
+    # browser()
+    model.out <- pkg.env$fit_LTRCtrees(data=IndividualData$training.data,
+                                       formula_ct=formula_ct,
+                                       newdata=newdata)
+
+    # browser()
+
+
+    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+                                  model.out = model.out$cox,
+                                  X=X,
+                                  Y=Y,
+                                  training_df=IndividualData$training.data)
+
+    hazard_frame <- cbind(newdata, model.out$expg)
+    colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
+
+    bsln <- data.frame(baseline=bsln,
+                       DP_rev_i=sort(as.integer(unique(IndividualData$training.data$DP_rev_i))))
+
+
+
+  }
 
   ##################################################################################
+
 
   hazard_frame <- hazard_frame %>%
     full_join(bsln,

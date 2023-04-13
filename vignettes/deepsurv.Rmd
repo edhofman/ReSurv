@@ -76,11 +76,7 @@ print(head(resurv.fit$hazard_frame_input))
 ```{r}
 # # # ## Model fit ----
 resurv.fit.cox <- ReSurv(individual_data,
-                          hazard_model = "cox",
-                         baseline="spline",
-                          hparameters = list(params=50, 
-                                             nbin=48, 
-                                             phi=1))
+                          hazard_model = "cox")
 
 ```
 
@@ -99,6 +95,15 @@ resurv.fit.xgboost <- ReSurv(individual_data,
                                              early_stopping_rounds = 500))
 
 ```
+
+
+```{r}
+# # # ## Model fit ----
+resurv.fit.ltrctrees <- ReSurv(individual_data,
+                               hazard_model = "LTRCtrees")
+
+```
+
 
 ```{r eval=FALSE, include=FALSE}
 library(fastDummies)
