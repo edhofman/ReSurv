@@ -1476,13 +1476,19 @@ pkg.env$xgboost_cv <- function(IndividualData,
                                nrounds= NULL,
                                early_stopping_rounds = NULL,
                                hparameters.f,
-                               out){
+                               out,
+                               verbose.cv=FALSE){
 
   "Function to perform K-fold cross-validation with xgboost"
 
+
   for(hp in 1:dim(hparameters.f)[1]){
 
-    print("Testing hyperparameters combination", hp, "out of", dim(hparameters.f)[1])
+    if(verbose.cv){cat(as.character(Sys.time()),
+        "Testing hyperparameters combination",
+        hp,
+        "out of",
+        dim(hparameters.f)[1], "\n ")}
 
     hparameters <- list(params=as.list.data.frame(hparameters.f[hp,]),
                         print_every_n=print_every_n,

@@ -69,6 +69,7 @@ ReSurvCV.IndividualData <- function(IndividualData,
                                   random_seed,
                                   print_every_n = NULL,
                                   nrounds= NULL,
+                                  verbose.cv=F,
                                   early_stopping_rounds = NULL){
 
 
@@ -102,61 +103,13 @@ ReSurvCV.IndividualData <- function(IndividualData,
                               nrounds= nrounds,
                               early_stopping_rounds = early_stopping_rounds,
                               hparameters.f,
-                              out)
+                              out,
+                              verbose.cv=verbose.cv)
 
 
 
   }
 
-  # for(hp in 1:dim(hparameters.f)[1]){
-  #
-  #   hparameters <- list(params=as.list.data.frame(hparameters.f[hp,]),
-  #                       print_every_n=print_every_n,
-  #                       nrounds=nrounds,
-  #                       early_stopping_rounds=early_stopping_rounds)
-  #
-  #   tmp.train.lkh <- vector("numeric",length=folds)
-  #   tmp.test.lkh <- vector("numeric",length=folds)
-  #
-  #   for(i in c(1:folds)){
-  #
-  #     X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-  #                                       select_columns = IndividualData$categorical_features,
-  #                                       remove_first_dummy=T)
-  #
-  #     scaler <- pkg.env$scaler(continuous_features_scaling_method = "minmax")
-  #
-  #     Xc <- IndividualData$training.data %>%
-  #       summarize(across(all_of(IndividualData$continuous_features),
-  #                        scaler))
-  #
-  #     X=cbind(X,Xc)
-  #
-  #     Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")]
-  #
-  #     datads_pp =  pkg.env$xgboost_pp(X,
-  #                                     Y,
-  #                                     samples_TF= c(kfolds!=i))
-  #
-  #
-  #
-  #     model.out.k <- do.call(pkg.env$fit_xgboost, list(datads_pp=datads_pp,
-  #                                                      hparameters=hparameters))
-  #
-  #
-  #     best.it <- model.out.k$best_iteration
-  #     tmp.train.lkh[i] <- model.out.k$evaluation_log$`train_log_partial likelihood`[best.it]
-  #     tmp.test.lkh[i] <- model.out.k$evaluation_log$`eval_log_partial likelihood`[best.it]
-  #
-  #
-  #
-  #   }
-  #
-  #
-  #   out[hp,c("train.lkh","test.lkh")] = c(mean(tmp.train.lkh),mean(tmp.test.lkh))
-  #
-  #   }
-  #
 
   # Take the best result oos
   out.best.oos <- out.cv %>%
