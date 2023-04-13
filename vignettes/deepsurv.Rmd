@@ -44,7 +44,7 @@ individual_data <- IndividualData(input_data,
 ```
 
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 
 # # # ## Model fit ----
 resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
@@ -64,6 +64,7 @@ resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
                                random_seed=1)
 
 ```
+
 
 ```{r}
 # # # ## Model fit ----
@@ -91,6 +92,7 @@ resurv.cv.deep_surv <- ReSurvCV(IndividualData=individual_data,
 
 
 ```
+
 
 ```{r}
 # # # ## Model fit ----
@@ -151,6 +153,19 @@ resurv.fit.xgboost <- ReSurv(individual_data,
 # # # ## Model fit ----
 resurv.fit.ltrctrees <- ReSurv(individual_data,
                                hazard_model = "LTRCtrees")
+
+```
+```{r eval=FALSE, include=FALSE}
+
+# # # ## Model fit ----
+resurv.cv.ltrctrees <- ReSurvCV(IndividualData=individual_data,
+                               model="LTRCtrees",
+                               hparameters_grid = list(
+                                 minbucket = c(1,2),
+                                 cp=c(.2,.01)),
+                               folds=5,
+                               random_seed=1,
+                               verbose.cv = T)
 
 ```
 
