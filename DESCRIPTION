@@ -35,7 +35,8 @@ Imports: stats,
          survival,
          reshape2,
          bshazard,
-         SynthETIC
+         SynthETIC,
+         rpart
 Encoding: UTF-8
 LazyData: true
 Suggests: 

@@ -23,6 +23,7 @@
 #' @import reticulate
 #' @import tidyverse
 #' @import xgboost
+#' @import rpart
 #'
 #' @export
 ReSurv <- function(IndividualData,
@@ -266,10 +267,11 @@ ReSurv.IndividualData <- function(IndividualData,
 
     Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")]
 
-    # browser()
+    control.pars <- do.call(rpart.control, hparameters)
     model.out <- pkg.env$fit_LTRCtrees(data=IndividualData$training.data,
                                        formula_ct=formula_ct,
-                                       newdata=newdata)
+                                       newdata=newdata,
+                                       control.pars)
 
     # browser()
 

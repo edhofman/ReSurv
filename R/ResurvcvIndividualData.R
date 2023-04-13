@@ -87,6 +87,34 @@ ReSurvCV.IndividualData <- function(IndividualData,
   hparameters.f <- expand.grid(hparameters_grid,
                                KEEP.OUT.ATTRS = FALSE)
 
+
+  if(model == "LTRCtrees"){
+
+    formula_ct <- as.formula(IndividualData$string_formula_i)
+
+    out.cv <- pkg.env$ltrcart_cv(IndividualData=IndividualData,
+                                 folds=folds,
+                                 formula_ct=formula_ct,
+                                 hparameters.f=hparameters.f,
+                                 verbose.cv=verbose.cv)
+
+    # Take the best result oos
+    out.best.oos <- out.cv %>%
+      filter(xerror==min(xerror)) %>%
+      as.data.frame()
+
+    # List the output of the cv and the best result OOS
+    out <- list(
+      out.cv = out.cv,
+      out.cv.best.oos = out.best.oos
+    )
+
+    class(out) <- c('ReSurvCV')
+
+    return(out)
+
+  }
+
   train.lkh <- vector("numeric",
                       length=dim(hparameters.f)[1])
 
@@ -114,7 +142,6 @@ ReSurvCV.IndividualData <- function(IndividualData,
 
 
   }
-
 
   # Take the best result oos
   out.best.oos <- out.cv %>%

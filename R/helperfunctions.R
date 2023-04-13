@@ -5,6 +5,8 @@
 #' @import forecast
 #' @import reticulate
 #' @import xgboost
+#' @importFrom rpart rpart.control
+#' @importFrom LTRCtrees LTRCART
 
 pkg.env <- new.env()
 
@@ -267,9 +269,10 @@ pkg.env$fit_cox_model <- function(data,
 
 pkg.env$fit_LTRCtrees <- function(data,
                                   formula_ct,
-                                  newdata){
+                                  newdata,
+                                  control.pars){
 
-  LTRCART.fit <- LTRCART(formula_ct, data=data)
+  LTRCART.fit <- LTRCART(formula_ct, data=data, control = control.pars)
   # browser()
   # The following is relative risk predicitons from LTRCtrees
     LTRCART.pred <- predict(LTRCART.fit, newdata = newdata)
@@ -1473,6 +1476,8 @@ pkg.env$baseline.calc <- function(hazard_model,
 }
 
 
+# Cross-validation
+
 pkg.env$xgboost_cv <- function(IndividualData,
                                folds,
                                kfolds,
@@ -1548,6 +1553,40 @@ pkg.env$xgboost_cv <- function(IndividualData,
 }
 
 
+pkg.env$ltrcart_cv <- function(IndividualData,
+                               folds,
+                               formula_ct,
+                               hparameters.f,
+                               verbose.cv){
+
+  hparameters.f['xval']=folds
+  out <- data.frame()
+
+  for(hp in 1:dim(hparameters.f)[1]){
+
+    if(verbose.cv){cat(as.character(Sys.time()),
+                       "Testing hyperparameters combination",
+                       hp,
+                       "out of",
+                       dim(hparameters.f)[1], "\n")}
+
+    control.pars <- do.call(rpart.control, as.list.data.frame(hparameters.f[hp,]))
+
+    LTRCART.fit <- LTRCART(formula_ct, data=IndividualData$training.data, control=control.pars)
+
+    # browser()
+
+    tmp <- as.data.frame.matrix(LTRCART.fit$cptable)
+
+    out <- rbind(out,tmp[which.min(tmp[,"xerror"]),])
+    # browser()
+  }
+
+  out <- cbind(hparameters.f, out)
+
+  return(out)
+
+}
 
 
 
