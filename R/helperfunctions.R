@@ -1635,9 +1635,20 @@ pkg.env$nn_hparameter_nodes_grid <- function(hparameters, cv = FALSE){
   "
   if("num_layers" %in% names(hparameters)){
     if(cv == TRUE){
-      for ( i in 1:hparameters$num_layers){
-        hparameters[[paste0("node_",i)]] <- hparameters$num_nodes
-       }
+      # for ( i in 1:max(hparameters$num_layers)){
+      #   hparameters[[paste0("node_",i)]] <- hparameters$num_nodes
+      #  }
+      names <- sapply(1:max(hparameters$num_layers), function(x){paste0("node_",x)})
+
+      suppressWarnings (
+      hparameters <-hparameters %>% rowwise() %>%
+        mutate(new = paste(paste(rep(num_nodes, num_layers),collapse=","),
+                           paste(rep("NA", max(hparameters$num_layers) - num_layers), collapse = ","),
+                           sep =",")) %>%
+        separate(new, into = names, sep=",") %>%  ungroup() %>%
+        mutate(across(starts_with("node_"), as.integer))
+      )
+
     }
     else{
       if (hparameters$num_layers == length(hparameters$num_nodes)){

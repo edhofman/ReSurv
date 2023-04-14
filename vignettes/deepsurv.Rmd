@@ -47,6 +47,7 @@ individual_data <- IndividualData(input_data,
 ```{r eval=FALSE, include=FALSE}
 
 # # # ## Model fit ----
+
 resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
                                model="xgboost",
                                hparameters_grid=list(booster="gbtree",
@@ -69,25 +70,29 @@ resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
 ```{r}
 # # # ## Model fit ----
 library(reticulate)
+start <- Sys.time()
 resurv.cv.deep_surv <- ReSurvCV(IndividualData=individual_data,
                                model="deepsurv",
-                               hparameters_grid=list(num_layers = 2L,
-                                                    num_nodes = c(2,10),
+                               hparameters_grid=list(num_layers = c(2L,5L,10L),
+                                                    num_nodes = c(2,10,25),
                                                     optim=c("Adam", "SGD"),
                                                     activation = "LeakyReLU",
-                                                    lr=c(.02),
-                                                    xi=c(.01,.1),
-                                                    eps = c(0,.05),
+                                                    lr=c(.1,.02,.005),
+                                                    xi=c(0,.01,.1),
+                                                    eps = c(0,.05,0.2),
                                                     tie = "Efron",
-                                                    batch_size = as.integer(1000),
+                                                    batch_size = c(as.integer(500), 
+                                                                   as.integer(1000),
+                                                                   as.integer(5000)),
                                                     early_stopping = 'TRUE',
-                                                    patience  = 10
+                                                    patience  = 20
                                                     ),
-                              epochs = as.integer(5),
+                              epochs = as.integer(150),
                               num_workers = 0,
                               verbose = F,
-                              folds=2,
+                              folds=5,
                               random_seed=1)
+end <- Sys.time()
 
 
 

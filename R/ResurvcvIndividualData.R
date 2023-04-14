@@ -93,12 +93,14 @@ ReSurvCV.IndividualData <- function(IndividualData,
                    replace=TRUE,
                    prob=rep(1/folds,folds))
 
-  hparameters_grid <- pkg.env$nn_hparameter_nodes_grid(hparameters_grid, cv=T)
+  #Allow for different number og nodes pr. layer - in blind gridsearch this is too computational expensive.
+  #hparameters_grid <- pkg.env$nn_hparameter_nodes_grid(hparameters_grid, cv=T)
 
   hparameters.f <- expand.grid(hparameters_grid,
                                KEEP.OUT.ATTRS = FALSE,
                                stringsAsFactors = FALSE)
 
+  hparameters.f <-  pkg.env$nn_hparameter_nodes_grid(hparameters.f, cv=T)
 
   if(model == "LTRCtrees"){
 
