@@ -1565,7 +1565,7 @@ pkg.env$xgboost_cv <- function(IndividualData,
 
       X=cbind(X,Xc)
 
-      Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")]
+      Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
 
       datads_pp =  pkg.env$xgboost_pp(X,
                                       Y,
@@ -1682,11 +1682,93 @@ pkg.env$deep_surv_cv <- function(IndividualData,
                                num_workers,
                                hparameters.f,
                                out,
+                               parallel,
                                verbose.cv=FALSE){
 
   "Function to perform K-fold cross-validation with xgboost"
 
+  if(parallel == T){
+    # handle UNIx-operated systems seperatly?.Platform$OS.type
+    require(parallel)
+    ncores <-  detectCores()
+    cl <- makeCluster(ncores)
 
+    objects_export <- list(
+      "IndividualData",
+      "continuous_features_scaling_method",
+      "folds",
+      "kfolds",
+      "verbose",
+      "epochs",
+      "num_workers",
+      "hparameters.f",
+      "out",
+      "pkg.env"
+    )
+
+    clusterExport(cl, objects_export, envir = environment())
+    #clusterExport(cl, pkg.env, envir = pkg.env )
+    clusterEvalQ(cl, {library("ReSurv")
+                      library("fastDummies")
+                      library("reticulate")} )
+
+    #Don't know why, but this needs to be loaded here before parSapply can run
+    pkg.env$cv_parallel_deep_surv <- function(hp){
+
+
+      hparameters <- list(params=as.list.data.frame(hparameters.f[hp,]),
+                          verbose=verbose,
+                          epochs = epochs,
+                          num_workers = num_workers)
+
+      tmp.train.lkh <- vector("numeric",
+                              length=folds)
+      tmp.test.lkh <- vector("numeric",
+                             length=folds)
+
+      X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
+                                        select_columns = IndividualData$categorical_features)
+
+      scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
+
+      Xc <- IndividualData$training.data %>%
+        summarize(across(all_of(IndividualData$continuous_features),
+                         scaler))
+      X=cbind(X,Xc)
+
+      Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
+      for(i in c(1:folds)){
+
+        datads_pp = pkg.env$deep_surv_pp(X=X,
+                                         Y=Y,
+                                         samples_TF= c(kfolds!=i))
+
+
+
+        model.out.k <- do.call(pkg.env$fit_deep_surv, list(data=datads_pp,
+                                                           params=hparameters$params,
+                                                           verbose = hparameters$verbose,
+                                                           epochs = hparameters$epochs,
+                                                           num_workers = hparameters$num_workers))
+
+
+        best.it <- model.out.k$log$to_pandas()[,1] == min(model.out.k$log$to_pandas()[,1])
+        tmp.train.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['train_loss']))
+        tmp.test.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['val_loss']))
+
+      }
+
+
+      c(mean(tmp.train.lkh),mean(tmp.test.lkh))
+
+    }
+
+
+
+    out[,c("train.lkh","test.lkh")]  <- parSapply(cl, 1:dim(hparameters.f)[1],  pkg.env$cv_parallel_deep_surv )
+    stopCluster(cl)
+    }
+  else{
   for(hp in 1:dim(hparameters.f)[1]){
 
     if(verbose.cv){cat(as.character(Sys.time()),
@@ -1715,7 +1797,8 @@ pkg.env$deep_surv_cv <- function(IndividualData,
                        scaler))
     X=cbind(X,Xc)
 
-    Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")]
+    Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
+
 
     for(i in c(1:folds)){
 
@@ -1742,10 +1825,11 @@ pkg.env$deep_surv_cv <- function(IndividualData,
     out[hp,c("train.lkh","test.lkh")] = c(mean(tmp.train.lkh),mean(tmp.test.lkh))
 
   }
-
+  }
   return(out)
 
 }
+
 
 
 
