@@ -126,7 +126,7 @@ ReSurv.IndividualData <- function(IndividualData,
                                        newdata=newdata)
 
     # tmp <- pkg.env$spline_hp(hparameters,IndividualData)
-    # browser()
+
 
     data <- IndividualData$training.data
 
@@ -141,7 +141,7 @@ ReSurv.IndividualData <- function(IndividualData,
     #                                               nk=tmp$nk,
     #                                               nbin=tmp$nbin,
     #                                               phi=tmp$phi)
-    # browser()
+
 
     bsln <- data.frame(baseline=bs_hazard$hazard,
                        DP_rev_i=ceiling(bs_hazard$time))  #$hazard
@@ -303,7 +303,7 @@ ReSurv.IndividualData <- function(IndividualData,
                                        newdata=newdata,
                                        control.pars)
 
-    # browser()
+
 
 
     bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
@@ -345,7 +345,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
   hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
 
-  browser()
+
 
   #return(hazard_frame)
 
