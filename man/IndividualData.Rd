@@ -11,11 +11,15 @@ IndividualData(
   categorical_features,
   accident_period,
   calendar_period,
-  input_time_unit = 1/12,
-  output_time_unit = 1/4,
+  input_time_granularity = 1/12,
+  output_time_granularity = 1/4,
   years = 4,
-  continuous_features_spline = TRUE,
-  degrees_of_freedom = 4
+  calendar_period_extrapolation = FALSE,
+  continuous_features_spline = NULL,
+  degrees_cf = 3,
+  degrees_of_freedom_cf = 4,
+  degrees_cp = 3,
+  degrees_of_freedom_cp = 4
 )
 }
 \arguments{
@@ -31,13 +35,21 @@ IndividualData(
 
 \item{calendar_period}{string that contains the name of the column in data corresponding to the calendar_period.}
 
-\item{input_time_unit}{time unit of the input data with reference to a year}
+\item{input_time_granularity}{time unit of the input data with reference to a year}
 
-\item{output_time_unit}{time unit of the output data with reference to a year}
+\item{output_time_granularity}{time unit of the output data with reference to a year}
+
+\item{calendar_period_extrapolation}{logical, whether a spline for calendar extrapolation should be considered in the cox model fit. Default is FALSE.}
 
 \item{continuous_features_spline}{weather a spline for smoothing continuous features should be added.}
 
-\item{degrees_of_freedom}{degrees of freedom of the splines for smoothing continuous features.}
+\item{degrees_of_freedom_cf}{degrees of freedom of the splines for smoothing continuous features.}
+
+\item{degrees_of_freedom_cp}{degrees of freedom of the splines for smoothing the calendar period effect.}
+
+\item{degree_cf}{degrees of the spline for smoothing continuous features.}
+
+\item{degree_cp}{degrees of the spline for smoothing the calendar period effect.}
 }
 \value{
 Pre-processed data ready for individual reserving.

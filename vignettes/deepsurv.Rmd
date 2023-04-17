@@ -35,11 +35,18 @@ individual_data <- IndividualData(input_data,
                                   categorical_features="claim_type",
                                   accident_period="AM",
                                   calendar_period="RM",
-                                  input_time_unit=1/12,
-                                  output_time_unit=1/4,
+                                  input_time_granularity = "months",
+                                  output_time_granularity = "quarters",
                                   years=4,
-                                  continuous_features_spline=F,
-                                  degrees_of_freedom=4)
+                                  continuous_features_spline=NULL,
+                                  calendar_period_extrapolation=F)
+
+```
+
+```{r}
+# # # ## Model fit ----
+resurv.fit.cox <- ReSurv(individual_data,
+                          hazard_model = "cox")
 
 ```
 

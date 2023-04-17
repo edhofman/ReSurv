@@ -47,6 +47,42 @@ pkg.env$check.time.units <- function(input_time_unit,
 
 }
 
+
+pkg.env$maximum.time <- function(years,
+                                 input_time_granularity){
+
+  time_unit_string <- c('months','quarters','year')
+  time_unit_numeric <- c(1/12,1/4,1)
+
+  input.pos <- which(time_unit_string%in%intersect(input_time_granularity,time_unit_string))
+
+  years/time_unit_numeric[input.pos]
+
+}
+
+pkg.env$conversion.factor.of.time.units <- function(input_time_unit,
+                                                    output_time_unit){
+
+  time_unit_string <- c('months','quarters','year')
+  time_unit_numeric <- c(1/12,1/4,1)
+
+  input.pos <- which(time_unit_string%in%intersect(input_time_unit,time_unit_string))
+  output.pos <- which(time_unit_string%in%intersect(output_time_unit,time_unit_string))
+
+  input_numeric <- time_unit_numeric[input.pos]
+  output_numeric <- time_unit_numeric[output.pos]
+
+  pkg.env$check.time.units(input_numeric,
+                           output_numeric)
+
+
+
+  conversion_factor <- input_numeric*(1/output_numeric)
+  conversion_factor
+
+}
+
+
 pkg.env$check.traintestsplit <- function(x){
 
   "
@@ -83,7 +119,12 @@ pkg.env$encode.variables <- function(x){
 pkg.env$formula.editor <- function(continuous_features,
                            categorical_features,
                            continuous_features_spline,
-                           degrees_of_freedom,
+                           degree_cf,
+                           degrees_of_freedom_cf,
+                           calendar_period,
+                           calendar_period_extrapolation,
+                           degree_cp,
+                           degrees_of_freedom_cp,
                            input_output='i'){
   "
   This util edits creates the string that is used for model fitting in a compact way.
@@ -97,9 +138,11 @@ pkg.env$formula.editor <- function(continuous_features,
 
   tmp.cat <- switch(!is.null(categorical_features), paste(categorical_features, collapse='+'), NULL)
   tmp.cont <- switch(!is.null(continuous_features), paste(continuous_features, collapse='+'), NULL)
-  tmp.splines <- switch((!is.null(continuous_features) & continuous_features_spline),paste0("pspline(",continuous_features, ",degree=3,df=",degrees_of_freedom,")"),NULL)
+  tmp.spline.pos <- which(continuous_features%in%intersect(continuous_features,continuous_features_spline))
+  tmp.splines <- switch((!is.null(continuous_features[tmp.spline.pos]) & !is.null(continuous_features_spline)),paste0("pspline(",continuous_features[tmp.spline.pos], ",degree=",degree_cf,",df=",degrees_of_freedom_cf,")"),NULL)
+  tmp.calendar <- switch(calendar_period_extrapolation,paste0("pspline(",calendar_period, ",degree=",degree_cf,",df=",degrees_of_freedom_cp,")"),NULL)
 
-  string_formula<- paste(paste0("survival::Surv","(TR_",input_output,", DP_rev_",input_output,", I) ~ "),paste(c(tmp.cat,tmp.cont,tmp.splines), collapse='+'))
+  string_formula<- paste(paste0("survival::Surv","(TR_",input_output,", DP_rev_",input_output,", I) ~ "),paste(c(tmp.cat,tmp.cont,tmp.splines,tmp.calendar), collapse='+'))
   string_formula
 
 
@@ -297,7 +340,7 @@ pkg.env$fit_LTRCtrees <- function(data,
                                   control.pars){
 
   LTRCART.fit <- LTRCART(formula_ct, data=data, control = control.pars)
-  # browser()
+
   # The following is relative risk predicitons from LTRCtrees
     LTRCART.pred <- predict(LTRCART.fit, newdata = newdata)
 
@@ -1225,12 +1268,14 @@ pkg.env$spline_hp <- function(hparameters,IndividualData){
 }
 
 
-pkg.env$create.df.2.fcst <- function(IndividualData){
+pkg.env$create.df.2.fcst <- function(IndividualData,
+                                     hazard_model){
 
   l1 <- lapply(IndividualData$training.data %>% select(IndividualData$categorical_features), levels)
   l2 <- lapply(IndividualData$training.data %>% select(IndividualData$continuous_features), unique)
   l3 <- list()
   l4 <- list()
+  l5 <- list()
 
   if(!("AP_i"%in%c(IndividualData$categorical_features,IndividualData$continuous_features))){
     l3$AP_i <- unique(IndividualData$full.data[,'AP_i'])
@@ -1240,8 +1285,21 @@ pkg.env$create.df.2.fcst <- function(IndividualData){
 
   l4$DP_rev_i <- min(IndividualData$training.data[,'DP_i']):max(IndividualData$training.data[,'DP_i'])
 
-  cross_df(c(l1,l2,l3,l4)) %>%
+
+  tmp = cross_df(c(l1,l2,l3,l4)) %>%
     as.data.frame()
+  # browser()
+
+  if(IndividualData$calendar_period_extrapolation & (hazard_model=='cox')){
+    tmp$RP_i <- tmp$AP_i+tmp$DP_rev_i-1
+  }else{
+    if(IndividualData$calendar_period_extrapolation){
+      warning("The calendar year component extrapolation is disregarded.
+             The current implementation supports this feature only for the Cox model")}
+
+  }
+
+  tmp
 
 }
 

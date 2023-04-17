@@ -115,7 +115,9 @@ ReSurv.IndividualData <- function(IndividualData,
 
   formula_ct <- as.formula(IndividualData$string_formula_i)
 
-  newdata <- pkg.env$create.df.2.fcst(IndividualData)
+  newdata <- pkg.env$create.df.2.fcst(IndividualData=IndividualData,
+                                      hazard_model=hazard_model)
+
 
   if(hazard_model=="cox"){
 
@@ -342,6 +344,8 @@ ReSurv.IndividualData <- function(IndividualData,
     as.data.frame()
 
   hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
+
+  browser()
 
   #return(hazard_frame)
 
