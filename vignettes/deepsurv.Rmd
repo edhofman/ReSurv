@@ -115,6 +115,7 @@ resurv.cv.deep_surv_par <- ReSurvCV(IndividualData=individual_data,
                               epochs = as.integer(2),
                               num_workers = 0,
                               parallel = T,
+                              ncores = 2,
                               verbose = F,
                               folds=2,
                               random_seed=1)

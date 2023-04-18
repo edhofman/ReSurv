@@ -1683,6 +1683,7 @@ pkg.env$deep_surv_cv <- function(IndividualData,
                                hparameters.f,
                                out,
                                parallel,
+                               ncores,
                                verbose.cv=FALSE){
 
   "Function to perform K-fold cross-validation with xgboost"
@@ -1690,7 +1691,6 @@ pkg.env$deep_surv_cv <- function(IndividualData,
   if(parallel == T){
     # handle UNIx-operated systems seperatly?.Platform$OS.type
     require(parallel)
-    ncores <-  detectCores()
     cl <- makeCluster(ncores)
 
     objects_export <- list(
