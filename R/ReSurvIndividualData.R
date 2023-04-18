@@ -244,7 +244,9 @@ ReSurv.IndividualData <- function(IndividualData,
 
     Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")]
 
-    datads_pp <- pkg.env$xgboost_pp(X,Y, training_test_split)
+    datads_pp <- pkg.env$xgboost_pp(X=X,
+                                    Y=Y,
+                                    training_test_split=training_test_split)
 
     model.out <- pkg.env$fit_xgboost(datads_pp,
                                      hparameters=hparameters)
@@ -262,12 +264,16 @@ ReSurv.IndividualData <- function(IndividualData,
     pred <- predict(model.out,newdata.mx)
 
     #make to hazard relative to initial model, to have similiar interpretation as standard cox
+    newdata.bs <- pkg.env$df.2.fcst.nn.pp(data=IndividualData$training.data,
+                                          newdata=newdata,
+                                          continuous_features=IndividualData$continuous_features,
+                                          categorical_features=IndividualData$categorical_features)
     benchmark_id <- pkg.env$benchmark_id(X = X,
                                          Y =Y ,
-                                         newdata.mx = newdata.mx
+                                         newdata.mx = newdata.bs
     )
 
-    pred_relative <- beta_ams - beta_ams[benchmark_id]
+    pred_relative <- pred - pred[benchmark_id]
 
     expg <- exp(pred_relative)
 

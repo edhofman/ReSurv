@@ -1590,7 +1590,16 @@ pkg.env$xgboost_pp <-function(X,
 
 
 pkg.env$fit_xgboost <- function(datads_pp,
-                                hparameters){
+                                hparameters=list(params=list(booster="gbtree",
+                                                             eta=.01,
+                                                             subsample=.5,
+                                                             alpha=1,
+                                                             lambda=1,
+                                                             min_child_weight=.2),
+                                                 print_every_n = NULL,
+                                                 nrounds=10,
+                                                 verbose=F,
+                                                 early_stopping_rounds = 500)){
 
 
   out <- xgboost::xgb.train(params = hparameters$params,
@@ -1652,8 +1661,6 @@ pkg.env$baseline.calc <- function(hazard_model,
 
   if(hazard_model == "xgboost"){
     predict_bsln <- predict(model.out,datads_pp$ds_train_m)
-
-    benchmark_values <- py_to_r(datads_pp_nn$x_train)[1,]
   }
 
   if(hazard_model == "LTRCtrees"){
@@ -1676,7 +1683,7 @@ pkg.env$baseline.calc <- function(hazard_model,
 pkg.env$xgboost_cv <- function(IndividualData,
                                folds,
                                kfolds,
-                               print_every_n = NULL,
+                               print_every_n = 1L,
                                nrounds= NULL,
                                verbose=1,
                                early_stopping_rounds = NULL,
