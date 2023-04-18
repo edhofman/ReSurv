@@ -373,13 +373,15 @@ ReSurv.IndividualData <- function(IndividualData,
   #Add development and relevant survival values to the hazard_frame
   hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
                                                  categorical_features = IndividualData$categorical_features,
-                                                 continuous_features = IndividualData$continuous_features)
+                                                 continuous_features = IndividualData$continuous_features,
+                                                 calendar_period_extrapolation = IndividualData$calendar_period_extrapolation)
 
   hazard_frame_grouped <- pkg.env$covariate_mapping(
     hazard_frame = hazard_frame_updated,
     categorical_features = IndividualData$categorical_features,
     continuous_features = IndividualData$continuous_features,
-    conversion_factor = IndividualData$conversion_factor
+    conversion_factor = IndividualData$conversion_factor,
+    calendar_period_extrapolation = IndividualData$calendar_period_extrapolation
     )
 
 
@@ -387,7 +389,8 @@ ReSurv.IndividualData <- function(IndividualData,
     data=IndividualData$training.data,
     groups = hazard_frame_grouped$groups,
     categorical_features = IndividualData$categorical_features,
-    continuous_features = IndividualData$continuous_features
+    continuous_features = IndividualData$continuous_features,
+    calendar_period_extrapolation = IndividualData$calendar_period_extrapolation
   )
 
   expected_i <- pkg.env$predict_i(

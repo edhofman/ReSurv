@@ -512,12 +512,14 @@ pkg.env$hazard_f<-function(i,
 pkg.env$hazard_data_frame <- function(hazard,
                                       eta_old=1/2,
                                       categorical_features,
-                                      continuous_features){
+                                      continuous_features,
+                                      calendar_period_extrapolation){
 
   "
   Convert hazard matrix to dataframe and add grouping variables.
 
   "
+  continuous_features <- switch(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
 
   #Need special handling if we ahve continuous variables
   if( (length(continuous_features)==1 & "AP_i" %in% continuous_features) | is.null(continuous_features)){
@@ -578,18 +580,22 @@ pkg.env$hazard_data_frame <- function(hazard,
 pkg.env$covariate_mapping <- function(hazard_frame,
                                       categorical_features,
                                       continuous_features,
-                                      conversion_factor)
+                                      conversion_factor,
+                                      calendar_period_extrapolation)
   {
   "
   Create a dimension table, that holds a link between inputted categorical features and the group, that is used for expected_values
   "
+  continuous_features <- switch(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
 
-  #Need to handle Accident period effect seperatly
-  if( (length(continuous_features)==1 & "AP_i" %in% continuous_features)){
+  #Need to handle Accident/calender period effect seperatly
+  if( (length(continuous_features)==1 & "AP_i" %in% continuous_features) |
+      (length(continuous_features)==1 & "RP_i" %in% continuous_features) |
+      (length(continuous_features)==2 & sum(c("AP_i","RP_i") %in% continuous_features))==2 ){
     continuous_features_group = NULL
     }
   else{
-    continuous_features_group=continuous_features[!("AP_i" %in% continuous_features)]
+    continuous_features_group=continuous_features[!(continuous_features %in% c("AP_i","RP_i"))]
   }
 
   ## The next steps generate a grouping key, used for aggregating from input periods to output periods
@@ -600,19 +606,39 @@ pkg.env$covariate_mapping <- function(hazard_frame,
   )
 
   #Group is pr. covariate, output accident period
-  if("AP_i" %in% continuous_features){
+  #Ongoing update to be able to handle calender-period
+  if("AP_i" %in% continuous_features |
+     "RP_i" %in% continuous_features){
 
-    groups <- unique(data.frame(AP_i = hazard_frame$AP_i, covariate = hazard_frame$covariate)) %>%
-      mutate(group_i = row_number())
+    time_features <- continuous_features[continuous_features %in% c("AP_i","RP_i")]
 
-    hazard_group <- hazard_frame %>%  left_join(groups, by=c("AP_i", "covariate"))
+    time_elements_0 <- paste(sapply(time_features, function(x){paste0(x,"=hazard_frame[['",x,"']]")}
+                        ), collapse=", ")
+    time_elements_1 <- paste(sapply(time_features, function(x){paste0("'",x,"'")}
+    ), collapse=", ")
+
+    expression_0 <- paste0(sprintf(
+      "groups <- unique(data.frame(%s, covariate = hazard_frame$covariate))",
+      time_elements_0    ),
+      " %>%   mutate(group_i = row_number())")
+
+    expression_1 <- paste0(
+      "hazard_group <- hazard_frame %>%  left_join(groups, by=",
+      sprintf(
+        "c(%s, 'covariate'))",
+        time_elements_1    ) )
+
+    eval(parse(text=expression_0))
+    eval(parse(text=expression_1))
+    #groups <- unique(data.frame(!!sym(expression), covariate = hazard_frame$covariate)) %>%
+    #  mutate(group_i = row_number())
+
+    #hazard_group <- hazard_frame %>%  left_join(groups, by=c("AP_i", "covariate"))
 
   }
   else{
     groups <- unique(data.frame(covariate = hazard_frame$covariate)) %>%
       mutate(group_i = row_number())
-
-    expand.grid()
 
     hazard_group <- hazard_frame %>%  left_join(groups, by=c("covariate"))
   }
@@ -620,13 +646,41 @@ pkg.env$covariate_mapping <- function(hazard_frame,
   #If we have to group for later output, add the relevant groups as well
   groups$group_o <- groups$group_i
   # The only time the groups will be different, is when we are including accident period as a covariate
-  if(conversion_factor != 1 & "AP_i" %in% continuous_features){
+  if(conversion_factor != 1 & sum(c("AP_i","RP_i") %in% continuous_features)>0 ){
 
-      groups_o <- unique(data.frame(AP_o = ceiling(hazard_group$AP_i*conversion_factor), covariate = hazard_group$covariate)) %>%
-        mutate(group_o = row_number())
+      time_elements_0 <- paste(sapply(time_features, function(x){
+          paste0(substr(x,1,2),"_o  =ceiling(hazard_group[['",x,"']]*conversion_factor)")}),
+          collapse=", ")
 
-      groups <- groups %>% select(-group_o) %>%
-        left_join(groups_o, by=c("AP_o", "covariate"))
+      time_elements_1 <- paste(sapply(time_features, function(x){paste0("",substr(x,1,2),"_o=ceiling(",x,"*conversion_factor)")}
+      ), collapse=", ")
+
+      time_elements_2 <- paste(sapply(time_features, function(x){paste0("'",substr(x,1,2),"_o'")}
+      ), collapse=", ")
+
+      expression_0 <- paste0(sprintf(
+        "      groups_o <- unique(data.frame(%s, covariate = hazard_group$covariate))",
+        time_elements_0    ),
+        " %>% mutate(group_o = row_number())")
+
+      expression_1 <- paste0(
+        "groups <- groups %>% select(-group_o) %>%",
+        sprintf(
+          " mutate(%s)",
+          time_elements_1    ),
+        " %>% ",
+        sprintf(
+          " left_join(groups_o, by=c(%s, 'covariate'))",
+          time_elements_2    ) )
+
+      # groups_o <- unique(data.frame(AP_o = ceiling(hazard_group$AP_i*conversion_factor),
+      #                               covariate = hazard_group$covariate)) %>%
+      #   mutate(group_o = row_number())
+      #
+      # groups <- groups %>% select(-group_o) %>%
+      #   left_join(groups_o, by=c("AP_o", "covariate"))
+      eval(parse(text=expression_0))
+      eval(parse(text=expression_1))
 
   }
   return(
@@ -638,11 +692,17 @@ pkg.env$covariate_mapping <- function(hazard_frame,
 }
 
 
-pkg.env$latest_observed_values_i <- function(data, groups,  categorical_features, continuous_features){
+pkg.env$latest_observed_values_i <- function(data,
+                                             groups,
+                                             categorical_features,
+                                             continuous_features,
+                                             calendar_period_extrapolation){
   "
   Retrieve total amount of observed claims
 
   "
+  continuous_features <- switch(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
+
 
   data_reserve <- data
 
@@ -708,54 +768,91 @@ pkg.env$latest_observed_values_i <- function(data, groups,  categorical_features
 
   } else{ #Very similiar to above, expect we now also take the continuous features into account
 
-    if(length(continuous_features)==1 & "AP_i" %in% continuous_features){
-      continuous_features<-NULL
+    if(( (length(continuous_features)==1 & "AP_i" %in% continuous_features) |
+         (length(continuous_features)==1 & "RP_i" %in% continuous_features) |
+         (length(continuous_features)==2 & sum(c("AP_i","RP_i") %in% continuous_features))==2 )){
+      continuous_features_group<-NULL
     }
     else{
-      continuous_features <- continuous_features[!("AP_i" %in% continuous_features)]
+      continuous_features_group <- continuous_features[!(continuous_features %in% c("AP_i","RP_i") )]
     }
 
-    #If-statment due to grouping by continous vair
-    if(is.null(continuous_features)){
-    observed_so_far <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+    #If-statment due to grouping by continous variable
+    #handle <- "RP_i" %in% continuous_features
+    #For now we let the handle be false, this is part of an on-going calendar-period implementation
+    handle = FALSE
+    if(is.null(continuous_features_group)){
+
+    observed_so_far <-
+      switch(handle,
+             data_reserve2 %>%  group_by(AP_i, AP_o,  RP_i, !!sym(categorical_features),
                                                    DP_max_rev) %>%
-      summarise(latest_I=sum(I), .groups = "drop")
-    observed_dp_rev_i <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+               summarise(latest_I=sum(I), .groups = "drop"),
+      data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+                                  DP_max_rev) %>%
+        summarise(latest_I=sum(I), .groups = "drop")
+      )
+
+    observed_dp_rev_i <-
+      switch(handle,
+             data_reserve2 %>%  group_by(AP_i, AP_o, RP_i, !!sym(categorical_features),
                                                      DP_rev_i, DP_i) %>%
-      summarise(I=sum(I), .groups = "drop")
+               summarise(I=sum(I), .groups = "drop"),
+             data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+                                         DP_rev_i, DP_i) %>%
+               summarise(I=sum(I), .groups = "drop")
+      )
     }
     else{
-      observed_so_far <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
-                                                     !!sym(continuous_features),
+
+
+      observed_so_far <- switch(handle,
+                                data_reserve2 %>%  group_by(AP_i, AP_o, RP_i, !!sym(categorical_features),
+                                                     !!sym(continuous_features_group),
                                                      DP_max_rev) %>%
-        summarise(latest_I=sum(I), .groups = "drop")
-      observed_dp_rev_i <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
-                                                       !!sym(continuous_features),
+                                  summarise(latest_I=sum(I), .groups = "drop"),
+                                data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+                                                            !!sym(continuous_features_group),
+                                                            DP_max_rev) %>%
+                                  summarise(latest_I=sum(I), .groups = "drop")
+      )
+
+      observed_dp_rev_i <- switch(handle,
+                                  data_reserve2 %>%  group_by(AP_i, AP_o, RP_i, !!sym(categorical_features),
+                                                       !!sym(continuous_features_group),
                                                        DP_rev_i, DP_i) %>%
-        summarise(I=sum(I), .groups = "drop")
+                                    summarise(I=sum(I), .groups = "drop"),
+                                  data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+                                                              !!sym(continuous_features_group),
+                                                              DP_rev_i, DP_i) %>%
+                                    summarise(I=sum(I), .groups = "drop")
+      )
     }
 
     observed_so_far$covariate <- pkg.env$name_covariates(
       observed_so_far,
       categorical_features,
-      continuous_features
+      continuous_features_group
     )
 
     observed_dp_rev_i$covariate <- pkg.env$name_covariates(
       observed_dp_rev_i,
       categorical_features,
-      continuous_features
+      continuous_features_group
     )
 
-    observed_so_far_out <- observed_so_far %>%  left_join(groups, by=c("AP_i", "covariate")) %>%
-      select(AP_i, group_i, DP_max_rev,latest_I )
+     time_features <- continuous_features[continuous_features %in% c("AP_i","RP_i")]
 
-    observed_dp_rev_i_tmp <- observed_dp_rev_i %>%  left_join(groups, by=c("AP_i", "covariate")) %>%
-      select(AP_i, group_i, DP_rev_i, DP_i, I)
+
+    observed_so_far_out <- observed_so_far %>%  left_join(groups, by=c(time_features, "covariate")) %>%
+      select(AP_i, all_of(time_features), group_i, DP_max_rev,latest_I )
+
+    observed_dp_rev_i_tmp <- observed_dp_rev_i %>%  left_join(groups, by=c(time_features, "covariate")) %>%
+      select(AP_i, all_of(time_features), group_i, DP_rev_i, DP_i, I)
 
     observed_dp_rev_i_out <- observed_grid %>%
       left_join(observed_dp_rev_i_tmp, by=c("AP_i", "DP_i", "DP_rev_i", "group_i")) %>%
-      inner_join(groups[,c("AP_i", "group_i")], by =c("AP_i", "group_i")) #filter only relevant combinations
+      inner_join(groups[,c(time_features, "group_i")], by =c(time_features, "group_i")) #filter only relevant combinations
 
   }
 

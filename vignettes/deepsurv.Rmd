@@ -211,6 +211,7 @@ resurv.fit.xgboost <- ReSurv(individual_data,
                                              min_child_weight=.2),
                                              print_every_n = 1,
                                              nrounds=10,
+                                             verbose=F,
                                              early_stopping_rounds = 500))
 
 ```
