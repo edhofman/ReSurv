@@ -8,10 +8,14 @@
 #' @param categorical_features categorical features columns to be one-hot encoded.
 #' @param accident_period string that contains the name of the column in data corresponding to accident_period
 #' @param calendar_period string that contains the name of the column in data corresponding to the calendar_period.
-#' @param input_time_unit time unit of the input data with reference to a year
-#' @param output_time_unit time unit of the output data with reference to a year
+#' @param calendar_period_extrapolation logical, whether a spline for calendar extrapolation should be considered in the cox model fit. Default is FALSE.
+#' @param input_time_granularity time unit of the input data with reference to a year
+#' @param output_time_granularity time unit of the output data with reference to a year
 #' @param continuous_features_spline weather a spline for smoothing continuous features should be added.
-#' @param degrees_of_freedom degrees of freedom of the splines for smoothing continuous features.
+#' @param degree_cf degrees of the spline for smoothing continuous features.
+#' @param degrees_of_freedom_cf degrees of freedom of the splines for smoothing continuous features.
+#' @param degree_cp degrees of the spline for smoothing the calendar period effect.
+#' @param degrees_of_freedom_cp degrees of freedom of the splines for smoothing the calendar period effect.
 #'
 #' @importFrom dplyr mutate
 #' @importFrom dplyr filter
@@ -39,17 +43,20 @@ IndividualData <- function(data,
                            categorical_features,
                            accident_period,
                            calendar_period,
-                           input_time_unit=1/12,
-                           output_time_unit=1/4,
+                           input_time_granularity="months",
+                           output_time_granularity="quarters",
                            years=4,
-                           continuous_features_spline=TRUE,
-                           degrees_of_freedom=4){
-
+                           calendar_period_extrapolation=FALSE,
+                           continuous_features_spline=NULL,
+                           degrees_cf=3,
+                           degrees_of_freedom_cf=4,
+                           degrees_cp=3,
+                           degrees_of_freedom_cp=4){
 
 
   # Check the conversion is possible
-  pkg.env$check.time.units(input_time_unit,
-                           output_time_unit)
+  # pkg.env$check.time.units(input_time_granularity,
+                           # output_time_granularity)
 
   # Work on a copy of the input data
   tmp <- as.data.frame(data)
@@ -76,21 +83,29 @@ IndividualData <- function(data,
 
   }
 
-  # We need a conversion factor from input_time_unit to output_time_unit
 
-  conversion_factor <- input_time_unit*(1/output_time_unit)
+  # We need a conversion factor from input_time_granularity to output_time_granularity
+
+  # conversion_factor <- input_time_granularity*(1/output_time_granularity)
+
+  conversion_factor <- pkg.env$conversion.factor.of.time.units(input_time_granularity,
+                                                               output_time_granularity)
+
+
 
   # Build the variables you need
   tmp = tmp %>%
     mutate(AP_i=tmp.ap,
            DP_i=tmp.dp,
            RP_i=tmp.cp,
-           DP_rev_i = years/input_time_unit - DP_i+1,
+           DP_rev_i = pkg.env$maximum.time(years,input_time_granularity) - DP_i+1,
            TR_i = AP_i-1, #just setting truncation to max year simulated. and accounting for
            I=1) %>%
     as.data.frame()
 
-  # Take the training data (upper triangle) and convert it from input_time_units to output_time_units
+
+
+  # Take the training data (upper triangle) and convert it from input_time_granularitys to output_time_granularitys
   train= tmp %>%
     filter(DP_rev_i > TR_i) %>%
     mutate(
@@ -103,6 +118,7 @@ IndividualData <- function(data,
     select(id,
            all_of(categorical_features),
            all_of(continuous_features),
+           all_of(switch(calendar_period_extrapolation, 'RP_i', NULL)),
            AP_i,
            AP_o,
            DP_i,
@@ -113,17 +129,37 @@ IndividualData <- function(data,
            I) %>%
     as.data.frame()
 
-  string_formula_i <- pkg.env$formula.editor(continuous_features = continuous_features,
-                                     categorical_features = categorical_features,
-                                     continuous_features_spline=continuous_features_spline,
-                                     degrees_of_freedom = degrees_of_freedom,
-                                     input_output='i')
 
-  string_formula_o <- pkg.env$formula.editor(continuous_features = continuous_features,
-                                     categorical_features = categorical_features,
-                                     continuous_features_spline=continuous_features_spline,
-                                     degrees_of_freedom = degrees_of_freedom,
-                                     input_output='o')
+
+  if(calendar_period_extrapolation){
+    train= train %>%
+      mutate(
+        RP_o=ceiling(RP_i*conversion_factor)) %>%
+      as.data.frame()
+
+  }
+
+  string_formula_i <- pkg.env$formula.editor(continuous_features=continuous_features,
+                                             categorical_features=categorical_features,
+                                             continuous_features_spline=continuous_features_spline,
+                                             degree_cf=degrees_cf,
+                                             degrees_of_freedom_cf=degrees_of_freedom_cf,
+                                             calendar_period="RP_i",
+                                             calendar_period_extrapolation=calendar_period_extrapolation,
+                                             degree_cp=degree_cp,
+                                             degrees_of_freedom_cp=degrees_of_freedom_cp,
+                                             input_output='i')
+
+  string_formula_o <- pkg.env$formula.editor(continuous_features=continuous_features,
+                                             categorical_features=categorical_features,
+                                             continuous_features_spline=continuous_features_spline,
+                                             degree_cf=degrees_cf,
+                                             degrees_of_freedom_cf=degrees_of_freedom_cf,
+                                             calendar_period="RP_o",
+                                             calendar_period_extrapolation=calendar_period_extrapolation,
+                                             degree_cp=degree_cp,
+                                             degrees_of_freedom_cp=degrees_of_freedom_cp,
+                                             input_output='o')
 
 
   # Create and organize the output
@@ -134,7 +170,8 @@ IndividualData <- function(data,
               string_formula_i=string_formula_i,
               string_formula_o=string_formula_o,
               continuous_features=continuous_features,
-              categorical_features=categorical_features)
+              categorical_features=categorical_features,
+              calendar_period_extrapolation=calendar_period_extrapolation)
 
   # Return the correct output
   class(out) <- "IndividualData"
