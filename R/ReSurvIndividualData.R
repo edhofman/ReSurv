@@ -186,7 +186,8 @@ ReSurv.IndividualData <- function(IndividualData,
                                        params=hparameters$params,
                                        verbose = hparameters$verbose,
                                        epochs = hparameters$epochs,
-                                       num_workers = hparameters$num_workers)
+                                       num_workers = hparameters$num_workers,
+                                       seed = random_seed)
 
     # bsln <- model.out$compute_baseline_hazards(
     #   input = datads_pp$x_train,

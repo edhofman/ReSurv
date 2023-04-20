@@ -234,17 +234,7 @@ pkg.env$deep_surv_pp <- function(X,
   # data_transformed <- cbind(X, Y)
 
 
-  if(!is.null(samples_TF)){
-    X <- cbind(X, DP_rev_i = Y$DP_rev_i) %>%
-      mutate(samples_TF = samples_TF) %>%
-      arrange(DP_rev_i) %>%
-      select(-DP_rev_i)
 
-    Y <- Y %>%
-      mutate(samples_TF = samples_TF) %>%
-      arrange(DP_rev_i) %>%
-      as.data.frame()
-  }else{
     X <- cbind(X, DP_rev_i = Y$DP_rev_i) %>%
       arrange(DP_rev_i) %>%
       select(-DP_rev_i)
@@ -252,7 +242,7 @@ pkg.env$deep_surv_pp <- function(X,
     Y <- Y %>%
       arrange(DP_rev_i) %>%
       as.data.frame()
-  }
+
   #id_train <- sample(c(TRUE,FALSE), nrow(X), replace=T, prob= c(training_test_split,1-training_test_split) )
 
   tmp <- as.data.frame(seq(1,dim(X)[1]))
@@ -354,6 +344,7 @@ pkg.env$fit_deep_surv <- function(data,
                                   verbose,
                                   epochs,
                                   num_workers,
+                                  seed,
                                   network_structure=NULL,
                                   newdata){
 
@@ -367,7 +358,7 @@ pkg.env$fit_deep_surv <- function(data,
   # reticulate::source_python(".\\inst\\python\\coxnetwork_custom.py")
   reticulate::source_python(system.file("python", "coxnetwork_custom.py", package = "ReSurv"))
 
-
+  torch$manual_seed(seed)
   #if an optuna-algorithm is to be fitted, keep for now.
   if(!("torch.nn.modules.container.Sequential" %in% class(network_structure$net))){
     net <- torch$nn$Sequential()
@@ -392,7 +383,8 @@ pkg.env$fit_deep_surv <- function(data,
   # epochs = as.integer(params$epochs)
 
 
-  # Setup CoxPH model, as imported from python script.
+  # Setup CoxPH model, as imported from python script. Seed is for weight initlization and comparability when doing cv.
+
   model <- CoxPH(
     net = net,
     optimizer = torchtuples$optim[[params$optim]](lr=params$lr),
@@ -1839,6 +1831,7 @@ pkg.env$deep_surv_cv <- function(IndividualData,
                                continuous_features_scaling_method,
                                folds,
                                kfolds,
+                               random_seed,
                                verbose=1,
                                epochs,
                                num_workers,
@@ -1853,11 +1846,13 @@ pkg.env$deep_surv_cv <- function(IndividualData,
   if(parallel == T){
     # handle UNIx-operated systems seperatly?.Platform$OS.type
     require(parallel)
+
     cl <- makeCluster(ncores)
 
     objects_export <- list(
       "IndividualData",
       "continuous_features_scaling_method",
+      "random_seed",
       "folds",
       "kfolds",
       "verbose",
@@ -1867,12 +1862,12 @@ pkg.env$deep_surv_cv <- function(IndividualData,
       "out",
       "pkg.env"
     )
-
     clusterExport(cl, objects_export, envir = environment())
     #clusterExport(cl, pkg.env, envir = pkg.env )
     clusterEvalQ(cl, {library("ReSurv")
                       library("fastDummies")
-                      library("reticulate")} )
+                      library("reticulate")
+                      set.seed(random_seed)} )
 
     #Don't know why, but this needs to be loaded here before parSapply can run
     pkg.env$cv_parallel_deep_surv <- function(hp){
@@ -1911,7 +1906,8 @@ pkg.env$deep_surv_cv <- function(IndividualData,
                                                            params=hparameters$params,
                                                            verbose = hparameters$verbose,
                                                            epochs = hparameters$epochs,
-                                                           num_workers = hparameters$num_workers))
+                                                           num_workers = hparameters$num_workers,
+                                                           seed= random_seed))
 
 
         best.it <- model.out.k$log$to_pandas()[,1] == min(model.out.k$log$to_pandas()[,1])
@@ -1927,7 +1923,7 @@ pkg.env$deep_surv_cv <- function(IndividualData,
 
 
 
-    out[,c("train.lkh","test.lkh")]  <- parSapply(cl, 1:dim(hparameters.f)[1],  pkg.env$cv_parallel_deep_surv )
+    out[,c("train.lkh","test.lkh")] <- t(parSapply(cl, 1:dim(hparameters.f)[1],  pkg.env$cv_parallel_deep_surv ))
     stopCluster(cl)
     }
   else{
@@ -1974,7 +1970,8 @@ pkg.env$deep_surv_cv <- function(IndividualData,
                                                        params=hparameters$params,
                                                        verbose = hparameters$verbose,
                                                        epochs = hparameters$epochs,
-                                                       num_workers = hparameters$num_workers))
+                                                       num_workers = hparameters$num_workers,
+                                                       seed = random_seed))
 
 
       best.it <- model.out.k$log$to_pandas()[,1] == min(model.out.k$log$to_pandas()[,1])
