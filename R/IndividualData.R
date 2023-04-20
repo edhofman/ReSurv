@@ -1,21 +1,40 @@
 #' Individual data set
 #'
-#' This function inputs and pre-processes the data for the application.
+#' This function pre-processes the data for the application of a \code{ReSurv} model.
 #'
-#' @param data data.frame for the individual reserving. The number of development periods can be bigger than the number of accident periods
-#' @param id column that contains the policy id.
-#' @param continuous_features continuous features columns to be scaled.
-#' @param categorical_features categorical features columns to be one-hot encoded.
-#' @param accident_period string that contains the name of the column in data corresponding to accident_period
-#' @param calendar_period string that contains the name of the column in data corresponding to the calendar_period.
-#' @param calendar_period_extrapolation logical, whether a spline for calendar extrapolation should be considered in the cox model fit. Default is FALSE.
-#' @param input_time_granularity time unit of the input data with reference to a year
-#' @param output_time_granularity time unit of the output data with reference to a year
-#' @param continuous_features_spline weather a spline for smoothing continuous features should be added.
-#' @param degree_cf degrees of the spline for smoothing continuous features.
-#' @param degrees_of_freedom_cf degrees of freedom of the splines for smoothing continuous features.
-#' @param degree_cp degrees of the spline for smoothing the calendar period effect.
-#' @param degrees_of_freedom_cp degrees of freedom of the splines for smoothing the calendar period effect.
+#' @param data \code{data.frame}, for the individual reserving. The number of development periods can be larger than the number of accident periods.
+#' @param id \code{character}, \code{data} column that contains the policy identifier.
+#' @param continuous_features \code{character}, continuous features columns to be scaled.
+#' @param categorical_features \code{character}, categorical features columns to be one-hot encoded.
+#' @param accident_period \code{character}, it contains the name of the column in data corresponding to the accident period.
+#' @param calendar_period \code{character}, it contains the name of the column in data corresponding to the calendar period.
+#' @param calendar_period_extrapolation \code{character}, whether a spline for calendar extrapolation should be considered in the cox model fit.
+#'                                       Default is `FALSE`.
+#' @param input_time_granularity \code{character}, time unit of the input data. Granularity supported:
+#' \itemize{
+#' \item{\code{"months"}: the input data are monthly.}
+#' \item{\code{"quarters"}: the input data are quarterly}
+#' \item{\code{"years"}: the input data are yearly.}
+#' }
+#' Default to \code{months}.
+#'
+#' @param output_time_granularity \code{character}, time unit of the output data. The granularity supported is the same as for the input data:
+#'  \itemize{
+#' \item{\code{"months"}: the input data are monthly.}
+#' \item{\code{"quarters"}: the input data are quarterly}
+#' \item{\code{"years"}: the input data are yearly.}
+#' }
+#' The output granularity must be bigger than the input granularity.
+#' Also, the output granularity must be consistent with the input granularity, meaning that the time conversion must be possible.
+#' E.g., it is possible to group quarters to years. It is not possible to group quarters to semesters.
+#' Default to \code{quarters}.
+#'
+#' @param years \code{numeric}, number of development years in the study.
+#' @param continuous_features_spline \code{logical}, weather a spline for smoothing continuous features should be added.
+#' @param degree_cf \code{numeric}, degrees of the spline for smoothing continuous features.
+#' @param degrees_of_freedom_cf \code{numeric}, degrees of freedom of the splines for smoothing continuous features.
+#' @param degree_cp \code{numeric}, degrees of the spline for smoothing the calendar period effect.
+#' @param degrees_of_freedom_cp \code{numeric}, degrees of freedom of the splines for smoothing the calendar period effect.
 #'
 #' @importFrom dplyr mutate
 #' @importFrom dplyr filter
@@ -31,7 +50,49 @@
 #' @importFrom data.table data.table
 #'
 #'
-#' @return Pre-processed data ready for individual reserving.
+#' @return \code{IndividualData} object. A list containing:
+#'  \itemize{
+#' \item{\code{full.data}: the input data after pre-processing.}
+#' \item{\code{starting.data}: the input data as they were provided from the user.}
+#' \item{\code{training.data}: the input data pre-processed for training.}
+#' \item{\code{conversion_factor}: the conversion factor for going from input granularity to output granularity. E.g, the conversion factor for going from months to quarters is 1/3.}
+#' \item{\code{string_formula_i}: string of the \code{survival} formula to model the data in input granularity.}
+#' \item{\code{string_formula_o}: string of the \code{survival} formula to model the in data output granularity.}
+#' \item{\code{continuous_features}: the continuous features names as provided from the user.}
+#' \item{\code{categorical_features}: the categorical features names as provided from the user.}
+#' \item{\code{calendar_period_extrapolation}: the \code{logical} value specifying wheter a calendar period component is extrapolated.}
+#'
+#' }
+#'
+#' After pre-processing, we provide a standard encoding for the time components. This regards the output in \code{training.data} and \code{full.data}.
+#' In the \code{ReSurv} notation:
+#'\itemize{
+#'\item{\code{AP_i}: input accident period.}
+#'\item{\code{AP_o}: output accident period.}
+#'\item{\code{DP_i}: input development period in forward time.}
+#'\item{\code{DP_rev_i}: input development period in reverse time.}
+#'\item{\code{DP_rev_o}: output development period in reverse time.}
+#'\item{\code{TR_i}: input truncation time.}
+#'\item{\code{TR_o}: output truncation time.}
+#'\item{\code{I}: event indicator, under this framework is equal to one for each entry. }
+#'}
+#'
+#' @examples
+#' ## Not run
+#' input_data <- data_generator(random_seed = 1964)
+#'
+#' individual_data <- IndividualData(input_data,
+#'                                   id="claim_number",
+#'                                   continuous_features=NULL,
+#'                                   categorical_features="claim_type",
+#'                                   accident_period="AM",
+#'                                   calendar_period="RM",
+#'                                   input_time_granularity = "months",
+#'                                   output_time_granularity = "quarters",
+#'                                   years=4,
+#'                                   continuous_features_spline=NULL,
+#'                                   calendar_period_extrapolation=F)
+#'#'
 #'
 #' @references
 #' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
