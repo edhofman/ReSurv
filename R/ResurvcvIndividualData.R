@@ -140,10 +140,13 @@ ReSurvCV.IndividualData <- function(IndividualData,
 
   test.lkh <- vector("numeric",
                      length=dim(hparameters.f)[1])
+  time <- vector("numeric",
+                 length=dim(hparameters.f)[1])
 
   out <- cbind(hparameters.f,
                train.lkh,
-               test.lkh)
+               test.lkh,
+               time)
 
 
   if(model == "xgboost"){

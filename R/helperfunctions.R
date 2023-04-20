@@ -1872,7 +1872,7 @@ pkg.env$deep_surv_cv <- function(IndividualData,
     #Don't know why, but this needs to be loaded here before parSapply can run
     pkg.env$cv_parallel_deep_surv <- function(hp){
 
-
+      start <- Sys.time()
       hparameters <- list(params=as.list.data.frame(hparameters.f[hp,]),
                           verbose=verbose,
                           epochs = epochs,
@@ -1916,19 +1916,19 @@ pkg.env$deep_surv_cv <- function(IndividualData,
 
       }
 
-
-      c(mean(tmp.train.lkh),mean(tmp.test.lkh))
+      time <- as.numeric(difftime(Sys.time(), start, units='mins'))
+      c(mean(tmp.train.lkh),mean(tmp.test.lkh),time)
 
     }
 
 
 
-    out[,c("train.lkh","test.lkh")] <- t(parSapply(cl, 1:dim(hparameters.f)[1],  pkg.env$cv_parallel_deep_surv ))
+    out[,c("train.lkh","test.lkh", "time")] <- t(parSapply(cl, 1:dim(hparameters.f)[1],  pkg.env$cv_parallel_deep_surv ))
     stopCluster(cl)
     }
   else{
   for(hp in 1:dim(hparameters.f)[1]){
-
+    start <- Sys.time()
     if(verbose.cv){cat(as.character(Sys.time()),
                        "Testing hyperparameters combination",
                        hp,
@@ -1980,8 +1980,8 @@ pkg.env$deep_surv_cv <- function(IndividualData,
 
     }
 
-
-    out[hp,c("train.lkh","test.lkh")] = c(mean(tmp.train.lkh),mean(tmp.test.lkh))
+    time <- as.numeric(difftime(Sys.time(), start, units='mins'))
+    out[hp,c("train.lkh","test.lkh", "time")] = c(mean(tmp.train.lkh),mean(tmp.test.lkh))
 
   }
   }

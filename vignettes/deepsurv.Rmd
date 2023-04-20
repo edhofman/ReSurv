@@ -108,7 +108,7 @@ start <- Sys.time()
 resurv.cv.deep_surv <- ReSurvCV(IndividualData=individual_data,
                                model="deepsurv",
                                hparameters_grid=list(num_layers = c(2L,3L),
-                                                    num_nodes = c(2,5),
+                                                    num_nodes = c(2),
                                                     optim=c("Adam"),
                                                     activation = "LeakyReLU",
                                                     lr=c(.01),
