@@ -22,7 +22,8 @@ library(ReSurv)
 ```{r}
 # Input data
 
-input_data <- data_generator(random_seed = 1964)
+input_data <- data_generator(random_seed = 1964,
+                             scenario=4)
 
 ```
 
@@ -92,7 +93,7 @@ resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
                                              lambda=c(0,.2,1),
                                              min_child_weight=c(.5,1)),
                                print_every_n = 1L,
-                               nrounds=5000,
+                               nrounds=500,
                                verbose=F,
                                verbose.cv=T,
                                early_stopping_rounds = 100,

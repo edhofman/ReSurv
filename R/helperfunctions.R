@@ -14,6 +14,530 @@
 
 pkg.env <- new.env()
 
+
+# Utils individual claims generators
+
+S_df <- function(s) {
+  # truncate and rescale
+  if (s < 30) {
+    return(0)
+  } else {
+    p_trun <- pnorm(s^0.2, 9.5, 3) - pnorm(30^0.2, 9.5, 3)
+    p_rescaled <- p_trun/(1 - pnorm(30^0.2, 9.5, 3))
+    return(p_rescaled)
+  }
+}
+
+RTFWD_inverse <- function(n, alpha, beta, lambda, k,b){
+  U<-runif(n)
+  (-log(U)/(beta^alpha*lambda^(alpha*k))+b^(-alpha*k))^(1/(-alpha*k))
+}
+
+period_function <-function(x){
+  if((x%%12) %in% (c(2,3,4))){
+    return(-0.3)
+  }
+  if((x%%12) %in% (c(5,6,7))){
+    return(0.4)
+  }
+  if((x%%12) %in% (c(8,9,10))){
+    return(-0.7)
+  }
+  if((x%%12) %in% (c(11,0,1))){ #0 instead of 12
+    return(0.1)
+  }
+}
+
+notidel_param_0 <- function(claim_size,
+                            occurrence_period,
+                            scenario,
+                            years,
+                            time_unit) {
+
+  if(scenario %in% c(0,1,2)){
+
+    return(c(alpha=0.5,
+             beta=2,
+             lambda=0.1*exp(1.15129)^(1/0.5),
+             k=1,
+             b=years / time_unit))
+
+  }
+
+  if(scenario==3){
+
+    return(c(alpha=0.5,
+             beta=2,
+             lambda=0.1*exp(1.15129+period_function(ceiling(occurrence_period)))^(1/0.5),
+             k=1,
+             b=years / time_unit))
+
+  }
+
+  if(scenario==4){
+
+    return(c(alpha=0.5,
+        beta=2+0.5*1.15129,
+        lambda=0.1*exp(1.15129)^(1/0.5)+0.5*1.15129,
+        k=1,
+        b=years / time_unit))
+
+  }
+
+
+
+}
+
+
+
+notidel_param_1 <- function(claim_size,
+                            occurrence_period,
+                            scenario,
+                            years,
+                            time_unit) {
+
+  if(scenario%in%c(0,1)){
+    return(c(alpha=0.5,
+    beta=2,
+    lambda=0.1*exp(1.95601)^(1/0.5),
+    k=1,
+    b=years / time_unit))}
+
+  if(scenario==2){
+    return(c(alpha=0.5,
+      beta=2,
+      lambda=0.1*exp(1.95601-0.116151*sqrt(ceiling(occurrence_period)))^(1/0.5),
+      k=1,
+      b=years / time_unit))}
+
+  if(scenario==3){
+    return(c(alpha=0.5,
+      beta=2,
+      lambda=0.1*exp(1.95601+period_function(ceiling(occurrence_period)) )^(1/0.5),
+      k=1,
+      b=years / time_unit))}
+
+  if(scenario==4){
+    return(c(alpha=0.5,
+      beta=2+0.5*1.15129,
+      lambda=0.1*exp(1.95601)^(1/0.5)+0.5*1.95601,
+      k=1,
+      b=years / time_unit))}
+
+
+
+}
+
+
+
+
+## Data generator ----
+
+pkg.env$scenario0_simulator <- function(ref_claim,
+                                        time_unit,
+                                        years,
+                                        random_seed,
+                                        yearly_exposure,
+                                        yearly_frequency){
+
+  I <- years / time_unit
+  E <- c(rep(yearly_exposure, I))
+  lambda <- c(rep(yearly_frequency, I))
+  scenario=0
+
+
+  #Frequency simulation
+  n_vector <- claim_frequency(I = I, E = E, freq = lambda)
+  occurrence_times <- claim_occurrence(frequency_vector = n_vector)
+
+
+  #idea for simulating dependency with claim types
+  #claim_types <- c(round(runif(sum(n_vector),0,1) ) )
+
+
+  # No difference, same simulations with different reporting mean and number numbers ------------------------
+
+
+    #Frequency simulation
+    n_vector_0 <- claim_frequency(I = I, E = E*3, freq = lambda)
+    n_vector_1 <- claim_frequency(I = I, E = E*3, freq = lambda)
+    occurrence_times_0 <- claim_occurrence(frequency_vector = n_vector_0)
+    occurrence_times_1 <- claim_occurrence(frequency_vector = n_vector_1)
+
+    #Doesn't matter since only looking at observed numbers, but needed for the other functions
+    claim_sizes_0 <- claim_size(frequency_vector = n_vector_0,
+                                simfun = S_df, type = "p", range = c(0, 1e24))
+    claim_sizes_1 <- claim_size(frequency_vector = n_vector_1,
+                                simfun = S_df, type = "p", range = c(0, 1e24))
+
+
+    ## output
+    # simulate notification delays from the transformed gamma
+    notidel_claim_type_0 <- claim_notification(n_vector_0,
+                                               claim_sizes_0,
+                                               rfun = RTFWD_inverse,
+                                               paramfun = notidel_param_0,
+                                               scenario=scenario,
+                                               years=years,
+                                               time_unit=time_unit)
+
+    notidel_claim_type_1 <- claim_notification(n_vector_1, claim_sizes_1,
+                                               rfun = RTFWD_inverse,
+                                               paramfun = notidel_param_1,
+                                               scenario=scenario,
+                                               years=years,
+                                               time_unit=time_unit)
+
+    # graphically compare the result with the default Weibull distribution
+
+    ct0 <- tibble(AT = unlist(occurrence_times_0),
+                  RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
+                  claim_type = 0)
+
+    ct1 <- tibble(AT = unlist(occurrence_times_1),
+                  RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
+                  claim_type = 1)
+
+    simulated_dataframe_RM_CT <- ct0 %>%  bind_rows(ct1) %>%
+      mutate(
+        claim_number = row_number(),
+      )  %>%  mutate(
+        AM = ceiling(AT),
+        RM = ceiling(RT),
+        DT = RT-AT,
+        DM = RM-AM+1,
+        DM_rev = years/time_unit - DM+1,
+        DT_rev = years/time_unit - DT,
+        TR = AM-1, #just setting truncation to max year simulated. and accounting for
+        I=1
+      ) %>%
+      select(claim_number, AT, RT, claim_type, AM, RM, DT, DM, DM_rev, DT_rev, TR, I)
+
+
+  simulated_dataframe_RM_CT
+
+}
+
+pkg.env$scenario1_simulator <- function(ref_claim,
+                              time_unit,
+                              years,
+                              random_seed,
+                              yearly_exposure,
+                              yearly_frequency){
+
+
+  I <- years / time_unit
+  E <- c(rep(yearly_exposure, I))
+  lambda <- c(rep(yearly_frequency, I))
+  scenario=1
+
+  #Decreasing the exposure, and hence lowering the claims occurred
+  E_1 <- c(rep(yearly_exposure, I)) + seq(from = 0, by = -100, length = I)
+  #Frequency simulation
+  n_vector_0 <- claim_frequency(I = I, E = E, freq = lambda)
+  n_vector_1 <- claim_frequency(I = I, E = E_1*2, freq = lambda)
+  occurrence_times_0 <- claim_occurrence(frequency_vector = n_vector_0)
+  occurrence_times_1 <- claim_occurrence(frequency_vector = n_vector_1)
+
+
+
+
+  claim_sizes_0 <- claim_size(frequency_vector = n_vector_0,
+                              simfun = S_df, type = "p", range = c(0, 1e24))
+  claim_sizes_1 <- claim_size(frequency_vector = n_vector_1,
+                              simfun = S_df, type = "p", range = c(0, 1e24))
+
+
+
+  ## output
+  # simulate notification delays from the transformed gamma
+  notidel_claim_type_0 <- claim_notification(n_vector_0, claim_sizes_0,
+                                             rfun = RTFWD_inverse,
+                                             paramfun = notidel_param_0,
+                                             scenario=scenario,
+                                             years=years,
+                                             time_unit=time_unit)
+
+  notidel_claim_type_1 <- claim_notification(n_vector_1, claim_sizes_1,
+                                             rfun = RTFWD_inverse,
+                                             paramfun = notidel_param_1,
+                                             scenario=scenario,
+                                             years=years,
+                                             time_unit=time_unit)
+
+
+  ct0 <- tibble(AT = unlist(occurrence_times_0),
+                RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
+                claim_type = 0)
+
+  ct1 <- tibble(AT = unlist(occurrence_times_1),
+                RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
+                claim_type = 1)
+
+  simulated_dataframe_RM_CT <- ct0 %>%  bind_rows(ct1) %>%
+    mutate(
+      claim_number = row_number(),
+    )  %>%  mutate(
+      AM = ceiling(AT),
+      RM = ceiling(RT),
+      DT = RT-AT,
+      DM = RM-AM+1,
+      DM_rev = years/time_unit - DM+1,
+      DT_rev = years/time_unit - DT,
+      TR = AM-1, #just setting truncation to max year simulated. and accounting for
+      I=1
+    ) %>%
+    select(claim_number, AT, RT, claim_type, AM, RM, DT, DM, DM_rev, DT_rev, TR, I)
+
+  simulated_dataframe_RM_CT
+
+}
+
+
+pkg.env$scenario2_simulator <- function(ref_claim,
+                                        time_unit,
+                                        years,
+                                        random_seed,
+                                        yearly_exposure,
+                                        yearly_frequency){
+
+
+  I <- years / time_unit
+  E <- c(rep(yearly_exposure, I))
+  lambda <- c(rep(yearly_frequency, I))
+  scenario=2
+
+  #Frequency simulation
+  n_vector <- claim_frequency(I = I, E = E, freq = lambda)
+  occurrence_times <- claim_occurrence(frequency_vector = n_vector)
+
+
+
+  #idea for simulating dependency with claim types
+  #claim_types <- c(round(runif(sum(n_vector),0,1) ) )
+
+
+  # No difference, same simulations with different reporting mean and number numbers ------------------------
+
+    #Frequency simulation
+    n_vector_0 <- claim_frequency(I = I, E = E, freq = lambda)
+    n_vector_1 <- claim_frequency(I = I, E = E, freq = lambda)
+    occurrence_times_0 <- claim_occurrence(frequency_vector = n_vector_0)
+    occurrence_times_1 <- claim_occurrence(frequency_vector = n_vector_1)
+
+    #Doesn't matter since only looking at observed numbers, but needed for the other functions
+    claim_sizes_0 <- claim_size(frequency_vector = n_vector_0,
+                                simfun = S_df, type = "p", range = c(0, 1e24))
+    claim_sizes_1 <- claim_size(frequency_vector = n_vector_1,
+                                simfun = S_df, type = "p", range = c(0, 1e24))
+
+
+
+
+
+    ## output
+    # simulate notification delays from the transformed gamma
+    notidel_claim_type_0 <- claim_notification(n_vector_0, claim_sizes_0,
+                                               rfun = RTFWD_inverse,
+                                               paramfun = notidel_param_0,
+                                               scenario=scenario,
+                                               years=years,
+                                               time_unit=time_unit)
+
+    notidel_claim_type_1 <- claim_notification(n_vector_1, claim_sizes_1,
+                                               rfun = RTFWD_inverse,
+                                               paramfun = notidel_param_1,
+                                               scenario=scenario,
+                                               years=years,
+                                               time_unit=time_unit)
+
+
+    ct0 <- tibble(AT = unlist(occurrence_times_0),
+                  RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
+                  claim_type = 0)
+
+    ct1 <- tibble(AT = unlist(occurrence_times_1),
+                  RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
+                  claim_type = 1)
+
+    simulated_dataframe_RM_CT <- ct0 %>%  bind_rows(ct1) %>%
+      mutate(
+        claim_number = row_number(),
+      )  %>%  mutate(
+        AM = ceiling(AT),
+        RM = ceiling(RT),
+        DT = RT-AT,
+        DM = RM-AM+1,
+        DM_rev = years/time_unit - DM+1,
+        DT_rev = years/time_unit - DT,
+        TR = AM-1, #just setting truncation to max year simulated. and accounting for
+        I=1
+      ) %>%
+      select(claim_number, AT, RT, claim_type, AM, RM, DT, DM, DM_rev, DT_rev, TR, I)
+
+  simulated_dataframe_RM_CT  }
+
+pkg.env$scenario3_simulator <- function(ref_claim,
+                                        time_unit,
+                                        years,
+                                        random_seed,
+                                        yearly_exposure,
+                                        yearly_frequency){
+
+
+  I <- years / time_unit
+  E <- c(rep(yearly_exposure, I))
+  lambda <- c(rep(yearly_frequency, I))
+  scenario=3
+
+  #Frequency simulation
+  n_vector <- claim_frequency(I = I, E = E, freq = lambda)
+  occurrence_times <- claim_occurrence(frequency_vector = n_vector)
+
+
+  #idea for simulating dependency with claim types
+  #claim_types <- c(round(runif(sum(n_vector),0,1) ) )
+
+
+  #Frequency simulation
+  n_vector_0 <- claim_frequency(I = I, E = E, freq = lambda)
+  n_vector_1 <- claim_frequency(I = I, E = E, freq = lambda)
+  occurrence_times_0 <- claim_occurrence(frequency_vector = n_vector_0)
+  occurrence_times_1 <- claim_occurrence(frequency_vector = n_vector_1)
+
+  #Doesn't matter since only looking at observed numbers, but needed for the other functions
+  claim_sizes_0 <- claim_size(frequency_vector = n_vector_0,
+                              simfun = S_df, type = "p", range = c(0, 1e24))
+  claim_sizes_1 <- claim_size(frequency_vector = n_vector_1,
+                              simfun = S_df, type = "p", range = c(0, 1e24))
+
+
+  # simulate notification delays from the transformed gamma
+  notidel_claim_type_0 <- claim_notification(n_vector_0, claim_sizes_0,
+                                             rfun = RTFWD_inverse,
+                                             paramfun = notidel_param_0,
+                                             scenario=scenario,
+                                             years=years,
+                                             time_unit=time_unit)
+
+  notidel_claim_type_1 <- claim_notification(n_vector_1, claim_sizes_1,
+                                             rfun = RTFWD_inverse,
+                                             paramfun = notidel_param_1,
+                                             scenario=scenario,
+                                             years=years,
+                                             time_unit=time_unit)
+
+
+  ct0 <- tibble(AT = unlist(occurrence_times_0),
+                RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
+                claim_type = 0)
+
+  ct1 <- tibble(AT = unlist(occurrence_times_1),
+                RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
+                claim_type = 1)
+
+  simulated_dataframe_RM_CT <- ct0 %>%  bind_rows(ct1) %>%
+    mutate(
+      claim_number = row_number(),
+    )  %>%  mutate(
+      AM = ceiling(AT),
+      RM = ceiling(RT),
+      DT = RT-AT,
+      DM = RM-AM+1,
+      DM_rev = years/time_unit - DM+1,
+      DT_rev = years/time_unit - DT,
+      TR = AM-1, #just setting truncation to max year simulated. and accounting for
+      I=1
+    ) %>%
+    select(claim_number, AT, RT, claim_type, AM, RM, DT, DM, DM_rev, DT_rev, TR, I)
+
+  simulated_dataframe_RM_CT
+
+
+
+}
+
+pkg.env$scenario4_simulator <- function(ref_claim,
+                                        time_unit,
+                                        years,
+                                        random_seed,
+                                        yearly_exposure,
+                                        yearly_frequency){
+
+
+
+  I <- years / time_unit
+  E <- c(rep(yearly_exposure, I))
+  lambda <- c(rep(yearly_frequency, I))
+  scenario=4
+
+  #Frequency simulation
+  n_vector <- claim_frequency(I = I, E = E, freq = lambda)
+  occurrence_times <- claim_occurrence(frequency_vector = n_vector)
+
+    #Frequency simulation
+    n_vector_0 <- claim_frequency(I = I, E = E, freq = lambda)
+    n_vector_1 <- claim_frequency(I = I, E = E, freq = lambda)
+    occurrence_times_0 <- claim_occurrence(frequency_vector = n_vector_0)
+    occurrence_times_1 <- claim_occurrence(frequency_vector = n_vector_1)
+
+    #Doesn't matter since only looking at observed numbers, but needed for the other functions
+    claim_sizes_0 <- claim_size(frequency_vector = n_vector_0,
+                                simfun = S_df, type = "p", range = c(0, 1e24))
+    claim_sizes_1 <- claim_size(frequency_vector = n_vector_1,
+                                simfun = S_df, type = "p", range = c(0, 1e24))
+
+
+    #sum(unlist(notidel_claim_type_0)>48)/sum(unlist(notidel_claim_type_0)>0)
+    ## output
+    # simulate notification delays from the transformed gamma
+    notidel_claim_type_0 <- claim_notification(n_vector_0, claim_sizes_0,
+                                               rfun = RTFWD_inverse,
+                                               paramfun = notidel_param_0,
+                                               scenario=scenario,
+                                               years=years,
+                                               time_unit=time_unit)
+
+    notidel_claim_type_1 <- claim_notification(n_vector_1, claim_sizes_1,
+                                               rfun = RTFWD_inverse,
+                                               paramfun = notidel_param_1,
+                                               scenario=scenario,
+                                               years=years,
+                                               time_unit=time_unit)
+
+    ct0 <- tibble(AT = unlist(occurrence_times_0),
+                  RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
+                  claim_type = 0)
+
+    ct1 <- tibble(AT = unlist(occurrence_times_1),
+                  RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
+                  claim_type = 1)
+
+    simulated_dataframe_RM_CT <- ct0 %>%  bind_rows(ct1) %>%
+      mutate(
+        claim_number = row_number(),
+      )  %>%  mutate(
+        AM = ceiling(AT),
+        RM = ceiling(RT),
+        DT = RT-AT,
+        DM = RM-AM+1,
+        DM_rev = years/time_unit - DM+1,
+        DT_rev = years/time_unit - DT,
+        TR = AM-1, #just setting truncation to max year simulated. and accounting for
+        I=1
+      ) %>%
+      select(claim_number, AT, RT, claim_type, AM, RM, DT, DM, DM_rev, DT_rev, TR, I) %>% as.data.frame()
+
+    simulated_dataframe_RM_CT
+
+
+
+
+
+}
+
+##
+
 pkg.env$check.all.present <- function(x,check.on){
 
   "
