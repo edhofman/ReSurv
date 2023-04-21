@@ -97,7 +97,7 @@ cox_evaluation_metrix <- function(preds,
 
   value <- -sum(log(lkh))
   # browser()
-  return(list(metric = "log-partial likelihood", value = value))
+  return(list(metric = "log-partial likelihood", value = value/length(preds) ))
 }
 
 ##

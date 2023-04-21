@@ -1073,8 +1073,8 @@ pkg.env$i_to_o_development_factor <- function(i,
   #For probability approach to grouping method we assume equal exposure for each accident period
   if(grouping_method == "probability"){
   expected_i <-  pkg.env$predict_i(
-    hazard_data_frame = hazard_frame_grouped$hazard_group,
-    latest_cumulative = latest_observed$latest_cumulative,
+    hazard_data_frame = hazard_data_frame,
+    latest_cumulative = latest_cumulative,
     grouping_method = "probability"
   ) %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i"))
@@ -1681,11 +1681,38 @@ pkg.env$xgboost_cv <- function(IndividualData,
                                early_stopping_rounds = NULL,
                                hparameters.f,
                                out,
-                               verbose.cv=FALSE){
+                               verbose.cv=FALSE,
+                               parallel=F,
+                               ncores=1,
+                               random_seed){
 
   "Function to perform K-fold cross-validation with xgboost"
+  if(parallel == T){
+    # handle UNIx-operated systems seperatly?.Platform$OS.type
+    require(parallel)
 
+    cl <- makeCluster(ncores)
 
+    objects_export <- list(
+      "random_seed"
+    )
+    clusterExport(cl, objects_export, envir = environment())
+
+    clusterEvalQ(cl, {library("ReSurv")
+      set.seed(random_seed)} )
+
+    out[,c("train.lkh","test.lkh", "time")] <- t(parSapply(cl, 1:dim(hparameters.f)[1],  FUN =cv_xgboost,
+                                                           IndividualData=IndividualData,
+                                                           folds=folds,
+                                                           kfolds=kfolds,
+                                                           print_every_n=print_every_n,
+                                                           nrounds=nrounds,
+                                                           verbose=F,
+                                                           early_stopping_rounds=early_stopping_rounds,
+                                                           hparameters.f=hparameters.f))
+    stopCluster(cl)
+  }
+  else{
   for(hp in 1:dim(hparameters.f)[1]){
 
     if(verbose.cv){cat(as.character(Sys.time()),
@@ -1694,54 +1721,18 @@ pkg.env$xgboost_cv <- function(IndividualData,
         "out of",
         dim(hparameters.f)[1], "\n")}
 
-    hparameters <- list(params=as.list.data.frame(hparameters.f[hp,]),
-                        print_every_n=print_every_n,
-                        nrounds=nrounds,
-                        verbose=verbose,
-                        early_stopping_rounds=early_stopping_rounds)
 
-    tmp.train.lkh <- vector("numeric",
-                            length=folds)
-    tmp.test.lkh <- vector("numeric",
-                           length=folds)
-
-    for(i in c(1:folds)){
-
-      X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                                        select_columns = IndividualData$categorical_features,
-                                        remove_first_dummy=T)
-
-      scaler <- pkg.env$scaler(continuous_features_scaling_method = "minmax")
-
-      Xc <- IndividualData$training.data %>%
-        summarize(across(all_of(IndividualData$continuous_features),
-                         scaler))
-
-      X=cbind(X,Xc)
-
-      Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
-
-      datads_pp =  pkg.env$xgboost_pp(X,
-                                      Y,
-                                      samples_TF= c(kfolds!=i))
-
-
-
-      model.out.k <- do.call(pkg.env$fit_xgboost, list(datads_pp=datads_pp,
-                                                       hparameters=hparameters))
-
-
-      best.it <- model.out.k$best_iteration
-      tmp.train.lkh[i] <- model.out.k$evaluation_log$`train_log_partial likelihood`[best.it]
-      tmp.test.lkh[i] <- model.out.k$evaluation_log$`eval_log_partial likelihood`[best.it]
-
-      }
-
-
-    out[hp,c("train.lkh","test.lkh")] = c(mean(tmp.train.lkh),mean(tmp.test.lkh))
-
+    out[hp,c("train.lkh","test.lkh", "time")] <- cv_xgboost(hp,
+                                                    IndividualData,
+                                                    folds,
+                                                    kfolds,
+                                                    print_every_n,
+                                                    nrounds,
+                                                    verbose,
+                                                    early_stopping_rounds,
+                                                    hparameters.f)
   }
-
+  }
   return(out)
 
 }
@@ -1832,7 +1823,7 @@ pkg.env$deep_surv_cv <- function(IndividualData,
                                folds,
                                kfolds,
                                random_seed,
-                               verbose=1,
+                               verbose=0,
                                epochs,
                                num_workers,
                                hparameters.f,
@@ -1849,139 +1840,47 @@ pkg.env$deep_surv_cv <- function(IndividualData,
 
     cl <- makeCluster(ncores)
 
-    objects_export <- list(
-      "IndividualData",
-      "continuous_features_scaling_method",
-      "random_seed",
-      "folds",
-      "kfolds",
-      "verbose",
-      "epochs",
-      "num_workers",
-      "hparameters.f",
-      "out",
-      "pkg.env"
-    )
+     objects_export <- list(
+       "random_seed"
+     )
     clusterExport(cl, objects_export, envir = environment())
-    #clusterExport(cl, pkg.env, envir = pkg.env )
+
     clusterEvalQ(cl, {library("ReSurv")
                       library("fastDummies")
                       library("reticulate")
                       set.seed(random_seed)} )
 
-    #Don't know why, but this needs to be loaded here before parSapply can run
-    pkg.env$cv_parallel_deep_surv <- function(hp){
-
-      start <- Sys.time()
-      hparameters <- list(params=as.list.data.frame(hparameters.f[hp,]),
-                          verbose=verbose,
-                          epochs = epochs,
-                          num_workers = num_workers)
-
-      tmp.train.lkh <- vector("numeric",
-                              length=folds)
-      tmp.test.lkh <- vector("numeric",
-                             length=folds)
-
-      X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                                        select_columns = IndividualData$categorical_features)
-
-      scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
-
-      Xc <- IndividualData$training.data %>%
-        summarize(across(all_of(IndividualData$continuous_features),
-                         scaler))
-      X=cbind(X,Xc)
-
-      Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
-      for(i in c(1:folds)){
-
-        datads_pp = pkg.env$deep_surv_pp(X=X,
-                                         Y=Y,
-                                         samples_TF= c(kfolds!=i))
-
-
-
-        model.out.k <- do.call(pkg.env$fit_deep_surv, list(data=datads_pp,
-                                                           params=hparameters$params,
-                                                           verbose = hparameters$verbose,
-                                                           epochs = hparameters$epochs,
-                                                           num_workers = hparameters$num_workers,
-                                                           seed= random_seed))
-
-
-        best.it <- model.out.k$log$to_pandas()[,1] == min(model.out.k$log$to_pandas()[,1])
-        tmp.train.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['train_loss']))
-        tmp.test.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['val_loss']))
-
-      }
-
-      time <- as.numeric(difftime(Sys.time(), start, units='mins'))
-      c(mean(tmp.train.lkh),mean(tmp.test.lkh),time)
-
-    }
-
-
-
-    out[,c("train.lkh","test.lkh", "time")] <- t(parSapply(cl, 1:dim(hparameters.f)[1],  pkg.env$cv_parallel_deep_surv ))
+    out[,c("train.lkh","test.lkh", "time")] <- t(parSapply(cl, 1:dim(hparameters.f)[1],  FUN =cv_deep_surv,
+                                                           IndividualData = IndividualData,
+                                                           continuous_features_scaling_method = continuous_features_scaling_method,
+                                                           folds= folds,
+                                                           kfolds =kfolds,
+                                                           random_seed=random_seed,
+                                                           verbose=verbose,
+                                                           epochs=epochs,
+                                                           num_workers=num_workers,
+                                                           hparameters.f=hparameters.f))
     stopCluster(cl)
     }
   else{
   for(hp in 1:dim(hparameters.f)[1]){
-    start <- Sys.time()
     if(verbose.cv){cat(as.character(Sys.time()),
                        "Testing hyperparameters combination",
                        hp,
                        "out of",
                        dim(hparameters.f)[1], "\n")}
 
-    hparameters <- list(params=as.list.data.frame(hparameters.f[hp,]),
-                        verbose=verbose,
-                        epochs = epochs,
-                        num_workers = num_workers)
 
-    tmp.train.lkh <- vector("numeric",
-                            length=folds)
-    tmp.test.lkh <- vector("numeric",
-                           length=folds)
-
-    X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                                      select_columns = IndividualData$categorical_features)
-
-    scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
-
-    Xc <- IndividualData$training.data %>%
-      summarize(across(all_of(IndividualData$continuous_features),
-                       scaler))
-    X=cbind(X,Xc)
-
-    Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
-
-
-    for(i in c(1:folds)){
-
-      datads_pp = pkg.env$deep_surv_pp(X=X,
-                                       Y=Y,
-                                       samples_TF= c(kfolds!=i))
-
-
-
-      model.out.k <- do.call(pkg.env$fit_deep_surv, list(data=datads_pp,
-                                                       params=hparameters$params,
-                                                       verbose = hparameters$verbose,
-                                                       epochs = hparameters$epochs,
-                                                       num_workers = hparameters$num_workers,
-                                                       seed = random_seed))
-
-
-      best.it <- model.out.k$log$to_pandas()[,1] == min(model.out.k$log$to_pandas()[,1])
-      tmp.train.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['train_loss']))
-      tmp.test.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['val_loss']))
-
-    }
-
-    time <- as.numeric(difftime(Sys.time(), start, units='mins'))
-    out[hp,c("train.lkh","test.lkh", "time")] = c(mean(tmp.train.lkh),mean(tmp.test.lkh))
+    out[hp,c("train.lkh","test.lkh", "time")] = cv_deep_surv(hp,
+                                                             IndividualData,
+                                                             continuous_features_scaling_method,
+                                                             folds,
+                                                             kfolds,
+                                                             random_seed,
+                                                             verbose=verbose,
+                                                             epochs,
+                                                             num_workers,
+                                                             hparameters.f)
 
   }
   }

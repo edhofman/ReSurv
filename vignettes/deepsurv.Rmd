@@ -96,6 +96,8 @@ resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
                                verbose.cv=T,
                                early_stopping_rounds = 10,
                                folds=5,
+                               parallel=T,
+                               ncores=2,
                                random_seed=1)
 
 ```
@@ -122,7 +124,7 @@ resurv.cv.deep_surv <- ReSurvCV(IndividualData=individual_data,
                               epochs = as.integer(100),
                               num_workers = 0,
                               verbose = F,
-                              parallel=T,
+                              parallel=F,
                               ncores=2,
                               folds=5,
                               random_seed=1)
