@@ -54,15 +54,20 @@ data_generator <- function(ref_claim = 200000,
                      yearly_frequency=yearly_frequency)
 
 
-  if(scenario == 0){ do.call(pkg.env$scenario0_simulator,parameters)}
+  if(scenario == 0){ return(do.call(pkg.env$scenario0_simulator,parameters)
+                            )}
 
-  if(scenario == 1){ do.call(pkg.env$scenario1_simulator,parameters)}
+  if(scenario == 1){ return(do.call(pkg.env$scenario1_simulator,parameters)
+                            )}
 
-  if(scenario == 2){ do.call(pkg.env$scenario2_simulator,parameters)}
+  if(scenario == 2){ return(do.call(pkg.env$scenario2_simulator,parameters)
+                            )}
 
-  if(scenario == 3){ do.call(pkg.env$scenario3_simulator,parameters)}
+  if(scenario == 3){ return(do.call(pkg.env$scenario3_simulator,parameters)
+                            )}
 
-  if(scenario == 4){ do.call(pkg.env$scenario4_simulator,parameters)}
+  if(scenario == 4){ return(do.call(pkg.env$scenario4_simulator,parameters)
+                            )}
 }
 
 

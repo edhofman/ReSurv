@@ -23,7 +23,7 @@ library(ReSurv)
 # Input data
 
 input_data <- data_generator(random_seed = 1964,
-                             scenario=4)
+                             scenario=0)
 
 ```
 
