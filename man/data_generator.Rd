@@ -14,21 +14,42 @@ data_generator(
 )
 }
 \arguments{
-\item{ref_claim}{reference claim size}
+\item{ref_claim}{\code{integer}, reference claim size.}
 
-\item{time_unit}{output time unit}
+\item{time_unit}{\code{numeric}, output time unit.}
 
-\item{years}{simulated number of years}
+\item{years}{\code{integer}, number of years to be simulated.}
 
-\item{yearly_exposure}{volume underwritten}
+\item{yearly_exposure}{\code{integer}, volume underwritten each year.}
 
-\item{yearly_frequency}{yearly frequency}
+\item{yearly_frequency}{\code{numeric}, yearly frequency.}
 }
 \value{
-individual claim data
+Individual claims data. It contains the following columns:
+\itemize{
+\item{\code{AT}: Accident month in continuous time.}
+\item{\code{AM}: Accident month.}
+\item{\code{RT}: Reporting month in continuous time.}
+\item{\code{RM}: Reporting month.}
+\item{\code{DT}: Development month in continuous time.}
+\item{\code{DM}: Development month.}
+\item{\code{DT_rev}:Development month in continuous reverse time.}
+\item{\code{DM_rev}: Development month in reverse time. }
+\item{\code{TR}: Truncation time. }
+\item{\code{I}: Event indicator.  }
+}
 }
 \description{
-This function generates individual claim data.
+This function generates the monthly individual claims data in the accompanying methodological paper using the \code{SynthETIC} package.
+This simple function allows to simulate from a sand-box to test out the \code{ReSurv} approach.
+Some parameters of the simulation can be changed.
+}
+\examples{
+## Not run
+input_data <- data_generator(random_seed = 1964)
+
+
+
 }
 \references{
 Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.

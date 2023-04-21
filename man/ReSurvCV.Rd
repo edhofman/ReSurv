@@ -2,7 +2,7 @@
 % Please edit documentation in R/ResurvcvIndividualData.R
 \name{ReSurvCV}
 \alias{ReSurvCV}
-\title{K fold cross-validation of ReSurv model.}
+\title{K fold cross-validation of a \code{ReSurv} model.}
 \usage{
 ReSurvCV(
   IndividualData,
@@ -22,15 +22,35 @@ ReSurvCV(
 )
 }
 \arguments{
-\item{IndividualData}{IndividualData object to use for the ReSurv fit cross-validation.}
+\item{IndividualData}{\code{IndividualData} object to use for the \code{ReSurv} fit cross-validation.}
 
-\item{hparameters_grid}{grid of the hyperparameters to cross-validate.}
+\item{hparameters_grid}{\code{list}, grid of the hyperparameters to cross-validate.}
 
-\item{folds}{number of folds}
+\item{folds}{\code{integer}, number of folds (i.e. K).}
+
+\item{random_seed}{\code{integer}, random seed for making the code reproducible.}
+
+\item{continuous_features_scaling_method}{\code{character}, method for scaling continuous features.}
+
+\item{print_every_n}{\code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.}
+
+\item{early_stopping_rounds}{\code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.}
+
+\item{epochs}{\code{integer}, specific to the \code{deepsurv} approach, epochs to be checked.}
+
+\item{parallel}{\code{logical}, specific to the \code{deepsurv} approach, whether to use parallel computing.}
+
+\item{num_workers}{\code{numeric}, number of workers for the \code{deepsurv} approach, multi-process data loading with the specified number of loader worker processes.}
+
+\item{verbose.cv}{\code{logical}, whether messages from cross-validation must be printed.}
+
+\item{verbose}{\code{logical}, whether messages from the machine learning models must be printed.}
 }
 \value{
-Best ReSurv model fit.
+Best \code{ReSurv} model fit. The output is different depending on the machine learning approach that is required for cross-validation.
 }
 \description{
-This function computes a K fold cross-validation of a pre-specified ReSurv model for a given grid of parameters.
+This function computes a K fold cross-validation of a pre-specified machine learning model supported from the \code{ReSurv} package for a given grid of hyperparameters.
+The hyperparameters to be tested are provided in a list, namely \code{hparameters_grid}.
+Conversely, the parameters for the models run are provided separately as arguments and they are specific for each machine learning model support from.
 }

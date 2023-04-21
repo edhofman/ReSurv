@@ -85,16 +85,17 @@ resurv.fit.cox <- ReSurv(individual_data,
 resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
                                model="xgboost",
                                hparameters_grid=list(booster="gbtree",
-                                             eta=c(.01,.1),
-                                             subsample=.5,
-                                             alpha=1,
-                                             lambda=1,
-                                             min_child_weight=.2),
-                               print_every_n = NULL,
-                               nrounds=10,
+                                             eta=c(.001,.01,.2,.3),
+                                             max_depth=c(3,6,8),
+                                             subsample=c(1),
+                                             alpha=c(0,.2,1),
+                                             lambda=c(0,.2,1),
+                                             min_child_weight=c(.5,1)),
+                               print_every_n = 1L,
+                               nrounds=5000,
                                verbose=F,
                                verbose.cv=T,
-                               early_stopping_rounds = 10,
+                               early_stopping_rounds = 100,
                                folds=5,
                                parallel=T,
                                ncores=2,
@@ -105,7 +106,7 @@ resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
 
 ```{r}
 # # # ## Model fit ----
-library(reticulate)
+# library(reticulate)
 start <- Sys.time()
 resurv.cv.deep_surv <- ReSurvCV(IndividualData=individual_data,
                                model="deepsurv",
@@ -165,7 +166,7 @@ end <- Sys.time()
 
 ```{r}
 # # # ## Model fit ----
-library(reticulate)
+# library(reticulate)
 resurv.fit.deep_surv <- ReSurv(individual_data,
                           hazard_model = "deepsurv",
                           hparameters=list(num_layers=c(2),

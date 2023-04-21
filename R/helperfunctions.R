@@ -1,3 +1,7 @@
+#' Helper functions
+#'
+#' This script contains the utils functions that are used in ReSurv.
+#'
 #' @importFrom fastDummies dummy_cols
 #' @importFrom bshazard bshazard
 #' @importFrom reshape2 melt
@@ -15,6 +19,9 @@ pkg.env$check.all.present <- function(x,check.on){
   "
   This function checks that you have all the periods in the data,
   from the minimum record to the maximum record.
+
+  x: integer or numeric, input data to check.
+  check.on: character, it specifies the variable to check. I.e., accident period and calendar period.
 
   "
 
@@ -37,6 +44,8 @@ pkg.env$check.time.units <- function(input_time_unit,
   This function checks that the input output time transformation is consistent.
   E.g. you cannot turn quarters into semesters, you can instead turn trimesters into semesters.
 
+  input_time_unit: numeric, input time unit with respect to one year. E.g., 1/12 for months.
+  output_time_unit: numeric, output time unit with respect to one year. E.g., 1/4 for quarters.
   "
 
   if((1/input_time_unit)%%(1/output_time_unit) != 0){
@@ -51,6 +60,14 @@ pkg.env$check.time.units <- function(input_time_unit,
 pkg.env$maximum.time <- function(years,
                                  input_time_granularity){
 
+  "
+  This function returns the triangle width.
+
+  years: numeric, number of years in the triangle.
+  input_time_granularity: numeric, input data granularity with respect to the one year reference. E.g., 1/12 for months.
+
+  "
+
   time_unit_string <- c('months','quarters','year')
   time_unit_numeric <- c(1/12,1/4,1)
 
@@ -63,8 +80,20 @@ pkg.env$maximum.time <- function(years,
 pkg.env$conversion.factor.of.time.units <- function(input_time_unit,
                                                     output_time_unit){
 
-  time_unit_string <- c('months','quarters','year')
-  time_unit_numeric <- c(1/12,1/4,1)
+  "
+  This function computes the conversion factor of the time units.
+  Given an input granularity and an output granularity, it returns the numeric conversion factor.
+  E.g., the conversion factor is 1/3 to go from months to quarters.
+
+  input_time_unit: character, input time granularity.
+  output_time_unit: character, output time granularity.
+
+  returns: numeric, conversion factor.
+
+  "
+
+  time_unit_string <- c('months','quarters', 'semesters', 'years')
+  time_unit_numeric <- c(1/12,1/4,1/2,1)
 
   input.pos <- which(time_unit_string%in%intersect(input_time_unit,time_unit_string))
   output.pos <- which(time_unit_string%in%intersect(output_time_unit,time_unit_string))
@@ -86,7 +115,11 @@ pkg.env$conversion.factor.of.time.units <- function(input_time_unit,
 pkg.env$check.traintestsplit <- function(x){
 
   "
-  This function checks that the training test split is specified correctly
+  This function checks that the training test split is specified correctly.
+
+  x: numeric, training test split.
+
+  returns: numeric, the default split of eighty percent when the specified training test split is not between zero and one.
 
   "
 
@@ -128,11 +161,18 @@ pkg.env$formula.editor <- function(continuous_features,
                            input_output='i'){
   "
   This util edits creates the string that is used for model fitting in a compact way.
-  @param continuous_features: string vector of continuous features to be included in the linear predictor.
-  @param categorical_features: string vector of categorical features to be included in the linear predictor.
-  @param continuous_features_spline: logical value, T if a spline is added to model the continuous features.
-  @param degrees_of_freedom: degrees of freedom of the spline.
-  @param input_output: set to input ('i') or output ('o') depending on the formula that we require.
+  continuous_features: character, vector of continuous features to be included in the linear predictor.
+  categorical_features: character, vector of categorical features to be included in the linear predictor.
+  continuous_features_spline: logical, T if a spline is added to model the continuous features.
+  degree_cf: numeric, degrees of the spline for continuous features.
+  degrees_of_freedom_cf: numeric, degrees of freedom of the spline for continuous features.
+  degree_cp: numeric, degrees of the spline for calendar period.
+  degrees_of_freedom_cp: numeric, degrees of freedom of the spline for calendar period features.
+  input_output: character, set to input ('i') or output ('o') depending on the formula that we require.
+
+
+  returns: the character that can be converted to a survival package formula object for the fit.
+
   "
 
 
