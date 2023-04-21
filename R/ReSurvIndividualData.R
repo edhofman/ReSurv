@@ -307,7 +307,8 @@ ReSurv.IndividualData <- function(IndividualData,
                                        params=hparameters$params,
                                        verbose = hparameters$verbose,
                                        epochs = hparameters$epochs,
-                                       num_workers = hparameters$num_workers)
+                                       num_workers = hparameters$num_workers,
+                                       seed = random_seed)
 
     # bsln <- model.out$compute_baseline_hazards(
     #   input = datads_pp$x_train,
@@ -365,7 +366,9 @@ ReSurv.IndividualData <- function(IndividualData,
 
     Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")]
 
-    datads_pp <- pkg.env$xgboost_pp(X,Y, training_test_split)
+    datads_pp <- pkg.env$xgboost_pp(X=X,
+                                    Y=Y,
+                                    training_test_split=training_test_split)
 
     model.out <- pkg.env$fit_xgboost(datads_pp,
                                      hparameters=hparameters)
@@ -383,12 +386,16 @@ ReSurv.IndividualData <- function(IndividualData,
     pred <- predict(model.out,newdata.mx)
 
     #make to hazard relative to initial model, to have similiar interpretation as standard cox
+    newdata.bs <- pkg.env$df.2.fcst.nn.pp(data=IndividualData$training.data,
+                                          newdata=newdata,
+                                          continuous_features=IndividualData$continuous_features,
+                                          categorical_features=IndividualData$categorical_features)
     benchmark_id <- pkg.env$benchmark_id(X = X,
                                          Y =Y ,
-                                         newdata.mx = newdata.mx
+                                         newdata.mx = newdata.bs
     )
 
-    pred_relative <- beta_ams - beta_ams[benchmark_id]
+    pred_relative <- pred - pred[benchmark_id]
 
     expg <- exp(pred_relative)
 
@@ -494,13 +501,15 @@ ReSurv.IndividualData <- function(IndividualData,
   #Add development and relevant survival values to the hazard_frame
   hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
                                                  categorical_features = IndividualData$categorical_features,
-                                                 continuous_features = IndividualData$continuous_features)
+                                                 continuous_features = IndividualData$continuous_features,
+                                                 calendar_period_extrapolation = IndividualData$calendar_period_extrapolation)
 
   hazard_frame_grouped <- pkg.env$covariate_mapping(
     hazard_frame = hazard_frame_updated,
     categorical_features = IndividualData$categorical_features,
     continuous_features = IndividualData$continuous_features,
-    conversion_factor = IndividualData$conversion_factor
+    conversion_factor = IndividualData$conversion_factor,
+    calendar_period_extrapolation = IndividualData$calendar_period_extrapolation
     )
 
 
@@ -508,7 +517,8 @@ ReSurv.IndividualData <- function(IndividualData,
     data=IndividualData$training.data,
     groups = hazard_frame_grouped$groups,
     categorical_features = IndividualData$categorical_features,
-    continuous_features = IndividualData$continuous_features
+    continuous_features = IndividualData$continuous_features,
+    calendar_period_extrapolation = IndividualData$calendar_period_extrapolation
   )
 
   expected_i <- pkg.env$predict_i(

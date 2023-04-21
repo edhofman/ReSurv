@@ -798,17 +798,7 @@ pkg.env$deep_surv_pp <- function(X,
   # data_transformed <- cbind(X, Y)
 
 
-  if(!is.null(samples_TF)){
-    X <- cbind(X, DP_rev_i = Y$DP_rev_i) %>%
-      mutate(samples_TF = samples_TF) %>%
-      arrange(DP_rev_i) %>%
-      select(-DP_rev_i)
 
-    Y <- Y %>%
-      mutate(samples_TF = samples_TF) %>%
-      arrange(DP_rev_i) %>%
-      as.data.frame()
-  }else{
     X <- cbind(X, DP_rev_i = Y$DP_rev_i) %>%
       arrange(DP_rev_i) %>%
       select(-DP_rev_i)
@@ -816,7 +806,7 @@ pkg.env$deep_surv_pp <- function(X,
     Y <- Y %>%
       arrange(DP_rev_i) %>%
       as.data.frame()
-  }
+
   #id_train <- sample(c(TRUE,FALSE), nrow(X), replace=T, prob= c(training_test_split,1-training_test_split) )
 
   tmp <- as.data.frame(seq(1,dim(X)[1]))
@@ -918,6 +908,7 @@ pkg.env$fit_deep_surv <- function(data,
                                   verbose,
                                   epochs,
                                   num_workers,
+                                  seed,
                                   network_structure=NULL,
                                   newdata){
 
@@ -931,7 +922,7 @@ pkg.env$fit_deep_surv <- function(data,
   # reticulate::source_python(".\\inst\\python\\coxnetwork_custom.py")
   reticulate::source_python(system.file("python", "coxnetwork_custom.py", package = "ReSurv"))
 
-
+  torch$manual_seed(seed)
   #if an optuna-algorithm is to be fitted, keep for now.
   if(!("torch.nn.modules.container.Sequential" %in% class(network_structure$net))){
     net <- torch$nn$Sequential()
@@ -956,7 +947,8 @@ pkg.env$fit_deep_surv <- function(data,
   # epochs = as.integer(params$epochs)
 
 
-  # Setup CoxPH model, as imported from python script.
+  # Setup CoxPH model, as imported from python script. Seed is for weight initlization and comparability when doing cv.
+
   model <- CoxPH(
     net = net,
     optimizer = torchtuples$optim[[params$optim]](lr=params$lr),
@@ -1076,12 +1068,14 @@ pkg.env$hazard_f<-function(i,
 pkg.env$hazard_data_frame <- function(hazard,
                                       eta_old=1/2,
                                       categorical_features,
-                                      continuous_features){
+                                      continuous_features,
+                                      calendar_period_extrapolation){
 
   "
   Convert hazard matrix to dataframe and add grouping variables.
 
   "
+  continuous_features <- switch(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
 
   #Need special handling if we ahve continuous variables
   if( (length(continuous_features)==1 & "AP_i" %in% continuous_features) | is.null(continuous_features)){
@@ -1142,18 +1136,22 @@ pkg.env$hazard_data_frame <- function(hazard,
 pkg.env$covariate_mapping <- function(hazard_frame,
                                       categorical_features,
                                       continuous_features,
-                                      conversion_factor)
+                                      conversion_factor,
+                                      calendar_period_extrapolation)
   {
   "
   Create a dimension table, that holds a link between inputted categorical features and the group, that is used for expected_values
   "
+  continuous_features <- switch(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
 
-  #Need to handle Accident period effect seperatly
-  if( (length(continuous_features)==1 & "AP_i" %in% continuous_features)){
+  #Need to handle Accident/calender period effect seperatly
+  if( (length(continuous_features)==1 & "AP_i" %in% continuous_features) |
+      (length(continuous_features)==1 & "RP_i" %in% continuous_features) |
+      (length(continuous_features)==2 & sum(c("AP_i","RP_i") %in% continuous_features))==2 ){
     continuous_features_group = NULL
     }
   else{
-    continuous_features_group=continuous_features[!("AP_i" %in% continuous_features)]
+    continuous_features_group=continuous_features[!(continuous_features %in% c("AP_i","RP_i"))]
   }
 
   ## The next steps generate a grouping key, used for aggregating from input periods to output periods
@@ -1164,19 +1162,39 @@ pkg.env$covariate_mapping <- function(hazard_frame,
   )
 
   #Group is pr. covariate, output accident period
-  if("AP_i" %in% continuous_features){
+  #Ongoing update to be able to handle calender-period
+  if("AP_i" %in% continuous_features |
+     "RP_i" %in% continuous_features){
 
-    groups <- unique(data.frame(AP_i = hazard_frame$AP_i, covariate = hazard_frame$covariate)) %>%
-      mutate(group_i = row_number())
+    time_features <- continuous_features[continuous_features %in% c("AP_i","RP_i")]
 
-    hazard_group <- hazard_frame %>%  left_join(groups, by=c("AP_i", "covariate"))
+    time_elements_0 <- paste(sapply(time_features, function(x){paste0(x,"=hazard_frame[['",x,"']]")}
+                        ), collapse=", ")
+    time_elements_1 <- paste(sapply(time_features, function(x){paste0("'",x,"'")}
+    ), collapse=", ")
+
+    expression_0 <- paste0(sprintf(
+      "groups <- unique(data.frame(%s, covariate = hazard_frame$covariate))",
+      time_elements_0    ),
+      " %>%   mutate(group_i = row_number())")
+
+    expression_1 <- paste0(
+      "hazard_group <- hazard_frame %>%  left_join(groups, by=",
+      sprintf(
+        "c(%s, 'covariate'))",
+        time_elements_1    ) )
+
+    eval(parse(text=expression_0))
+    eval(parse(text=expression_1))
+    #groups <- unique(data.frame(!!sym(expression), covariate = hazard_frame$covariate)) %>%
+    #  mutate(group_i = row_number())
+
+    #hazard_group <- hazard_frame %>%  left_join(groups, by=c("AP_i", "covariate"))
 
   }
   else{
     groups <- unique(data.frame(covariate = hazard_frame$covariate)) %>%
       mutate(group_i = row_number())
-
-    expand.grid()
 
     hazard_group <- hazard_frame %>%  left_join(groups, by=c("covariate"))
   }
@@ -1184,13 +1202,41 @@ pkg.env$covariate_mapping <- function(hazard_frame,
   #If we have to group for later output, add the relevant groups as well
   groups$group_o <- groups$group_i
   # The only time the groups will be different, is when we are including accident period as a covariate
-  if(conversion_factor != 1 & "AP_i" %in% continuous_features){
+  if(conversion_factor != 1 & sum(c("AP_i","RP_i") %in% continuous_features)>0 ){
 
-      groups_o <- unique(data.frame(AP_o = ceiling(hazard_group$AP_i*conversion_factor), covariate = hazard_group$covariate)) %>%
-        mutate(group_o = row_number())
+      time_elements_0 <- paste(sapply(time_features, function(x){
+          paste0(substr(x,1,2),"_o  =ceiling(hazard_group[['",x,"']]*conversion_factor)")}),
+          collapse=", ")
 
-      groups <- groups %>% select(-group_o) %>%
-        left_join(groups_o, by=c("AP_o", "covariate"))
+      time_elements_1 <- paste(sapply(time_features, function(x){paste0("",substr(x,1,2),"_o=ceiling(",x,"*conversion_factor)")}
+      ), collapse=", ")
+
+      time_elements_2 <- paste(sapply(time_features, function(x){paste0("'",substr(x,1,2),"_o'")}
+      ), collapse=", ")
+
+      expression_0 <- paste0(sprintf(
+        "      groups_o <- unique(data.frame(%s, covariate = hazard_group$covariate))",
+        time_elements_0    ),
+        " %>% mutate(group_o = row_number())")
+
+      expression_1 <- paste0(
+        "groups <- groups %>% select(-group_o) %>%",
+        sprintf(
+          " mutate(%s)",
+          time_elements_1    ),
+        " %>% ",
+        sprintf(
+          " left_join(groups_o, by=c(%s, 'covariate'))",
+          time_elements_2    ) )
+
+      # groups_o <- unique(data.frame(AP_o = ceiling(hazard_group$AP_i*conversion_factor),
+      #                               covariate = hazard_group$covariate)) %>%
+      #   mutate(group_o = row_number())
+      #
+      # groups <- groups %>% select(-group_o) %>%
+      #   left_join(groups_o, by=c("AP_o", "covariate"))
+      eval(parse(text=expression_0))
+      eval(parse(text=expression_1))
 
   }
   return(
@@ -1202,11 +1248,17 @@ pkg.env$covariate_mapping <- function(hazard_frame,
 }
 
 
-pkg.env$latest_observed_values_i <- function(data, groups,  categorical_features, continuous_features){
+pkg.env$latest_observed_values_i <- function(data,
+                                             groups,
+                                             categorical_features,
+                                             continuous_features,
+                                             calendar_period_extrapolation){
   "
   Retrieve total amount of observed claims
 
   "
+  continuous_features <- switch(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
+
 
   data_reserve <- data
 
@@ -1272,54 +1324,91 @@ pkg.env$latest_observed_values_i <- function(data, groups,  categorical_features
 
   } else{ #Very similiar to above, expect we now also take the continuous features into account
 
-    if(length(continuous_features)==1 & "AP_i" %in% continuous_features){
-      continuous_features<-NULL
+    if(( (length(continuous_features)==1 & "AP_i" %in% continuous_features) |
+         (length(continuous_features)==1 & "RP_i" %in% continuous_features) |
+         (length(continuous_features)==2 & sum(c("AP_i","RP_i") %in% continuous_features))==2 )){
+      continuous_features_group<-NULL
     }
     else{
-      continuous_features <- continuous_features[!("AP_i" %in% continuous_features)]
+      continuous_features_group <- continuous_features[!(continuous_features %in% c("AP_i","RP_i") )]
     }
 
-    #If-statment due to grouping by continous vair
-    if(is.null(continuous_features)){
-    observed_so_far <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+    #If-statment due to grouping by continous variable
+    #handle <- "RP_i" %in% continuous_features
+    #For now we let the handle be false, this is part of an on-going calendar-period implementation
+    handle = FALSE
+    if(is.null(continuous_features_group)){
+
+    observed_so_far <-
+      switch(handle,
+             data_reserve2 %>%  group_by(AP_i, AP_o,  RP_i, !!sym(categorical_features),
                                                    DP_max_rev) %>%
-      summarise(latest_I=sum(I), .groups = "drop")
-    observed_dp_rev_i <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+               summarise(latest_I=sum(I), .groups = "drop"),
+      data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+                                  DP_max_rev) %>%
+        summarise(latest_I=sum(I), .groups = "drop")
+      )
+
+    observed_dp_rev_i <-
+      switch(handle,
+             data_reserve2 %>%  group_by(AP_i, AP_o, RP_i, !!sym(categorical_features),
                                                      DP_rev_i, DP_i) %>%
-      summarise(I=sum(I), .groups = "drop")
+               summarise(I=sum(I), .groups = "drop"),
+             data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+                                         DP_rev_i, DP_i) %>%
+               summarise(I=sum(I), .groups = "drop")
+      )
     }
     else{
-      observed_so_far <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
-                                                     !!sym(continuous_features),
+
+
+      observed_so_far <- switch(handle,
+                                data_reserve2 %>%  group_by(AP_i, AP_o, RP_i, !!sym(categorical_features),
+                                                     !!sym(continuous_features_group),
                                                      DP_max_rev) %>%
-        summarise(latest_I=sum(I), .groups = "drop")
-      observed_dp_rev_i <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
-                                                       !!sym(continuous_features),
+                                  summarise(latest_I=sum(I), .groups = "drop"),
+                                data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+                                                            !!sym(continuous_features_group),
+                                                            DP_max_rev) %>%
+                                  summarise(latest_I=sum(I), .groups = "drop")
+      )
+
+      observed_dp_rev_i <- switch(handle,
+                                  data_reserve2 %>%  group_by(AP_i, AP_o, RP_i, !!sym(categorical_features),
+                                                       !!sym(continuous_features_group),
                                                        DP_rev_i, DP_i) %>%
-        summarise(I=sum(I), .groups = "drop")
+                                    summarise(I=sum(I), .groups = "drop"),
+                                  data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
+                                                              !!sym(continuous_features_group),
+                                                              DP_rev_i, DP_i) %>%
+                                    summarise(I=sum(I), .groups = "drop")
+      )
     }
 
     observed_so_far$covariate <- pkg.env$name_covariates(
       observed_so_far,
       categorical_features,
-      continuous_features
+      continuous_features_group
     )
 
     observed_dp_rev_i$covariate <- pkg.env$name_covariates(
       observed_dp_rev_i,
       categorical_features,
-      continuous_features
+      continuous_features_group
     )
 
-    observed_so_far_out <- observed_so_far %>%  left_join(groups, by=c("AP_i", "covariate")) %>%
-      select(AP_i, group_i, DP_max_rev,latest_I )
+     time_features <- continuous_features[continuous_features %in% c("AP_i","RP_i")]
 
-    observed_dp_rev_i_tmp <- observed_dp_rev_i %>%  left_join(groups, by=c("AP_i", "covariate")) %>%
-      select(AP_i, group_i, DP_rev_i, DP_i, I)
+
+    observed_so_far_out <- observed_so_far %>%  left_join(groups, by=c(time_features, "covariate")) %>%
+      select(AP_i, all_of(time_features), group_i, DP_max_rev,latest_I )
+
+    observed_dp_rev_i_tmp <- observed_dp_rev_i %>%  left_join(groups, by=c(time_features, "covariate")) %>%
+      select(AP_i, all_of(time_features), group_i, DP_rev_i, DP_i, I)
 
     observed_dp_rev_i_out <- observed_grid %>%
       left_join(observed_dp_rev_i_tmp, by=c("AP_i", "DP_i", "DP_rev_i", "group_i")) %>%
-      inner_join(groups[,c("AP_i", "group_i")], by =c("AP_i", "group_i")) #filter only relevant combinations
+      inner_join(groups[,c(time_features, "group_i")], by =c(time_features, "group_i")) #filter only relevant combinations
 
   }
 
@@ -1548,8 +1637,8 @@ pkg.env$i_to_o_development_factor <- function(i,
   #For probability approach to grouping method we assume equal exposure for each accident period
   if(grouping_method == "probability"){
   expected_i <-  pkg.env$predict_i(
-    hazard_data_frame = hazard_frame_grouped$hazard_group,
-    latest_cumulative = latest_observed$latest_cumulative,
+    hazard_data_frame = hazard_data_frame,
+    latest_cumulative = latest_cumulative,
     grouping_method = "probability"
   ) %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i"))
@@ -2057,7 +2146,16 @@ pkg.env$xgboost_pp <-function(X,
 
 
 pkg.env$fit_xgboost <- function(datads_pp,
-                                hparameters){
+                                hparameters=list(params=list(booster="gbtree",
+                                                             eta=.01,
+                                                             subsample=.5,
+                                                             alpha=1,
+                                                             lambda=1,
+                                                             min_child_weight=.2),
+                                                 print_every_n = NULL,
+                                                 nrounds=10,
+                                                 verbose=F,
+                                                 early_stopping_rounds = 500)){
 
 
   out <- xgboost::xgb.train(params = hparameters$params,
@@ -2119,8 +2217,6 @@ pkg.env$baseline.calc <- function(hazard_model,
 
   if(hazard_model == "xgboost"){
     predict_bsln <- predict(model.out,datads_pp$ds_train_m)
-
-    benchmark_values <- py_to_r(datads_pp_nn$x_train)[1,]
   }
 
   if(hazard_model == "LTRCtrees"){
@@ -2143,17 +2239,44 @@ pkg.env$baseline.calc <- function(hazard_model,
 pkg.env$xgboost_cv <- function(IndividualData,
                                folds,
                                kfolds,
-                               print_every_n = NULL,
+                               print_every_n = 1L,
                                nrounds= NULL,
                                verbose=1,
                                early_stopping_rounds = NULL,
                                hparameters.f,
                                out,
-                               verbose.cv=FALSE){
+                               verbose.cv=FALSE,
+                               parallel=F,
+                               ncores=1,
+                               random_seed){
 
   "Function to perform K-fold cross-validation with xgboost"
+  if(parallel == T){
+    # handle UNIx-operated systems seperatly?.Platform$OS.type
+    require(parallel)
 
+    cl <- makeCluster(ncores)
 
+    objects_export <- list(
+      "random_seed"
+    )
+    clusterExport(cl, objects_export, envir = environment())
+
+    clusterEvalQ(cl, {library("ReSurv")
+      set.seed(random_seed)} )
+
+    out[,c("train.lkh","test.lkh", "time")] <- t(parSapply(cl, 1:dim(hparameters.f)[1],  FUN =cv_xgboost,
+                                                           IndividualData=IndividualData,
+                                                           folds=folds,
+                                                           kfolds=kfolds,
+                                                           print_every_n=print_every_n,
+                                                           nrounds=nrounds,
+                                                           verbose=F,
+                                                           early_stopping_rounds=early_stopping_rounds,
+                                                           hparameters.f=hparameters.f))
+    stopCluster(cl)
+  }
+  else{
   for(hp in 1:dim(hparameters.f)[1]){
 
     if(verbose.cv){cat(as.character(Sys.time()),
@@ -2162,54 +2285,18 @@ pkg.env$xgboost_cv <- function(IndividualData,
         "out of",
         dim(hparameters.f)[1], "\n")}
 
-    hparameters <- list(params=as.list.data.frame(hparameters.f[hp,]),
-                        print_every_n=print_every_n,
-                        nrounds=nrounds,
-                        verbose=verbose,
-                        early_stopping_rounds=early_stopping_rounds)
 
-    tmp.train.lkh <- vector("numeric",
-                            length=folds)
-    tmp.test.lkh <- vector("numeric",
-                           length=folds)
-
-    for(i in c(1:folds)){
-
-      X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                                        select_columns = IndividualData$categorical_features,
-                                        remove_first_dummy=T)
-
-      scaler <- pkg.env$scaler(continuous_features_scaling_method = "minmax")
-
-      Xc <- IndividualData$training.data %>%
-        summarize(across(all_of(IndividualData$continuous_features),
-                         scaler))
-
-      X=cbind(X,Xc)
-
-      Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
-
-      datads_pp =  pkg.env$xgboost_pp(X,
-                                      Y,
-                                      samples_TF= c(kfolds!=i))
-
-
-
-      model.out.k <- do.call(pkg.env$fit_xgboost, list(datads_pp=datads_pp,
-                                                       hparameters=hparameters))
-
-
-      best.it <- model.out.k$best_iteration
-      tmp.train.lkh[i] <- model.out.k$evaluation_log$`train_log_partial likelihood`[best.it]
-      tmp.test.lkh[i] <- model.out.k$evaluation_log$`eval_log_partial likelihood`[best.it]
-
-      }
-
-
-    out[hp,c("train.lkh","test.lkh")] = c(mean(tmp.train.lkh),mean(tmp.test.lkh))
-
+    out[hp,c("train.lkh","test.lkh", "time")] <- cv_xgboost(hp,
+                                                    IndividualData,
+                                                    folds,
+                                                    kfolds,
+                                                    print_every_n,
+                                                    nrounds,
+                                                    verbose,
+                                                    early_stopping_rounds,
+                                                    hparameters.f)
   }
-
+  }
   return(out)
 
 }
@@ -2299,12 +2386,14 @@ pkg.env$deep_surv_cv <- function(IndividualData,
                                continuous_features_scaling_method,
                                folds,
                                kfolds,
-                               verbose=1,
+                               random_seed,
+                               verbose=0,
                                epochs,
                                num_workers,
                                hparameters.f,
                                out,
                                parallel,
+                               ncores,
                                verbose.cv=FALSE){
 
   "Function to perform K-fold cross-validation with xgboost"
@@ -2312,139 +2401,50 @@ pkg.env$deep_surv_cv <- function(IndividualData,
   if(parallel == T){
     # handle UNIx-operated systems seperatly?.Platform$OS.type
     require(parallel)
-    ncores <-  detectCores()
+
     cl <- makeCluster(ncores)
 
-    objects_export <- list(
-      "IndividualData",
-      "continuous_features_scaling_method",
-      "folds",
-      "kfolds",
-      "verbose",
-      "epochs",
-      "num_workers",
-      "hparameters.f",
-      "out",
-      "pkg.env"
-    )
-
+     objects_export <- list(
+       "random_seed"
+     )
     clusterExport(cl, objects_export, envir = environment())
-    #clusterExport(cl, pkg.env, envir = pkg.env )
+
     clusterEvalQ(cl, {library("ReSurv")
                       library("fastDummies")
-                      library("reticulate")} )
+                      library("reticulate")
+                      set.seed(random_seed)} )
 
-    #Don't know why, but this needs to be loaded here before parSapply can run
-    pkg.env$cv_parallel_deep_surv <- function(hp){
-
-
-      hparameters <- list(params=as.list.data.frame(hparameters.f[hp,]),
-                          verbose=verbose,
-                          epochs = epochs,
-                          num_workers = num_workers)
-
-      tmp.train.lkh <- vector("numeric",
-                              length=folds)
-      tmp.test.lkh <- vector("numeric",
-                             length=folds)
-
-      X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                                        select_columns = IndividualData$categorical_features)
-
-      scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
-
-      Xc <- IndividualData$training.data %>%
-        summarize(across(all_of(IndividualData$continuous_features),
-                         scaler))
-      X=cbind(X,Xc)
-
-      Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
-      for(i in c(1:folds)){
-
-        datads_pp = pkg.env$deep_surv_pp(X=X,
-                                         Y=Y,
-                                         samples_TF= c(kfolds!=i))
-
-
-
-        model.out.k <- do.call(pkg.env$fit_deep_surv, list(data=datads_pp,
-                                                           params=hparameters$params,
-                                                           verbose = hparameters$verbose,
-                                                           epochs = hparameters$epochs,
-                                                           num_workers = hparameters$num_workers))
-
-
-        best.it <- model.out.k$log$to_pandas()[,1] == min(model.out.k$log$to_pandas()[,1])
-        tmp.train.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['train_loss']))
-        tmp.test.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['val_loss']))
-
-      }
-
-
-      c(mean(tmp.train.lkh),mean(tmp.test.lkh))
-
-    }
-
-
-
-    out[,c("train.lkh","test.lkh")]  <- parSapply(cl, 1:dim(hparameters.f)[1],  pkg.env$cv_parallel_deep_surv )
+    out[,c("train.lkh","test.lkh", "time")] <- t(parSapply(cl, 1:dim(hparameters.f)[1],  FUN =cv_deep_surv,
+                                                           IndividualData = IndividualData,
+                                                           continuous_features_scaling_method = continuous_features_scaling_method,
+                                                           folds= folds,
+                                                           kfolds =kfolds,
+                                                           random_seed=random_seed,
+                                                           verbose=verbose,
+                                                           epochs=epochs,
+                                                           num_workers=num_workers,
+                                                           hparameters.f=hparameters.f))
     stopCluster(cl)
     }
   else{
   for(hp in 1:dim(hparameters.f)[1]){
-
     if(verbose.cv){cat(as.character(Sys.time()),
                        "Testing hyperparameters combination",
                        hp,
                        "out of",
                        dim(hparameters.f)[1], "\n")}
 
-    hparameters <- list(params=as.list.data.frame(hparameters.f[hp,]),
-                        verbose=verbose,
-                        epochs = epochs,
-                        num_workers = num_workers)
 
-    tmp.train.lkh <- vector("numeric",
-                            length=folds)
-    tmp.test.lkh <- vector("numeric",
-                           length=folds)
-
-    X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                                      select_columns = IndividualData$categorical_features)
-
-    scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
-
-    Xc <- IndividualData$training.data %>%
-      summarize(across(all_of(IndividualData$continuous_features),
-                       scaler))
-    X=cbind(X,Xc)
-
-    Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
-
-
-    for(i in c(1:folds)){
-
-      datads_pp = pkg.env$deep_surv_pp(X=X,
-                                       Y=Y,
-                                       samples_TF= c(kfolds!=i))
-
-
-
-      model.out.k <- do.call(pkg.env$fit_deep_surv, list(data=datads_pp,
-                                                       params=hparameters$params,
-                                                       verbose = hparameters$verbose,
-                                                       epochs = hparameters$epochs,
-                                                       num_workers = hparameters$num_workers))
-
-
-      best.it <- model.out.k$log$to_pandas()[,1] == min(model.out.k$log$to_pandas()[,1])
-      tmp.train.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['train_loss']))
-      tmp.test.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['val_loss']))
-
-    }
-
-
-    out[hp,c("train.lkh","test.lkh")] = c(mean(tmp.train.lkh),mean(tmp.test.lkh))
+    out[hp,c("train.lkh","test.lkh", "time")] = cv_deep_surv(hp,
+                                                             IndividualData,
+                                                             continuous_features_scaling_method,
+                                                             folds,
+                                                             kfolds,
+                                                             random_seed,
+                                                             verbose=verbose,
+                                                             epochs,
+                                                             num_workers,
+                                                             hparameters.f)
 
   }
   }

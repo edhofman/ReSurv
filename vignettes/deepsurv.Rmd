@@ -23,7 +23,7 @@ library(ReSurv)
 # Input data
 
 input_data <- data_generator(random_seed = 1964,
-                             scenario=4)
+                             scenario=0)
 
 ```
 
@@ -98,6 +98,8 @@ resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
                                verbose.cv=T,
                                early_stopping_rounds = 100,
                                folds=5,
+                               parallel=T,
+                               ncores=2,
                                random_seed=1)
 
 ```
@@ -109,24 +111,24 @@ resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
 start <- Sys.time()
 resurv.cv.deep_surv <- ReSurvCV(IndividualData=individual_data,
                                model="deepsurv",
-                               hparameters_grid=list(num_layers = c(2L,5L,10L),
-                                                    num_nodes = c(2,10,25),
-                                                    optim=c("Adam", "SGD"),
+                               hparameters_grid=list(num_layers = c(2L,3L),
+                                                    num_nodes = c(2),
+                                                    optim=c("Adam"),
                                                     activation = "LeakyReLU",
-                                                    lr=c(.1,.02,.005),
-                                                    xi=c(0,.01,.1),
-                                                    eps = c(0,.05,0.2),
+                                                    lr=c(.01),
+                                                    xi=c(0),
+                                                    eps = c(0),
                                                     tie = "Efron",
-                                                    batch_size = c(as.integer(500), 
-                                                                   as.integer(1000),
-                                                                   as.integer(5000)),
+                                                    batch_size = c(as.integer(1000)),
                                                     early_stopping = 'TRUE',
-                                                    patience  = 20
+                                                    patience  = 80
                                                     ),
-                              epochs = as.integer(2),
+                              epochs = as.integer(100),
                               num_workers = 0,
                               verbose = F,
-                              folds=2,
+                              parallel=F,
+                              ncores=2,
+                              folds=5,
                               random_seed=1)
 end <- Sys.time()
 
@@ -151,6 +153,7 @@ resurv.cv.deep_surv_par <- ReSurvCV(IndividualData=individual_data,
                               epochs = as.integer(2),
                               num_workers = 0,
                               parallel = T,
+                              ncores = 2,
                               verbose = F,
                               folds=2,
                               random_seed=1)
@@ -212,6 +215,7 @@ resurv.fit.xgboost <- ReSurv(individual_data,
                                              min_child_weight=.2),
                                              print_every_n = 1,
                                              nrounds=10,
+                                             verbose=F,
                                              early_stopping_rounds = 500))
 
 ```
