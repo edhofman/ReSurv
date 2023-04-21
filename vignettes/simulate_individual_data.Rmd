@@ -1,0 +1,74 @@
+---
+title: "Simulate individual data"
+author: "Gabriele Pittarello"
+date: "2023-04-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ReSurv)
+```
+
+# Introduction
+
+In this vignette we show how to simulate the individual data we included in the paper. This simulation are based on the `SynthETIC` package and they can be used to understand our approach.
+
+# Scenario 0
+
+```{r}
+# Input data
+
+input_data <- data_generator(random_seed = 1964,
+                             scenario=0)
+
+```
+
+# Scenario 1
+
+```{r}
+# Input data
+
+input_data <- data_generator(random_seed = 1964,
+                             scenario=1)
+
+```
+
+# Scenario 2
+
+```{r}
+# Input data
+
+input_data <- data_generator(random_seed = 1964,
+                             scenario=2)
+
+```
+
+# Scenario 3
+
+```{r}
+# Input data
+
+input_data <- data_generator(random_seed = 1964,
+                             scenario=3)
+
+```
+
+# Scenario 4
+
+```{r}
+# Input data
+
+input_data <- data_generator(random_seed = 1964,
+                             scenario=4)
+
+```
+
+
+
+
+
+
+
+
+
