@@ -2,7 +2,7 @@
 % Please edit documentation in R/ReSurvIndividualData.R
 \name{ReSurv}
 \alias{ReSurv}
-\title{Fit individual chain ladder plus models.}
+\title{Fit \code{ReSurv} models on the individual data.}
 \usage{
 ReSurv(
   IndividualData,
@@ -17,13 +17,13 @@ ReSurv(
 )
 }
 \arguments{
-\item{IndividualData}{IndividualData object to use for the ReSurv fit.}
+\item{IndividualData}{IndividualData object to use for the \code{ReSurv} fit.}
 
-\item{hazard_model}{hazard model supported from our package, must be provided as a string. The model can be chosen from:
+\item{hazard_model}{\code{character}, hazard model supported from our package, must be provided as a string. The model can be chosen from:
 \itemize{
-\item{'cox': Standard Cox model for the hazard.}
-\item{'deep_surv': Deep Survival Neural Network.}
-\item{'xgboost': Gradient Boosting.}
+\item{\code{"cox"}: Standard Cox model for the hazard.}
+\item{\code{"deep_surv"}: Deep Survival Neural Network.}
+\item{\code{"xgboost"}: eXtreme Gradient Boosting.}
 }}
 
 \item{tie}{ties handling, default is the Efron approach.}
@@ -32,17 +32,52 @@ ReSurv(
 
 \item{continuous_features_scaling_method}{method to preprocess the features}
 
-\item{random_seed}{random seed set for reproducibility}
+\item{random_seed}{\code{integer}, random seed set for reproducibility}
 
-\item{hparameters}{list of hyperparameters for 'deep_surv' and 'xgboost'. It will be disregarded for 'cox'.}
+\item{hparameters}{\code{list}, hyperparameters for the machine learning models. It will be disregarded for the cox approach.}
 
-\item{percentage_data_training}{percentage of data used for training on the upper triangle.}
+\item{percentage_data_training}{\code{numeric}, percentage of data used for training on the upper triangle.}
 
-\item{grouping_method}{Use probability or exposure approach to group from input to output development factors.}
+\item{grouping_method}{\code{character}, use probability or exposure approach to group from input to output development factors. Choice between:
+\itemize{
+\item{\code{"exposure"}}
+\item{\code{"probability"}}
+}
+Default is \code{"exposure"}.}
 }
 \value{
 ReSurv fit.
 }
 \description{
-This function fits and computes the reserves for the ReSurv models.
+This function fits and computes the reserves for the \code{ReSurv} models
+}
+\details{
+The model fit uses the theoretical framework of Hiabu et al. (2023), that relies on the
+correspondence between hazard models and development factors:
+
+To be completed with final notation of the paper.
+
+The \code{ReSurv} package assumes proportional hazard models.
+Given an i.i.d. sample \eqn{\left\{y_i,x_i\right\}_{i=1, \ldots, n}} the individual hazard at time \eqn{t} is:
+
+\eqn{\lambda_i(t)=\lambda_0(t)e^{y_i(x_i)}}
+
+Composed of a baseline \eqn{\lambda_0(t)} and a proportional effect \eqn{e^{y_i(x_i)}}.
+
+Currently, the implementation allows to optimize the partial likelihood (concerning the proportional effects) using one of the following statistical learning approaches:
+\itemize{
+\item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{Cox}}
+\item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
+\item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
+\item{\href{https://cran.r-project.org/web/packages/LTRCtrees/LTRCtrees.pdf}{Left-truncated Right-Censored Trees}}
+}
+}
+\references{
+Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
+
+Therneau, T. M., & Lumley, T. (2015). Package ‘survival’. R Top Doc, 128(10), 28-33.
+
+Katzman, J. L., Shaham, U., Cloninger, A., Bates, J., Jiang, T., & Kluger, Y. (2018). DeepSurv: personalized treatment recommender system using a Cox proportional hazards deep neural network. BMC medical research methodology, 18(1), 1-12.
+
+Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
 }
