@@ -242,14 +242,15 @@ ReSurv.IndividualData <- function(IndividualData,
 
   if(hazard_model=="cox"){
 
-    model.out <- pkg.env$fit_cox_model(data=IndividualData$training.data,
+    data=IndividualData$training.data
+    model.out <- pkg.env$fit_cox_model(data=data,
                                        formula_ct=formula_ct,
                                        newdata=newdata)
 
     # tmp <- pkg.env$spline_hp(hparameters,IndividualData)
 
 
-    data <- IndividualData$training.data
+    # data <- IndividualData$training.data
 
     bs_hazard <- basehaz( model.out$cox, centered=FALSE) %>%
       mutate(hazard = hazard-lag(hazard,default=0))

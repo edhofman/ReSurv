@@ -861,7 +861,7 @@ pkg.env$fit_cox_model <- function(data,
                           newdata){
   "This function is the fitting routine for the cox model."
 
-  cox <- survival::coxph(formula_ct, data=data, ties="efron")
+  cox <- coxph(formula_ct, data=data, ties="efron")
   cox_lp <- predict(cox,newdata=newdata,'lp',reference='zero')
 
   # beta_2 <- cox$coef
@@ -1076,6 +1076,7 @@ pkg.env$hazard_data_frame <- function(hazard,
 
   "
   continuous_features <- ifelse(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
+  #categorical_features <- switch(!is.null(categorical_features), categorical_features, NULL)
 
   #Need special handling if we ahve continuous variables
   if( (length(continuous_features)==1 & "AP_i" %in% continuous_features) | is.null(continuous_features)){
@@ -1086,7 +1087,7 @@ pkg.env$hazard_data_frame <- function(hazard,
     hazard_frame_tmp <- hazard %>%
       mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>% #Follows from the assumption that claims are distributed evenly in the input period
       mutate(dev_f_i = ifelse(dev_f_i<0,1,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
-      group_by(!!sym(categorical_features), AP_i) %>%
+      group_by(pick(all_of(categorical_features), AP_i)) %>%
       arrange(DP_rev_i) %>%
       mutate(cum_dev_f_i = cumprod(dev_f_i)) %>%
       mutate(S_i = ifelse(cum_dev_f_i==0,0,1/cum_dev_f_i), # to handle the ifelse statement from above
@@ -1111,7 +1112,7 @@ pkg.env$hazard_data_frame <- function(hazard,
       hazard_frame_tmp <- hazard %>%
         mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>%
         mutate(dev_f_i = ifelse(dev_f_i<0,0,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
-        group_by(!!sym(categorical_features), AP_i) %>%
+        group_by(pick(all_of(categorical_features), AP_i)) %>%
         arrange(DP_rev_i) %>%
         mutate(cum_dev_f_i = cumprod(dev_f_i)) %>%
         mutate(S_i = ifelse(cum_dev_f_i==0,0,1/cum_dev_f_i),
@@ -1155,6 +1156,8 @@ pkg.env$covariate_mapping <- function(hazard_frame,
   }
 
   ## The next steps generate a grouping key, used for aggregating from input periods to output periods
+
+
   hazard_frame$covariate <- pkg.env$name_covariates(
     hazard_frame,
     categorical_features,
@@ -1289,12 +1292,11 @@ pkg.env$latest_observed_values_i <- function(data,
 
   #The reason for the if statement is due to the !!sym logic, because !!sym(NULL) is not valid
   if(is.null(continuous_features)){ #length(continuous_features) == 1 & "AP_i" %in% continuous_features
-   observed_so_far <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
-                                                 DP_max_rev) %>%
+   observed_so_far <- data_reserve2 %>%  group_by(pick(all_of(categorical_features), AP_i, AP_o, DP_max_rev )) %>%
     summarise(latest_I=sum(I), .groups = "drop")
 
-  observed_dp_rev_i <- data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
-                                                 DP_rev_i, DP_i) %>%
+  observed_dp_rev_i <- data_reserve2 %>%  group_by(pick(AP_i, AP_o, all_of(categorical_features),
+                                                 DP_rev_i, DP_i)) %>%
     summarise(I=sum(I), .groups = "drop")
 
   #Combine covariate values into single variable
@@ -1341,21 +1343,21 @@ pkg.env$latest_observed_values_i <- function(data,
 
     observed_so_far <-
       switch(handle,
-             data_reserve2 %>%  group_by(AP_i, AP_o,  RP_i, !!sym(categorical_features),
-                                                   DP_max_rev) %>%
+             data_reserve2 %>%  group_by(pick(AP_i, AP_o,  RP_i, all_of(categorical_features),
+                                                   DP_max_rev)) %>%
                summarise(latest_I=sum(I), .groups = "drop"),
-      data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
-                                  DP_max_rev) %>%
+      data_reserve2 %>%  group_by(pick(AP_i, AP_o, all_of(categorical_features),
+                                  DP_max_rev)) %>%
         summarise(latest_I=sum(I), .groups = "drop")
       )
 
     observed_dp_rev_i <-
       switch(handle,
-             data_reserve2 %>%  group_by(AP_i, AP_o, RP_i, !!sym(categorical_features),
-                                                     DP_rev_i, DP_i) %>%
+             data_reserve2 %>%  group_by(pick(AP_i, AP_o, RP_i, all_of(categorical_features),
+                                                     DP_rev_i, DP_i)) %>%
                summarise(I=sum(I), .groups = "drop"),
-             data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
-                                         DP_rev_i, DP_i) %>%
+             data_reserve2 %>%  group_by(pick(AP_i, AP_o, all_of(categorical_features),
+                                         DP_rev_i, DP_i)) %>%
                summarise(I=sum(I), .groups = "drop")
       )
     }
@@ -1363,24 +1365,24 @@ pkg.env$latest_observed_values_i <- function(data,
 
 
       observed_so_far <- switch(handle,
-                                data_reserve2 %>%  group_by(AP_i, AP_o, RP_i, !!sym(categorical_features),
-                                                     !!sym(continuous_features_group),
+                                data_reserve2 %>%  group_by(pick(AP_i, AP_o, RP_i, all_of(categorical_features),
+                                                     all_of(continuous_features_group)),
                                                      DP_max_rev) %>%
                                   summarise(latest_I=sum(I), .groups = "drop"),
-                                data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
-                                                            !!sym(continuous_features_group),
-                                                            DP_max_rev) %>%
+                                data_reserve2 %>%  group_by(pick(AP_i, AP_o, all_of(categorical_features),
+                                                            all_of(continuous_features_group),
+                                                            DP_max_rev)) %>%
                                   summarise(latest_I=sum(I), .groups = "drop")
       )
 
       observed_dp_rev_i <- switch(handle,
-                                  data_reserve2 %>%  group_by(AP_i, AP_o, RP_i, !!sym(categorical_features),
-                                                       !!sym(continuous_features_group),
-                                                       DP_rev_i, DP_i) %>%
+                                  data_reserve2 %>%  group_by(pick(AP_i, AP_o, RP_i, all_of(categorical_features),
+                                                       all_of(continuous_features_group),
+                                                       DP_rev_i, DP_i)) %>%
                                     summarise(I=sum(I), .groups = "drop"),
-                                  data_reserve2 %>%  group_by(AP_i, AP_o, !!sym(categorical_features),
-                                                              !!sym(continuous_features_group),
-                                                              DP_rev_i, DP_i) %>%
+                                  data_reserve2 %>%  group_by(pick(AP_i, AP_o, all_of(categorical_features),
+                                                              all_of(continuous_features_group),
+                                                              DP_rev_i, DP_i)) %>%
                                     summarise(I=sum(I), .groups = "drop")
       )
     }
@@ -1423,6 +1425,10 @@ pkg.env$name_covariates <- function(data,
   Create groups based upon combination of covariates.
   Here we craete the name of the group
   "
+  if(is.null(categorical_features)& is_null(continuous_features)){
+    return(rep("0",nrow(data)))
+  }
+
   if(is.null(continuous_features)){
     df <- data %>%  select(all_of(categorical_features))
     name_seperate <- suppressMessages(map2_dfc(colnames(df), df, paste, sep = '_'))
