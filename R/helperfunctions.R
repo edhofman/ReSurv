@@ -1075,7 +1075,7 @@ pkg.env$hazard_data_frame <- function(hazard,
   Convert hazard matrix to dataframe and add grouping variables.
 
   "
-  continuous_features <- switch(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
+  continuous_features <- ifelse(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
 
   #Need special handling if we ahve continuous variables
   if( (length(continuous_features)==1 & "AP_i" %in% continuous_features) | is.null(continuous_features)){
@@ -1142,7 +1142,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
   "
   Create a dimension table, that holds a link between inputted categorical features and the group, that is used for expected_values
   "
-  continuous_features <- switch(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
+  continuous_features <- ifelse(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
 
   #Need to handle Accident/calender period effect seperatly
   if( (length(continuous_features)==1 & "AP_i" %in% continuous_features) |
@@ -1257,7 +1257,7 @@ pkg.env$latest_observed_values_i <- function(data,
   Retrieve total amount of observed claims
 
   "
-  continuous_features <- switch(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
+  continuous_features <- ifelse(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
 
 
   data_reserve <- data
@@ -1336,7 +1336,7 @@ pkg.env$latest_observed_values_i <- function(data,
     #If-statment due to grouping by continous variable
     #handle <- "RP_i" %in% continuous_features
     #For now we let the handle be false, this is part of an on-going calendar-period implementation
-    handle = FALSE
+    handle = 2
     if(is.null(continuous_features_group)){
 
     observed_so_far <-

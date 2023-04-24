@@ -23,7 +23,7 @@ library(ReSurv)
 # Input data
 
 input_data <- data_generator(random_seed = 1964,
-                             scenario=0)
+                             scenario=2)
 
 ```
 
@@ -33,7 +33,7 @@ input_data <- data_generator(random_seed = 1964,
 # # # ## Model fit ----
 individual_data <- IndividualData(input_data,
                                   id="claim_number",
-                                  continuous_features=NULL,
+                                  continuous_features="AP_i",
                                   categorical_features="claim_type",
                                   accident_period="AM",
                                   calendar_period="RM",
@@ -107,35 +107,8 @@ resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
 
 ```{r}
 # # # ## Model fit ----
-# library(reticulate)
-start <- Sys.time()
-resurv.cv.deep_surv <- ReSurvCV(IndividualData=individual_data,
-                               model="deepsurv",
-                               hparameters_grid=list(num_layers = c(2L,3L),
-                                                    num_nodes = c(2),
-                                                    optim=c("Adam"),
-                                                    activation = "LeakyReLU",
-                                                    lr=c(.01),
-                                                    xi=c(0),
-                                                    eps = c(0),
-                                                    tie = "Efron",
-                                                    batch_size = c(as.integer(1000)),
-                                                    early_stopping = 'TRUE',
-                                                    patience  = 80
-                                                    ),
-                              epochs = as.integer(100),
-                              num_workers = 0,
-                              verbose = F,
-                              parallel=F,
-                              ncores=2,
-                              folds=5,
-                              random_seed=1)
-end <- Sys.time()
-
-
 #With parallel computing
 
-start <- Sys.time()
 resurv.cv.deep_surv_par <- ReSurvCV(IndividualData=individual_data,
                                model="deepsurv",
                                hparameters_grid=list(num_layers = c(2L,3L),
@@ -157,7 +130,7 @@ resurv.cv.deep_surv_par <- ReSurvCV(IndividualData=individual_data,
                               verbose = F,
                               folds=2,
                               random_seed=1)
-end <- Sys.time()
+
 
 
 
@@ -170,11 +143,11 @@ end <- Sys.time()
 # library(reticulate)
 resurv.fit.deep_surv <- ReSurv(individual_data,
                           hazard_model = "deepsurv",
-                          hparameters=list(num_layers=c(2),
+                          hparameters=list(num_layers=c(4),
                                           early_stopping = FALSE,
                                           patience = 20,
                                           network_structure = NULL,
-                                          num_nodes = c(10,10),
+                                          num_nodes = c(10),
                                           activation = "LeakyReLU",
                                           optim="Adam",
                                           lr = 0.005,
@@ -189,11 +162,6 @@ resurv.fit.deep_surv <- ReSurv(individual_data,
 
 ```
 
-```{r eval=FALSE, include=FALSE}
-
-print(head(resurv.fit$hazard_frame_input))
-
-```
 
 
 ```{r}
@@ -243,80 +211,24 @@ resurv.cv.ltrctrees <- ReSurvCV(IndividualData=individual_data,
 
 
 ```{r eval=FALSE, include=FALSE}
-library(fastDummies)
 
-hparameters=list(num_nodes=c(10,10),
-    early_stopping = FALSE,
-    patience = 20,
-    network_structure = NULL,
-    num_nodes = c(10,10),
-    activation = "LeakyReLU",
-    lr = 0.005,
-    xi=1,
-    epsilon = 0,
-    batch_size=as.integer(1000),
-    epochs=as.integer(100),
-    num_workers=0,
-    tie="Efron")
+plot_data <-resurv.fit.deep_surv$hazard_frame_input %>% 
+  select(AP_i, claim_type, DP_rev_i, df_i) %>% 
+  distinct() 
 
-X <- pkg.env$model.matrix.creator(data= individual_data$training.data,
-                                      select_columns = individual_data$categorical_features)
-
-    scaler <- pkg.env$scaler(continuous_features_scaling_method='minmax')
-
-    Xc <- individual_data$training.data %>%
-      summarize(across(all_of(individual_data$continuous_features),
-                       scaler))
-
-    training_test_split = pkg.env$check.traintestsplit(.8)
-
-    datads_pp = pkg.env$deep_surv_pp(X=cbind(X,Xc),
-                           Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")],
-                           training_test_split = training_test_split)
-
-    
-    
-    
-    model.out <- pkg.env$fit_deep_surv(datads_pp,
-                                       hparameters=hparameters)
-
-
-
-    bsln <- model.out$compute_baseline_hazards(
-      input = datads_pp$x_train,
-      target = datads_pp$y_train,
-      batch_size = hparameters$batch_size)
-
-
-    newdata.mx <- pkg.env$df.2.fcst.nn.pp(data=individual_data$training.data,
-                                          newdata=newdata,
-                                          continuous_features=individual_data$continuous_features,
-                                          categorical_features=individual_data$categorical_features)
-
-    x_fc= reticulate::np_array(as.matrix(newdata.mx), dtype = "float32")
-
-    beta_ams <- model.out$predict(input=x_fc,
-                            batch_size=hparameters$batch_size,
-                            num_workers=hparameters$num_workers)
-
-    # X_ams <- cbind(X_i, Xb)
-    #
-    # beta_ams = unique(round(X_ams,10) )[,ncol(X_ams)] #if no round some systems has too high precision.
-    #
-    expg <- exp(beta_ams)
-    
-    hazard_frame <- cbind(newdata,expg)
-    bsln <- data.frame(baseline=bsln, DP_rev_i=as.integer(names(bsln)))
-    
-    hazard_frame <- hazard_frame %>%
-      full_join(bsln,
-                by="DP_rev_i") %>%
-      as.data.frame()
-    
-     hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
-
-    
-    # l = length(beta_ams)
+ggplot(plot_data) +
+  geom_point( aes(x=DP_rev_i, y=df_i, col=AP_i)) +
+  facet_wrap(~claim_type, scales="free") +
+  scale_colour_gradient(name="Accident period") +
+  theme_bw() +
+  scale_x_continuous(trans="reverse",
+                     limits=c(48,40),
+                     breaks = c(seq(from=48,to=40,by=-1)),
+                     labels=c(seq(1,9,1))) +
+  ggtitle("Accident period dependent development factors")+
+  xlab("Development Period") +
+  ylab("Development Factor")
+  
 
 ```
 

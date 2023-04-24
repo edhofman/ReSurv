@@ -576,7 +576,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
 
-#We only have 3 groups if AP is included as a covariate
+#We only have 5 groups if AP is included as a covariate
   if(ncol(hazard_frame_grouped$groups) == 5){
     colnames(development_factor_o) <- unique(c(paste0("AP_o_",hazard_frame_grouped$groups$AP_o,",", hazard_frame_grouped$groups$covariate )))
   }
@@ -616,6 +616,143 @@ ReSurv.IndividualData <- function(IndividualData,
   class(out) <- c('ReSurvFit')
 
   return(out)
+}
+
+#' Draft for plot of \code{ReSurvFit} models for simulated data.
+#' @export
+
+plot.ReSurvFit <- function(ReSurv){
+
+  "
+  Plot different development patterns. Currently only works for simulations with no accident-period dependency.
+  "
+  warning("Plotting functionality is not implemented yet.")
+  # df_output<- ReSurv$df_output
+  # df_input <- ReSurv$df_input
+
+  #Theoretichal,assuming equal claim reporting throughout year.(kinda unrealistic)
+  # df_output$DP_i <-(df_output$DP_o * 1/resurv.fit.xgboost$IndividualData$conversion_factor)-1/2*1/individual_data$conversion_factor+1/2
+  #
+  #
+  # graph <-  df_output %>%  mutate(type = "Output") %>% select(-c(DP_o)) %>%
+  #   reshape2::melt(id.vars =c("DP_i", "type"))  %>%
+  #   rbind(
+  #     df_input %>%  mutate(type = "Input") %>%
+  #       reshape2::melt(id.vars =c("DP_i", "type"))
+  #   ) %>%  group_by(type,variable) %>%  arrange(DP_i) %>% mutate(
+  #     value_cum= 1/rev(cumprod(rev(value)))
+  #   )
+
+  # #Observed based
+  # input_expected <- ReSurv$hazard_frame_input %>%
+  #   left_join(ReSurv$IndividualData$training.data[,c("AP_i","DP_rev_i","claim_type", "I")] %>% group_by(AP_i, DP_rev_i, claim_type) %>%  summarize(I=sum(I)), by=c("AP_i","DP_rev_i","claim_type")) %>%
+  #   mutate(DP_i = max(ReSurv$hazard_frame_input$DP_rev_i)-DP_rev_i + 1) %>%
+  #   filter(DP_i <= max(ReSurv$hazard_frame_input$DP_rev_i)-AP_i+1) %>%
+  #   mutate(DP_i_o = ceiling(DP_i*resurv.fit.xgboost$IndividualData$conversion_factor) ) %>%
+  #   group_by(DP_i_o, claim_type) %>% summarize(I_E = sum(I_expected, na.rm=T)) %>%  ungroup() %>%
+  #   group_by(claim_type) %>%
+  #   arrange(DP_i_o) %>%  mutate(I_E_i=cumsum(I_E))
+  #
+  # output_expected <-ReSurv$hazard_frame_output %>%
+  #   left_join(ReSurv$IndividualData$training.data[,c("AP_o","DP_rev_o","claim_type", "I")] %>% group_by(AP_o, DP_rev_o, claim_type) %>%  summarize(I=sum(I)), by=c("AP_o","DP_rev_o","claim_type")) %>%
+  #   mutate(DP_o = max(ReSurv$hazard_frame_output$DP_rev_o)-DP_rev_o + 1) %>%
+  #   filter(DP_o <= max(ReSurv$hazard_frame_output$DP_rev_o)-AP_o+1) %>%
+  #   group_by(DP_o,claim_type) %>% summarize(I_E = sum(I_expected, na.rm=T)) %>%  ungroup() %>%
+  #   group_by(claim_type) %>%
+  #   arrange(DP_o) %>%  mutate(I_E_o=cumsum(I_E))
+  #
+  # DP_correction <- output_expected %>% left_join(input_expected,
+  #                                            by=c("DP_o" = "DP_i_o",
+  #                                                 "claim_type")) %>%
+  #   mutate(correction_factor = I_E_o / I_E_i) %>%
+  #   select(DP_o, claim_type, correction_factor) %>%
+  #   mutate(DP_o = DP_o * 1/ReSurv$IndividualData$conversion_factor)
+  #
+  # df_output$DP_i <-(df_output$DP_o * 1/ReSurv$IndividualData$conversion_factor)
+  #
+  #
+  #
+  # graph <-  df_output %>%  mutate(type = "Output") %>% select(-c(DP_o)) %>%
+  #   reshape2::melt(id.vars =c("DP_i", "type"))  %>%
+  #   rbind(
+  #     df_input %>%  mutate(type = "Input") %>%
+  #       reshape2::melt(id.vars =c("DP_i", "type"))
+  #   ) %>%  group_by(type,variable) %>%  arrange(DP_i) %>% mutate(
+  #     value_cum= 1/rev(cumprod(rev(value)))
+  #   ) %>%
+  #   mutate(claim_type = substr(variable, 12,12)) %>%
+  #   left_join(
+  #     DP_correction, by =c("DP_i"= "DP_o", "claim_type")
+  #   ) %>%
+  #   mutate(DP_i = case_when(
+  #     type == "Output" ~ DP_i *correction_factor,
+  #     TRUE ~ DP_i))
+
+
+  # plot.df <- ggplot(data=graph) +geom_line(aes(x=DP_i, y=value_cum, col=type)) + facet_grid(~variable) +
+  #   theme_bw() +  labs(title = "Estimated claim development", x = "Input development period",
+  #                      y = "Development percentage", color = "Granularity") +
+  #   scale_y_continuous(labels = scales::percent_format(accuracy = 1))
+  #
+  #
+  #
+  # true <- ReSurv$IndividualData$full.data
+  # conversion_factor <- ReSurv$IndividualData$conversion_factor
+  #
+  # true_output <- true %>%
+  #   filter(DP_rev_i <= TR_i) %>%
+  #   mutate(
+  #     DP_rev_o = floor(max(DP_i)*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+  #     AP_o = ceiling(AP_i*conversion_factor)
+  #   ) %>%
+  #   group_by(claim_type, AP_o, DP_rev_o) %>%
+  #   mutate(claim_type = as.character(claim_type)) %>%
+  #   summarize(I=sum(I), .groups = "drop")
+  #
+  # true_input <- true %>%
+  #   filter(DP_rev_i <= TR_i) %>%
+  #   group_by(claim_type, AP_i, DP_rev_i) %>%
+  #   mutate(claim_type = as.character(claim_type)) %>%
+  #   summarize(I=sum(I), .groups = "drop")
+  #
+  # output_triangle_plot <-ReSurv$hazard_frame_output[,c("claim_type","AP_o", "DP_rev_o", "I_expected")] %>%
+  #   inner_join(true_output, by =c("claim_type","AP_o", "DP_rev_o")) %>%
+  #   mutate(expected_ratio = (I-I_expected)/I) %>%
+  #   mutate(DP_o = max(ReSurv$hazard_frame_output$DP_rev_o)-DP_rev_o + 1)
+  #
+  # input_triangle_plot <-ReSurv$hazard_frame_input[,c("claim_type","AP_i", "DP_rev_i", "I_expected")] %>%
+  #   inner_join(true_input, by =c("claim_type","AP_i", "DP_rev_i")) %>%
+  #   mutate(expected_ratio = (I-I_expected)/I) %>%
+  #   mutate(DP_i= max(ReSurv$hazard_frame_input$DP_rev_i)-DP_rev_i + 1)
+  #
+  # plot.triangle.ratio.output <- ggplot(data = output_triangle_plot, aes(AP_o, DP_o, fill = expected_ratio))+
+  #   facet_grid(~claim_type) +
+  #   scale_y_reverse() +
+  #   geom_tile(color = "white")+
+  #   scale_fill_gradient2(low = "blue", high = "red", mid = "green",
+  #                        midpoint = 0, limit = c(-1,1), space = "Lab", oob=scales::squish,
+  #                        name="(Actual-Expected)/Actual") +
+  #   theme_bw()+
+  #   theme(axis.text.x = element_text(angle = 45, vjust = 1,
+  #                                    size = 12, hjust = 1))+
+  #   coord_fixed() + ggtitle("Expected ratio on unseen data") +
+  #   xlab("Development Output Period") + ylab("Accident Output Period")
+  #
+  # plot.triangle.ratio.input <- ggplot(data = input_triangle_plot, aes(AP_i, DP_i, fill = expected_ratio))+
+  #   facet_grid(~claim_type) +
+  #   scale_y_reverse() +
+  #   geom_tile(color = "white")+
+  #   scale_fill_gradient2(low = "blue", high = "red", mid = "green",
+  #                        midpoint = 0, limit = c(-2,2), space = "Lab", oob=scales::squish,
+  #                        name="(Actual-Expected)/Actual") +
+  #   theme_bw()+
+  #   theme(axis.text.x = element_text(angle = 45, vjust = 1,
+  #                                    size = 12, hjust = 1))+
+  #   coord_fixed() + ggtitle("Expected ratio on unseen data") +
+  #   xlab("Development Input Period") + ylab("Accident Input Period")
+  #
+  # return(list(plot.df,plot.triangle.ratio))
+
 }
 
 
