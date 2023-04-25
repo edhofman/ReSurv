@@ -265,6 +265,8 @@ resurv.fit <- ReSurv(individual_data,
                                           num_workers=0,
                                           tie="Efron"))
   
+
+
   
   
 conversion_factor <- resurv.fit$IndividualData$conversion_factor

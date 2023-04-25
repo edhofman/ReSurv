@@ -159,8 +159,8 @@ pkg.env$scenario0_simulator <- function(ref_claim,
 
 
     #Frequency simulation
-    n_vector_0 <- claim_frequency(I = I, E = E*3, freq = lambda)
-    n_vector_1 <- claim_frequency(I = I, E = E*3, freq = lambda)
+    n_vector_0 <- claim_frequency(I = I, E = E, freq = lambda)
+    n_vector_1 <- claim_frequency(I = I, E = E, freq = lambda)
     occurrence_times_0 <- claim_occurrence(frequency_vector = n_vector_0)
     occurrence_times_1 <- claim_occurrence(frequency_vector = n_vector_1)
 
@@ -235,7 +235,7 @@ pkg.env$scenario1_simulator <- function(ref_claim,
   E_1 <- c(rep(yearly_exposure, I)) + seq(from = 0, by = -100, length = I)
   #Frequency simulation
   n_vector_0 <- claim_frequency(I = I, E = E, freq = lambda)
-  n_vector_1 <- claim_frequency(I = I, E = E_1*2, freq = lambda)
+  n_vector_1 <- claim_frequency(I = I, E = E_1, freq = lambda)
   occurrence_times_0 <- claim_occurrence(frequency_vector = n_vector_0)
   occurrence_times_1 <- claim_occurrence(frequency_vector = n_vector_1)
 
@@ -924,7 +924,7 @@ pkg.env$fit_deep_surv <- function(data,
 
   torch$manual_seed(seed)
   #if an optuna-algorithm is to be fitted, keep for now.
-  if(!("torch.nn.modules.container.Sequential" %in% class(network_structure$net))){
+  #if(!("torch.nn.modules.container.Sequential" %in% class(network_structure$net))){
     net <- torch$nn$Sequential()
     input_shape =  data$x_train$shape[[1]]
     for( i in 1:(params$num_layers+1)){
@@ -938,7 +938,7 @@ pkg.env$fit_deep_surv <- function(data,
         input_shape = as.integer(params[[paste0("node_",i)]] )
       }
     }
-  }
+  #}
 
 
   #Setup batchsize, epochs and verbose settings
