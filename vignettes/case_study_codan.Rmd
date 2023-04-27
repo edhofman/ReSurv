@@ -32,6 +32,7 @@ prova <- IndividualData(data = df,
                         calendar_period="CM",
                         years=4 #check this. I see strange development periods
                         )
+
 ```
 
 ```{r}
