@@ -1272,8 +1272,8 @@ pkg.env$latest_observed_values_i <- function(data,
     summarize(max_DP_i = max(DP_i), .groups="drop")
 
   #create grid to hold observed values for all possible times (also where we have no observations)
-  observed_grid <- expand.grid(AP_i = unique(data_reserve$AP_i),
-                               DP_rev_i = unique(data_reserve$DP_rev_i),
+  observed_grid <- expand.grid(AP_i = min(data_reserve$AP_i):max(data_reserve$AP_i),
+                               DP_rev_i = min(data_reserve$DP_rev_i):max(data_reserve$DP_rev_i),
                                group_i = groups$group_i ) %>%
     mutate(DP_i = trunc-DP_rev_i+1) %>%
     left_join(max_observed_ap_dp, by = "AP_i") %>%
@@ -1942,7 +1942,7 @@ pkg.env$create.df.2.fcst <- function(IndividualData,
     l3 <- NULL
   }
 
-  l4$DP_rev_i <- min(IndividualData$training.data[,'DP_i']):max(IndividualData$training.data[,'DP_i'])
+  l4$DP_rev_i <- min(IndividualData$training.data[,'DP_rev_i']):max(IndividualData$training.data[,'DP_rev_i'])
 
 
   tmp = cross_df(c(l1,l2,l3,l4)) %>%

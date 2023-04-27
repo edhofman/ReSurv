@@ -470,7 +470,8 @@ ReSurv.IndividualData <- function(IndividualData,
   hazard_frame <- hazard_frame %>%
     full_join(bsln,
               by="DP_rev_i") %>%
-    as.data.frame()
+    as.data.frame() %>%
+    replace_na(list(baseline=0))
 
   hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
 
@@ -489,7 +490,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
 
-  max_DP <- max(IndividualData$training$DP_rev_o)
+  max_DP <- max(IndividualData$training$AP_o)-min(IndividualData$training$AP_o) +1
 
   ############################################################
   #check
@@ -545,8 +546,6 @@ ReSurv.IndividualData <- function(IndividualData,
   # If input dimension not equal to output dimension, we perform a grouping #
 
   if(IndividualData$conversion_factor != 1){
-
-  development_factor_o <- matrix(nrow=max_DP, ncol=(nrow(hazard_frame_grouped$groups)) )
 
   development_periods <- distinct(select(data.frame(IndividualData$training), AP_i, AP_o))
 
