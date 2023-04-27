@@ -12,7 +12,6 @@ library(ReSurv)
 
 ## Reading the data 
 
-
 ```{r read the data}
 # path_emil <- "....."
 path_gabriele <- "C:\\Users\\gpitt\\Documents\\Phd\\visiting\\Individual effects on reserving\\%s"
@@ -23,6 +22,7 @@ df <- read.csv(sprintf(path_gabriele,df_name),header=T)
 
 ```{r}
 df<- df %>%
+  filter(DM <=48 &AM<=48)%>%
   mutate(CM=AM+DM-1)
 
 prova <- IndividualData(data = df,
@@ -30,8 +30,15 @@ prova <- IndividualData(data = df,
                         continuous_features = NULL,
                         accident_period="AM",
                         calendar_period="CM",
-                        years=7 #check this. I see strange development periods
+                        years=4 #check this. I see strange development periods
                         )
+
+```
+
+```{r}
+# # # ## Model fit ----
+resurv.fit.cox <- ReSurv(prova,
+                          hazard_model = "cox")
 ```
 
 
