@@ -14,8 +14,10 @@ library(ReSurv)
 
 
 ```{r read the data}
+# path_emil <- "....."
+path_gabriele <- "C:\\Users\\gpitt\\Documents\\Phd\\visiting\\Individual effects on reserving\\%s"
 df_name <- "case_data_all_ng_16-21.csv"
-df <- read.csv(sprintf("C:\\Users\\gpitt\\Documents\\Phd\\visiting\\Individual effects on reserving\\%s",df_name),header=T)
+df <- read.csv(sprintf(path_gabriele,df_name),header=T)
 ```
 
 
