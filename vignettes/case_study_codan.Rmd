@@ -15,7 +15,7 @@ library(ReSurv)
 ```{r read the data}
 # path_emil <- "....."
 path_gabriele <- "C:\\Users\\gpitt\\Documents\\Phd\\visiting\\Individual effects on reserving\\%s"
-df_name <- "case_data_all_ng_16-21.csv"
+df_name <- "case_data_train_ng_16-21.csv"
 df <- read.csv(sprintf(path_gabriele,df_name),header=T)
 ```
 
@@ -26,7 +26,8 @@ df<- df %>%
   mutate(CM=AM+DM-1)
 
 prova <- IndividualData(data = df,
-                        categorical_features = c("Claim_type_key","Cover_key"),
+                        id=NULL,
+                        categorical_features = c("Claim_type_key"),
                         continuous_features = NULL,
                         accident_period="AM",
                         calendar_period="CM",
