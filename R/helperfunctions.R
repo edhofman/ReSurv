@@ -1075,7 +1075,7 @@ pkg.env$hazard_data_frame <- function(hazard,
   Convert hazard matrix to dataframe and add grouping variables.
 
   "
-  continuous_features <- ifelse(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
+  # continuous_features <- ifelse(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
   #categorical_features <- switch(!is.null(categorical_features), categorical_features, NULL)
 
   #Need special handling if we ahve continuous variables
@@ -1143,15 +1143,14 @@ pkg.env$covariate_mapping <- function(hazard_frame,
   "
   Create a dimension table, that holds a link between inputted categorical features and the group, that is used for expected_values
   "
-  continuous_features <- ifelse(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
+  #continuous_features <- ifelse(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
 
   #Need to handle Accident/calender period effect seperatly
   if( (length(continuous_features)==1 & "AP_i" %in% continuous_features) |
       (length(continuous_features)==1 & "RP_i" %in% continuous_features) |
       (length(continuous_features)==2 & sum(c("AP_i","RP_i") %in% continuous_features))==2 ){
     continuous_features_group = NULL
-    }
-  else{
+    }else{
     continuous_features_group=continuous_features[!(continuous_features %in% c("AP_i","RP_i"))]
   }
 
@@ -1194,8 +1193,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
 
     #hazard_group <- hazard_frame %>%  left_join(groups, by=c("AP_i", "covariate"))
 
-  }
-  else{
+  }else{
     groups <- unique(data.frame(covariate = hazard_frame$covariate)) %>%
       mutate(group_i = row_number())
 
@@ -1242,9 +1240,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
       eval(parse(text=expression_1))
 
   }
-  return(
-    list(hazard_group=hazard_group, groups = groups)
-  )
+  return(list(hazard_group=hazard_group, groups = groups))
 
 
 
@@ -1260,7 +1256,7 @@ pkg.env$latest_observed_values_i <- function(data,
   Retrieve total amount of observed claims
 
   "
-  continuous_features <- ifelse(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
+  # continuous_features <- ifelse(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
 
 
   data_reserve <- data
@@ -1269,7 +1265,8 @@ pkg.env$latest_observed_values_i <- function(data,
 
   max_observed_ap_dp <- data_reserve %>%
     group_by(AP_i) %>%
-    summarize(max_DP_i = max(DP_i), .groups="drop")
+    summarize(max_DP_i = max(DP_i),
+              .groups="drop")
 
   #create grid to hold observed values for all possible times (also where we have no observations)
   observed_grid <- expand.grid(AP_i = min(data_reserve$AP_i):max(data_reserve$AP_i),
@@ -2460,5 +2457,79 @@ pkg.env$deep_surv_cv <- function(IndividualData,
 
 
 
+pkg.env$fill_data_frame<-function(data,
+                        continuous_features,
+                        categorical_features,
+                        years,
+                        input_time_granularity,
+                        conversion_factor){
 
+  #Take the features unique values
+  tmp.ls <- data %>%
+    select(all_of(continuous_features),
+           all_of(categorical_features)) %>%
+    as.data.frame() %>%
+    lapply(FUN=unique)
+
+
+  #Take only the training data
+  tmp.existing <- data %>%
+    filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1)) %>%
+    select(all_of(continuous_features),
+           all_of(categorical_features),
+           AP_i,
+           DP_i) %>%
+    unique() %>%
+    as.data.frame()
+
+  # accidents <- sort(unique(data$AP_i))
+  # developments <- sort(unique(data$DP_i))
+
+  # v1 <- diff(as.integer(accidents))
+  # v2 <- diff(as.integer(sort(unique(developments))))
+
+  #Take the complete sequence
+  tmp1 <- min(data$AP_i):max(data$AP_i)
+  tmp2 <- min(data$DP_i):max(data$DP_i)
+
+  tmp.ls$AP_i <- tmp1
+  tmp.ls$DP_i <- tmp2
+
+  tmp.full <- expand.grid(tmp.ls) %>%
+    as.data.frame() %>%
+    filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1))
+
+  tmp.missing <- dplyr::setdiff(x=tmp.full,y=tmp.existing)
+
+  if(dim(tmp.missing)[1]==0){
+    return(NULL)
+    }else{
+
+      tmp.missing<- tmp.missing %>%
+        mutate(DP_rev_i = pkg.env$maximum.time(years,input_time_granularity) - DP_i+1,
+               TR_i = AP_i-1, #just setting truncation to max year simulated. and accounting for
+               I=0)%>%
+        filter(DP_rev_i > TR_i) %>%
+        mutate(
+          DP_rev_o = floor(max(DP_i)*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+          AP_o = ceiling(AP_i*conversion_factor)
+        ) %>%
+        mutate(TR_o= AP_o-1) %>%
+        mutate(across(all_of(categorical_features),
+                      as.factor)) %>%
+        select(all_of(categorical_features),
+               all_of(continuous_features),
+               AP_i,
+               AP_o,
+               DP_i,
+               DP_rev_i,
+               DP_rev_o,
+               TR_i,
+               TR_o,
+               I) %>%
+        as.data.frame()
+
+      return(tmp.missing)
+
+    }}
 

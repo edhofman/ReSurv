@@ -138,11 +138,11 @@ IndividualData <- function(data,
   dim2=max(tmp.dp)
 
   # You need at least the number of development periods on the rows.
-  if(dim1>dim2){
-
-    stop("The number of accident periods is bigger than the number of development periods")
-
-  }
+  # if(dim1>dim2){
+  #
+  #   stop("The number of accident periods is bigger than the number of development periods")
+  #
+  # }
 
 
   # We need a conversion factor from input_time_granularity to output_time_granularity
@@ -232,7 +232,9 @@ IndividualData <- function(data,
               string_formula_o=string_formula_o,
               continuous_features=continuous_features,
               categorical_features=categorical_features,
-              calendar_period_extrapolation=calendar_period_extrapolation)
+              calendar_period_extrapolation=calendar_period_extrapolation,
+              years=years,
+              input_time_granularity=input_time_granularity)
 
   # Return the correct output
   class(out) <- "IndividualData"

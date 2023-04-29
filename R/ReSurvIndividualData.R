@@ -514,9 +514,20 @@ ReSurv.IndividualData <- function(IndividualData,
     calendar_period_extrapolation = IndividualData$calendar_period_extrapolation
     )
 
+  # I add missing observations starting from ALL the combinations of AP_i and DP_i
+  # in the training data for EVERY combination of features.
+  # In case some development (accident) periods are missing I fill the holes
+  # (e.g. for a given I do not observe DP 11, 12 in the middle of the triangle but my DP go from 1 to 25 and I add them)
+
+  missing.obsevations <- pkg.env$fill_data_frame(data=IndividualData$full.data,
+                                                 continuous_features=IndividualData$continuous_features,
+                                                 categorical_features=IndividualData$categorical_features,
+                                                 years=IndividualData$years,
+                                                 input_time_granularity=IndividualData$input_time_granularity,
+                                                 conversion_factor=IndividualData$conversion_factor)
 
   latest_observed <- pkg.env$latest_observed_values_i(
-    data=IndividualData$training.data,
+    data=rbind(IndividualData$training.data, missing.obsevations),
     groups = hazard_frame_grouped$groups,
     categorical_features = IndividualData$categorical_features,
     continuous_features = IndividualData$continuous_features,
