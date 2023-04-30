@@ -490,7 +490,6 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
 
-  max_DP <- max(IndividualData$training$AP_o)-min(IndividualData$training$AP_o) +1
 
   ############################################################
   #check
@@ -527,12 +526,15 @@ ReSurv.IndividualData <- function(IndividualData,
                                                  conversion_factor=IndividualData$conversion_factor)
 
   latest_observed <- pkg.env$latest_observed_values_i(
-    data=rbind(IndividualData$training.data, missing.obsevations),
+    data=bind_rows(IndividualData$training.data, missing.obsevations),
     groups = hazard_frame_grouped$groups,
     categorical_features = IndividualData$categorical_features,
     continuous_features = IndividualData$continuous_features,
     calendar_period_extrapolation = IndividualData$calendar_period_extrapolation
   )
+
+  max_DP <- max(bind_rows(IndividualData$training.data, missing.obsevations)$DP_rev_o)
+
 
   expected_i <- pkg.env$predict_i(
     hazard_data_frame = hazard_frame_grouped$hazard_group,
