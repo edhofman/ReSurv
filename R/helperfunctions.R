@@ -1482,17 +1482,26 @@ pkg.env$predict_i <- function(hazard_data_frame,
 }
 
 pkg.env$retrieve_df_i <- function(hazard_data_frame,
-                              groups
+                              groups,
+                              adjusted=FALSE
 ){
   "
   Return data frame only containing input development factors.
   "
-
+  if(!adjusted){
   df_i <- hazard_data_frame %>%
     select(group_i, DP_rev_i, dev_f_i) %>%
     distinct() %>%
     reshape2::dcast(DP_rev_i ~group_i, value.var="dev_f_i") %>%
     select(-DP_rev_i)
+  }
+  else{
+    df_i <- hazard_data_frame %>%
+      select(group_i, DP_rev_i, df_i_adjusted) %>%
+      distinct() %>%
+      reshape2::dcast(DP_rev_i ~group_i, value.var="df_i_adjusted") %>%
+      select(-DP_rev_i)
+  }
 
   #We only have 5 columns in the case of AP being included as covariate
   if(ncol(groups) == 5){
@@ -1520,7 +1529,8 @@ pkg.env$input_hazard_frame <- function(
     categorical_features,
     continuous_features,
     df_i,
-    groups)
+    groups,
+    adjusted=FALSE)
 {
   "
   Create a hazard frame with relevant input-period specific values for later output
@@ -1568,6 +1578,7 @@ pkg.env$input_hazard_frame <- function(
     replace_na(list(df_i = 1))
 
   #Ordering
+  if(adjusted == FALSE){
   hazard_frame_input <- hazard_frame_input[,c(categorical_features,
                                                 continuous_features,
                                                 "AP_i",
@@ -1579,6 +1590,21 @@ pkg.env$input_hazard_frame <- function(
                                                 "group_i",
                                                 "I_expected",
                                                 "IBNR")]
+  }
+  if(adjusted==TRUE){
+    hazard_frame_input <- hazard_frame_input[,c(categorical_features,
+                                                continuous_features,
+                                                "AP_i",
+                                                "DP_rev_i",
+                                                "expg",
+                                                "baseline",
+                                                "hazard",
+                                                "df_i",
+                                                "df_i_adjusted",
+                                                "group_i",
+                                                "I_expected",
+                                                "IBNR")]
+  }
   return(hazard_frame_input)
 
 }
@@ -1762,7 +1788,8 @@ pkg.env$output_hazard_frame <- function(
     df_o_long <- df_o %>%
       reshape2::melt(id.vars="DP_o") %>%
       left_join(groups[,c("AP_o","covariate", "group_o")] %>%
-                  mutate(covariate = paste0("AP_o_", AP_o, ", ", covariate)), by=c("variable" = "covariate"))
+                  mutate(covariate = paste0("AP_o_", AP_o, ", ", covariate)), by=c("variable" = "covariate"))  %>%
+      mutate(DP_o = DP_o +1) #to get correct
 
     colnames(df_o_long) <- c("DP_o", "covariate", "df_o", "group_o")
 
@@ -1795,6 +1822,104 @@ pkg.env$output_hazard_frame <- function(
                          "I_expected",
                          "IBNR")]
   return(hazard_frame_output)
+
+}
+
+pkg.env$check_input_hazard <- function(hazard_frame_input, check_value=1.9){
+  check <- hazard_frame_input %>%  filter(hazard > check_value & DP_rev_i < max(DP_rev_i))
+
+  if(nrow(check)>0){
+    warning(paste0("Hazard value on input granularity exceeds ", check_value,
+                   " for reverse development periods ", unique(check$DP_rev_i),". This is most likely due to low exposure, we calculate 'probability'-grouped output development factors, and from here adjust input development factor. ")
+    )
+    return(TRUE)
+  }
+  else{
+    return(FALSE)
+  }
+}
+
+pkg.env$update_hazard_frame <- function(
+    hazard_frame_input,
+    hazard_frame_grouped,
+    df_o,
+    latest_observed_i,
+    groups,
+    conversion_factor,
+    categorical_features,
+    check_value){
+
+  relevant <- hazard_frame_input %>%
+    filter(hazard > check_value & DP_rev_i < max(DP_rev_i)) %>%
+    mutate(AP_o = ceiling(AP_i*conversion_factor),
+           DP_rev_o = ceiling((DP_rev_i-(AP_i-1)%%(1/conversion_factor) ) *conversion_factor))
+
+
+  max_DP_rev_o = max(relevant$DP_rev_o)
+
+  relevant <- relevant %>%
+    mutate(DP_o = max_DP_rev_o-DP_rev_o +1)  %>%
+   left_join(groups[,c("group_i", "group_o")], by =c("group_i"))
+
+
+  #If AP is included as a grouping variable
+  if(ncol(groups)==5){
+    df_o_long <- df_o %>%
+      reshape2::melt(id.vars="DP_o") %>%
+      left_join(groups[,c("AP_o","covariate", "group_o")] %>%
+                  mutate(covariate = paste0("AP_o_", AP_o, ", ", covariate)), by=c("variable" = "covariate"))
+
+    colnames(df_o_long) <- c("DP_o", "covariate", "df_o", "group_o")
+
+  }
+  else{
+
+    df_o_long <- df_o %>%
+      reshape2::melt(id.vars="DP_o") %>%
+      left_join(groups[,c("covariate", "group_o")], by=c("variable" = "covariate"))#to get correct
+
+    colnames(df_o_long) <- c("DP_o", "covariate", "df_o", "group_o")
+  }
+
+  observed_o <-  latest_observed_i %>%
+    left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
+    mutate(AP_o = ceiling(AP_i*conversion_factor),
+           DP_rev_o = ceiling((DP_rev_i-(AP_i-1)%%(1/conversion_factor) ) *conversion_factor)) %>%
+    filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parrallelogram in the end of the development time
+    mutate(DP_o = max_DP_rev_o-DP_rev_o +1) %>%
+    group_by(AP_o,group_o) %>%
+    summarize(latest_I = sum(I), DP_o_max = max(DP_o), .groups="drop") %>%
+    select(AP_o, group_o, latest_I, DP_o_max) %>%
+    mutate(DP_o_join = DP_o_max)
+
+
+  df_o_long_relevant <- df_o_long %>%  inner_join(distinct(relevant[,c("DP_o", "group_o")])
+                                                  , by=c("DP_o", "group_o"))
+
+  predict_new <- observed_o[observed_o$group_o %in% df_o_long_relevant$group_o,] %>%
+    left_join(df_o_long, by=c("DP_o_join" = "DP_o", "group_o")) %>%
+    mutate(I_new = latest_I*df_o-latest_I) %>%
+    mutate(I_new = I_new / (1/conversion_factor)^2) #assuming equal distribution in lower granularity
+
+  new_df <- relevant[!is.na(relevant$IBNR),] %>%
+    left_join(predict_new[,c("group_o", "DP_o_join", "I_new")], by =c("group_o", "DP_o" =  "DP_o_join")) %>%
+    mutate(df_i_adjusted = (I_expected/(df_i-1) + I_new)/(I_expected/(df_i-1)) ) %>%
+    mutate(IBNR = I_new,
+           I_expected = I_new) %>%
+    select(AP_i, group_i, DP_rev_i, df_i_adjusted, IBNR, I_expected)
+
+  hazard_frame_grouped_2 <- hazard_frame_grouped %>%
+    mutate(df_i_adjusted = dev_f_i) %>%
+    rows_update(new_df[,c("group_i","DP_rev_i", "df_i_adjusted")], by =c("group_i", "DP_rev_i")) %>%
+    group_by(pick(all_of(categorical_features), AP_i)) %>%
+    arrange(DP_rev_i) %>%
+    mutate(cum_dev_f_i = cumprod(df_i_adjusted)) %>%
+    mutate(S_i = ifelse(cum_dev_f_i==0,0,1/cum_dev_f_i), # to handle the ifelse statement from above
+           S_i_lead = lead(S_i, default = 0),
+           S_i_lag = lag(S_i, default = 1)) %>%
+    ungroup()
+
+  return(hazard_frame_grouped_2)
 
 }
 
