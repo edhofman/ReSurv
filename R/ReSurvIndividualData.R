@@ -579,8 +579,10 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
   check_input_hazard <- pkg.env$check_input_hazard(hazard_frame_input,
-                             check_value=1.9)
+                             check_value=check_value)
 
+  #If we exeed the check value, we calculate on ouput granularity, predict on output granularity, and distribute evenly in the relevant input-periods.
+  #From here we do simple chain-ladder to calculate new development factor.
   if(check_input_hazard){
     development_factor_o <- mapply(pkg.env$i_to_o_development_factor,
                                    1:max(hazard_frame_grouped$groups$group_o),
@@ -604,6 +606,7 @@ ReSurv.IndividualData <- function(IndividualData,
       map_df(rev) %>%
       mutate(DP_o=row_number())
 
+    #We only update for relevant periods, hence for example for accident periods, where we have already seen the development, we just put to 1.
     hazard_frame_grouped$hazard_group <- pkg.env$update_hazard_frame(
       hazard_frame_input=hazard_frame_input,
       hazard_frame_grouped=hazard_frame_grouped$hazard_group,
@@ -611,8 +614,9 @@ ReSurv.IndividualData <- function(IndividualData,
       latest_observed_i = latest_observed$observed_pr_dp,
       groups = hazard_frame_grouped$groups,
       categorical_features=IndividualData$categorical_features,
+      continuous_features = IndividualData$continuous_features,
       conversion_factor = IndividualData$conversion_factor,
-      check_value = 1.9
+      check_value = check_value
     )
 
     expected_i <- pkg.env$predict_i(

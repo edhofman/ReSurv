@@ -701,8 +701,9 @@ pkg.env$formula.editor <- function(continuous_features,
 
 
   tmp.cat <- switch(!is.null(categorical_features), paste(categorical_features, collapse='+'), NULL)
-  tmp.cont <- switch(!is.null(continuous_features), paste(continuous_features, collapse='+'), NULL)
   tmp.spline.pos <- which(continuous_features%in%intersect(continuous_features,continuous_features_spline))
+  tmp.cont.pos <- which(!(continuous_features%in%intersect(continuous_features,continuous_features_spline)))
+  tmp.cont <- switch(!is.null(continuous_features[tmp.cont.pos]) & length(continuous_features[tmp.cont.pos])>0, paste(continuous_features[tmp.cont.pos], collapse='+'), NULL)
   tmp.splines <- switch((!is.null(continuous_features[tmp.spline.pos]) & !is.null(continuous_features_spline)),paste0("pspline(",continuous_features[tmp.spline.pos], ",degree=",degree_cf,",df=",degrees_of_freedom_cf,")"),NULL)
   tmp.calendar <- switch(calendar_period_extrapolation,paste0("pspline(",calendar_period, ",degree=",degree_cf,",df=",degrees_of_freedom_cp,")"),NULL)
 
@@ -1847,6 +1848,7 @@ pkg.env$update_hazard_frame <- function(
     groups,
     conversion_factor,
     categorical_features,
+    continuous_features,
     check_value){
 
   relevant <- hazard_frame_input %>%
@@ -1867,7 +1869,9 @@ pkg.env$update_hazard_frame <- function(
     df_o_long <- df_o %>%
       reshape2::melt(id.vars="DP_o") %>%
       left_join(groups[,c("AP_o","covariate", "group_o")] %>%
-                  mutate(covariate = paste0("AP_o_", AP_o, ", ", covariate)), by=c("variable" = "covariate"))
+                  mutate(covariate = paste0("AP_o_", AP_o, ",", covariate)) %>%
+                           select("group_o","covariate") %>%
+                           distinct() , by=c("variable" = "covariate"))
 
     colnames(df_o_long) <- c("DP_o", "covariate", "df_o", "group_o")
 
@@ -1892,6 +1896,10 @@ pkg.env$update_hazard_frame <- function(
     select(AP_o, group_o, latest_I, DP_o_max) %>%
     mutate(DP_o_join = DP_o_max)
 
+  #handle that we set these cases to 1, hence cant find exposure
+  no_exposure <- latest_observed_i %>%  group_by(group_i, DP_rev_i) %>%
+    summarize(I_help=sum(I), .groups="drop") %>%
+    inner_join(relevant[relevant$hazard>2,c("DP_rev_i", "group_i")], by =c("DP_rev_i", "group_i"))
 
   df_o_long_relevant <- df_o_long %>%  inner_join(distinct(relevant[,c("DP_o", "group_o")])
                                                   , by=c("DP_o", "group_o"))
@@ -1901,12 +1909,29 @@ pkg.env$update_hazard_frame <- function(
     mutate(I_new = latest_I*df_o-latest_I) %>%
     mutate(I_new = I_new / (1/conversion_factor)^2) #assuming equal distribution in lower granularity
 
-  new_df <- relevant[!is.na(relevant$IBNR),] %>%
+  #if I_expected is zero it is because hazard>2, hence we draw from no_exposure help
+  if("AP_i" %in% continuous_features){
+  new_df <- relevant %>%
     left_join(predict_new[,c("group_o", "DP_o_join", "I_new")], by =c("group_o", "DP_o" =  "DP_o_join")) %>%
+    left_join(no_exposure, by=c("group_i", "DP_rev_i")) %>%
+    mutate(I_expected = ifelse(I_expected==0,I_help, I_expected)) %>%
     mutate(df_i_adjusted = (I_expected/(df_i-1) + I_new)/(I_expected/(df_i-1)) ) %>%
     mutate(IBNR = I_new,
            I_expected = I_new) %>%
-    select(AP_i, group_i, DP_rev_i, df_i_adjusted, IBNR, I_expected)
+    select(AP_i, group_i, DP_rev_i, df_i_adjusted, IBNR, I_expected) %>%
+    replace_na(list(df_i_adjusted=1))
+  }
+  else{
+    new_df <- relevant[!is.na(relevant$IBNR),] %>%
+      left_join(predict_new[,c("group_o", "DP_o_join", "I_new")], by =c("group_o", "DP_o" =  "DP_o_join")) %>%
+      left_join(no_exposure, by=c("group_i", "DP_rev_i")) %>%
+      mutate(I_expected = ifelse(I_expected==0,I_help, I_expected)) %>%
+      mutate(df_i_adjusted = (I_expected/(df_i-1) + I_new)/(I_expected/(df_i-1)) ) %>%
+      mutate(IBNR = I_new,
+             I_expected = I_new) %>%
+      select(AP_i, group_i, DP_rev_i, df_i_adjusted, IBNR, I_expected) %>%
+      replace_na(list(df_i_adjusted=1))
+  }
 
   hazard_frame_grouped_2 <- hazard_frame_grouped %>%
     mutate(df_i_adjusted = dev_f_i) %>%
