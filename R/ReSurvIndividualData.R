@@ -398,7 +398,8 @@ ReSurv.IndividualData <- function(IndividualData,
                                           categorical_features=IndividualData$categorical_features)
     benchmark_id <- pkg.env$benchmark_id(X = X,
                                          Y =Y ,
-                                         newdata.mx = newdata.bs
+                                         newdata.mx = newdata.bs,
+                                         remove_first_dummy=T
     )
 
     pred_relative <- pred - pred[benchmark_id]

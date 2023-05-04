@@ -1262,7 +1262,7 @@ pkg.env$latest_observed_values_i <- function(data,
 
   data_reserve <- data
 
-  trunc = max(data_reserve$DP_i)
+  trunc = max(data_reserve$DP_rev_i)
 
   max_observed_ap_dp <- data_reserve %>%
     group_by(AP_i) %>%
@@ -1276,6 +1276,7 @@ pkg.env$latest_observed_values_i <- function(data,
     mutate(DP_i = trunc-DP_rev_i+1) %>%
     left_join(max_observed_ap_dp, by = "AP_i") %>%
     filter(DP_i <= max_DP_i) %>%
+    filter(DP_i>0) %>%  #as we might not have observed at perfect triangle
     select(-c(max_DP_i))
 
   #Max possible development time per accident period
@@ -1469,7 +1470,9 @@ pkg.env$predict_i <- function(hazard_data_frame,
                                                  "AP_i" = "AP_i",
                                                  "group_i" = "group_i")) %>%
     mutate(U=case_when(
-      grouping_method == "probability" ~ 1,
+      gm == "probability" ~ 1,
+      S_i_lag == 1 ~ latest_I,
+      DP_max_rev == min(hazard_data_frame$DP_rev_i) ~ latest_I,
       S_ultimate_i ==0 ~ 0,
       AP_i != 1 ~ 1/S_ultimate_i * latest_I,
       TRUE ~ latest_I)) %>%
@@ -1716,8 +1719,9 @@ pkg.env$i_to_o_development_factor <- function(i,
                                                   "group_o" = "group_o")) %>%
      mutate(U=ifelse(
        S_ultimate_i ==0, 0,
-       1/S_ultimate_i * latest_I) ) %>%
+       1/S_ultimate_i * latest_I) ) %>% #handle special ultimate cases
      mutate(U = ifelse(gm=="probability", 1 ,U)) %>%
+     mutate(U = ifelse(DP_max_rev == min(grouped_hazard_0$DP_rev_i), latest_I, U)) %>%
      mutate(exposure_expected = U*(S_i)) %>%  #in theory one could say U*S_i- ifelse(DP_max_rev==DP_rev_i-1, latest_I, U*S_i_lead ), but this might lead to negative expected as we are not sure latest equal the same as distribution estimate
      select(AP_i, group_o, DP_rev_o, DP_rev_i, exposure_expected)
 
@@ -1790,8 +1794,10 @@ pkg.env$output_hazard_frame <- function(
     df_o_long <- df_o %>%
       reshape2::melt(id.vars="DP_o") %>%
       left_join(groups[,c("AP_o","covariate", "group_o")] %>%
-                  mutate(covariate = paste0("AP_o_", AP_o, ", ", covariate)), by=c("variable" = "covariate"))  %>%
-      mutate(DP_o = DP_o +1) #to get correct
+                  mutate(covariate = paste0("AP_o_", AP_o, ",", covariate) ) %>%
+                  distinct(), by=c("variable" = "covariate"))  %>%
+      mutate(DP_o = DP_o +1) %>%  #to get correct
+      select(DP_o, variable, value, group_o)
 
     colnames(df_o_long) <- c("DP_o", "covariate", "df_o", "group_o")
 
@@ -2177,7 +2183,8 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
 
 pkg.env$benchmark_id <- function(X,
                                  Y,
-                                 newdata.mx
+                                 newdata.mx,
+                                 remove_first_dummy=F
                                          ){
   "
   Find benchmark value used in baseline calculation.
@@ -2191,7 +2198,9 @@ pkg.env$benchmark_id <- function(X,
     unlist() %>%
     unname()
 
-
+  if(remove_first_dummy==T){
+    newdata.mx <- newdata.mx[,colnames(newdata.mx) %in% names(X)]
+  }
   benchmark_id <- which(apply(newdata.mx, 1, function(x) sum(benchmark == x) == length(benchmark) ))[1]
 
 
