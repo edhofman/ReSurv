@@ -1552,7 +1552,8 @@ pkg.env$input_hazard_frame <- function(
       reshape2::melt(id.vars="DP_i") %>%
       left_join(groups %>%
                   mutate(covariate = paste0("AP_i_", AP_i, ",", covariate) ) %>%
-                           select(c(covariate, group_i)), by=c("variable" = "covariate"))
+                           select(c(covariate, group_i)), by=c("variable" = "covariate")) %>%
+      mutate(DP_i = DP_i + 1)
 
     colnames(df_i_long) <- c("DP_i", "covariate", "df_i", "group_i")
 
@@ -1894,7 +1895,7 @@ pkg.env$update_hazard_frame <- function(
     group_by(AP_o,group_o) %>%
     summarize(latest_I = sum(I), DP_o_max = max(DP_o), .groups="drop") %>%
     select(AP_o, group_o, latest_I, DP_o_max) %>%
-    mutate(DP_o_join = DP_o_max)
+    mutate(DP_o_join = DP_o_max+1)
 
   #handle that we set these cases to 1, hence cant find exposure
   no_exposure <- latest_observed_i %>%  group_by(group_i, DP_rev_i) %>%
@@ -1905,7 +1906,7 @@ pkg.env$update_hazard_frame <- function(
                                                   , by=c("DP_o", "group_o"))
 
   predict_new <- observed_o[observed_o$group_o %in% df_o_long_relevant$group_o,] %>%
-    left_join(df_o_long, by=c("DP_o_join" = "DP_o", "group_o")) %>%
+    left_join(df_o_long, by=c("DP_o_max" = "DP_o", "group_o")) %>%
     mutate(I_new = latest_I*df_o-latest_I) %>%
     mutate(I_new = I_new / (1/conversion_factor)^2) #assuming equal distribution in lower granularity
 
@@ -1915,7 +1916,9 @@ pkg.env$update_hazard_frame <- function(
     left_join(predict_new[,c("group_o", "DP_o_join", "I_new")], by =c("group_o", "DP_o" =  "DP_o_join")) %>%
     left_join(no_exposure, by=c("group_i", "DP_rev_i")) %>%
     mutate(I_expected = ifelse(I_expected==0,I_help, I_expected)) %>%
-    mutate(df_i_adjusted = (I_expected/(df_i-1) + I_new)/(I_expected/(df_i-1)) ) %>%
+    mutate(df_i_adjusted = case_when(df_i == 1 ~ (I_new + I_expected)/(I_expected),
+                                     TRUE ~  (I_expected/(df_i-1) + I_new)/(I_expected/(df_i-1)) )
+            ) %>%
     mutate(IBNR = I_new,
            I_expected = I_new) %>%
     select(AP_i, group_i, DP_rev_i, df_i_adjusted, IBNR, I_expected) %>%

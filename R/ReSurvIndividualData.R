@@ -72,7 +72,7 @@ ReSurv <- function(IndividualData,
                    hparameters=list(),
                    percentage_data_training=.8,
                    grouping_method = "exposure",
-                   check_value = 1.9
+                   check_value = 1.85
 ){
 
   UseMethod("ReSurv")
@@ -152,7 +152,7 @@ ReSurv.default <- function(IndividualData,
                            hparameters=list(),
                            percentage_data_training=.8,
                            grouping_method = "exposure",
-                           check_value = 1.9){
+                           check_value = 1.85){
 
   message('The object provided must be of class IndividualData')
 
@@ -233,7 +233,7 @@ ReSurv.IndividualData <- function(IndividualData,
                                hparameters=list(),
                                percentage_data_training=.8,
                                grouping_method = "exposure",
-                               check_value = 1.9
+                               check_value = 1.85
                                ){
 
 
