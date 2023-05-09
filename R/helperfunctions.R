@@ -1692,6 +1692,7 @@ pkg.env$i_to_o_development_factor <- function(i,
     group_by(AP_i, group_o, DP_max_rev) %>%
     summarize(latest_I = sum(latest_I, na.rm=T), .groups = "drop")
 
+
   #For probability approach to grouping method we assume equal exposure for each accident period
   if(grouping_method == "probability"){
   expected_i <-  pkg.env$predict_i(
