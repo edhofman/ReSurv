@@ -38,7 +38,7 @@ input_data0 %>%
   labs(title="Empirical distribution of simulated notification delays", 
        x="Notification delay (in quarters)", 
        y="Cumulative Density") +
-  xlim(0,48)+
+  xlim(0,max(input_data0$DP))+
   scale_color_manual(values=c("navyblue", "darkred"),
                      labels=c("Claim type 0","Claim type 1")) +
   scale_linetype_manual(values=c(1,3),

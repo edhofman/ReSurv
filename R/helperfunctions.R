@@ -65,7 +65,7 @@ notidel_param_0 <- function(claim_size,
   if(scenario %in% c(0,1,2)){
 
     return(c(alpha=0.5,
-             beta=2,
+             beta=2*30,
              lambda=0.1*exp(1.15129)^(1/0.5),
              k=1,
              b=years / time_unit))
@@ -85,7 +85,7 @@ notidel_param_0 <- function(claim_size,
   if(scenario==4){
 
     return(c(alpha=0.5,
-        beta=2+0.5*1.15129,
+        beta=(2+0.5*1.15129)*30,
         lambda=0.1*exp(1.15129)^(1/0.5)+0.5*1.15129,
         k=1,
         b=years / time_unit))
@@ -106,28 +106,28 @@ notidel_param_1 <- function(claim_size,
 
   if(scenario%in%c(0,1)){
     return(c(alpha=0.5,
-    beta=2,
+    beta=2*30,
     lambda=0.1*exp(1.95601)^(1/0.5),
     k=1,
     b=years / time_unit))}
 
   if(scenario==2){
     return(c(alpha=0.5,
-      beta=2,
+      beta=2*30,
       lambda=0.1*exp(1.95601-0.116151*sqrt(ceiling(occurrence_period)))^(1/0.5),
       k=1,
       b=years / time_unit))}
 
   if(scenario==3){
     return(c(alpha=0.5,
-      beta=2,
+      beta=2*30,
       lambda=0.1*exp(1.95601+period_function(ceiling(occurrence_period)) )^(1/0.5),
       k=1,
       b=years / time_unit))}
 
   if(scenario==4){
     return(c(alpha=0.5,
-      beta=2+0.5*1.15129,
+      beta=(2+0.5*1.15129)*30,
       lambda=0.1*exp(1.95601)^(1/0.5)+0.5*1.95601,
       k=1,
       b=years / time_unit))}
