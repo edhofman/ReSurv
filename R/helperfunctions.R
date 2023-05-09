@@ -696,6 +696,21 @@ pkg.env$encode.variables <- function(x){
 
 }
 
+pkg.env$encode.variables.cp <- function(x,ap1){
+  "
+  This function encodes the periods.
+  We impose that the indexization starts from 1.
+
+  "
+  seq <- ap1:max(x)
+
+  v <- 1:length(seq)
+
+  v[match(x,seq)]
+
+
+}
+
 
 pkg.env$formula.editor <- function(continuous_features,
                            categorical_features,
