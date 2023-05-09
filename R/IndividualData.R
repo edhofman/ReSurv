@@ -125,7 +125,7 @@ IndividualData <- function(data,
   # Accident periods encoding
   tmp.ap <- pkg.env$encode.variables(tmp[,accident_period])
   # Calendar periods encoding
-  tmp.cp <- pkg.env$encode.variables(tmp[,calendar_period])
+  tmp.cp <- pkg.env$encode.variables.cp(tmp[,calendar_period], ap1=min(tmp[,accident_period]))
   # Development periods encoding
   tmp.dp <- tmp.cp-tmp.ap+1
 
