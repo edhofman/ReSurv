@@ -1683,9 +1683,9 @@ pkg.env$i_to_o_development_factor <- function(i,
     left_join(groups[,c("group_i", "group_o")], by =c("group_i"))
 
   observed_pr_dp_o  <- observed_pr_dp %>%
-    left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
-    group_by(AP_i, group_o, DP_rev_i, DP_i) %>%
-    summarize(I = sum(I, na.rm=T), .groups = "drop")
+    left_join(groups[,c("group_i", "group_o")], by =c("group_i"))# %>%
+    #group_by(AP_i, group_o, DP_rev_i, DP_i) %>%
+    #summarize(I = sum(I, na.rm=T), .groups = "drop")
 
   latest_cumulative_o <- latest_cumulative %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
@@ -1731,6 +1731,7 @@ pkg.env$i_to_o_development_factor <- function(i,
      left_join(cumulative_observed, by=c("AP_i", "group_o",
                                         "max_dp"="DP_rev_i"))
 
+   min_dp_rev = min(grouped_hazard_0$DP_rev_i)
    #Where we do not have any observed correct exposure we extrapolate based on fitted hazard
    no_exposure <-  exposures %>%
      select(DP_rev_i,  DP_rev_o, AP_i, group_o, S_i, DP_max_rev, latest_I ) %>%
@@ -1744,7 +1745,7 @@ pkg.env$i_to_o_development_factor <- function(i,
      mutate(U=ifelse(
        S_ultimate_i ==0, 0,
        1/S_ultimate_i * latest_I) ) %>% #handle special ultimate cases
-     mutate(U = ifelse(DP_max_rev == min(grouped_hazard_0$DP_rev_i), latest_I, U))  %>%
+     mutate(U = ifelse(DP_max_rev ==min_dp_rev , latest_I, U))  %>%
      mutate(U = ifelse(gm=="probability", 1 ,U)) %>%
      mutate(exposure_expected = U*(S_i)) %>%  #in theory one could say U*S_i- ifelse(DP_max_rev==DP_rev_i-1, latest_I, U*S_i_lead ), but this might lead to negative expected as we are not sure latest equal the same as distribution estimate
      select(AP_i, group_o, DP_rev_o, DP_rev_i, exposure_expected)
