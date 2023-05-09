@@ -50,6 +50,7 @@
 #' @import tidyverse
 #' @import xgboost
 #' @import rpart
+#' @import LTRCtrees
 #'
 #'
 #' @references
@@ -365,7 +366,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
     X=cbind(X,Xc)
 
-    Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")]
+    Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
 
     datads_pp <- pkg.env$xgboost_pp(X=X,
                                     Y=Y,
@@ -393,8 +394,7 @@ ReSurv.IndividualData <- function(IndividualData,
                                           categorical_features=IndividualData$categorical_features)
     benchmark_id <- pkg.env$benchmark_id(X = X,
                                          Y =Y ,
-                                         newdata.mx = newdata.bs
-    )
+                                         newdata.mx = newdata.bs)
 
     pred_relative <- pred - pred[benchmark_id]
 
@@ -421,12 +421,12 @@ ReSurv.IndividualData <- function(IndividualData,
 
     training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
 
-
     X=cbind(X,Xc)
 
-    Y=individual_data$training.data[,c("DP_rev_i", "I", "TR_i")]
+    Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
 
     control.pars <- do.call(rpart.control, hparameters)
+
     model.out <- pkg.env$fit_LTRCtrees(data=IndividualData$training.data,
                                        formula_ct=formula_ct,
                                        newdata=newdata,
@@ -444,18 +444,23 @@ ReSurv.IndividualData <- function(IndividualData,
 
     #make to hazard relative to initial model, to have similiar interpretation as standard cox
 
-    pred <- predict(model.out,newdata.mx)
 
     #make to hazard relative to initial model, to have similiar interpretation as standard cox
-    benchmark_id <- pkg.env$benchmark_id(X = X,
-                                         Y =Y ,
-                                         newdata.mx = newdata.mx
-    )
+    # benchmark_id <- pkg.env$benchmark_id(X = X,
+    #                                      Y =Y ,
+    #                                      newdata.mx = newdata)
 
-    pred_relative <- model.out$expg/model.out$expg[benchmark_id]
+    pred <- predict(model.out$cox,newdata)
 
-    hazard_frame <- cbind(newdata, pred_relative)
-    colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
+    benchmark_id <- 1
+    # pred_relative <- model.out$expg/model.out$expg[benchmark_id]
+
+    pred_relative <- exp(pred - pred[benchmark_id])
+
+    # exp(pred_relative)
+
+    hazard_frame <- cbind(newdata, expg=pred_relative)
+    # colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
 
     bsln <- data.frame(baseline=bsln,
                        DP_rev_i=sort(as.integer(unique(IndividualData$training.data$DP_rev_i))))
