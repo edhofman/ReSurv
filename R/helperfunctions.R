@@ -210,16 +210,27 @@ pkg.env$scenario0_simulator <- function(ref_claim,
       mutate(
         claim_number = row_number(),
       )  %>%  mutate(
-        AM = ceiling(AT),
-        RM = ceiling(RT),
+        AP = ceiling(AT),
+        RP = ceiling(RT),
         DT = RT-AT,
-        DM = RM-AM+1,
-        DM_rev = years/time_unit - DM+1,
+        DP = RP-AP+1,
+        DP_rev = years/time_unit - DP+1,
         DT_rev = years/time_unit - DT,
-        TR = AM-1, #just setting truncation to max year simulated. and accounting for
+        TR = AP-1, #just setting truncation to max year simulated. and accounting for
         I=1
       ) %>%
-      select(claim_number, AT, RT, claim_type, AM, RM, DT, DM, DM_rev, DT_rev, TR, I)
+      select(claim_number,
+             AT,
+             RT,
+             claim_type,
+             AP,
+             RP,
+             DT,
+             DP,
+             DP_rev,
+             DT_rev,
+             TR,
+             I)
 
 
   simulated_dataframe_RM_CT
@@ -282,20 +293,21 @@ pkg.env$scenario1_simulator <- function(ref_claim,
                 RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
                 claim_type = 1)
 
-  simulated_dataframe_RM_CT <- ct0 %>%  bind_rows(ct1) %>%
+  simulated_dataframe_RM_CT <- ct0 %>%
+    bind_rows(ct1) %>%
     mutate(
       claim_number = row_number(),
     )  %>%  mutate(
-      AM = ceiling(AT),
-      RM = ceiling(RT),
+      AP = ceiling(AT),
+      RP = ceiling(RT),
       DT = RT-AT,
-      DM = RM-AM+1,
-      DM_rev = years/time_unit - DM+1,
+      DP = RP-AP+1,
+      DP_rev = years/time_unit - DP+1,
       DT_rev = years/time_unit - DT,
-      TR = AM-1, #just setting truncation to max year simulated. and accounting for
+      TR = AP-1, #just setting truncation to max year simulated. and accounting for
       I=1
     ) %>%
-    select(claim_number, AT, RT, claim_type, AM, RM, DT, DM, DM_rev, DT_rev, TR, I)
+    select(claim_number, AT, RT, claim_type, AP, RP, DT, RP, DP_rev, DT_rev, TR, I)
 
   simulated_dataframe_RM_CT
 
@@ -372,16 +384,16 @@ pkg.env$scenario2_simulator <- function(ref_claim,
       mutate(
         claim_number = row_number(),
       )  %>%  mutate(
-        AM = ceiling(AT),
-        RM = ceiling(RT),
+        AP = ceiling(AT),
+        RP = ceiling(RT),
         DT = RT-AT,
-        DM = RM-AM+1,
-        DM_rev = years/time_unit - DM+1,
+        DP = RP-AP+1,
+        DP_rev = years/time_unit - DP+1,
         DT_rev = years/time_unit - DT,
-        TR = AM-1, #just setting truncation to max year simulated. and accounting for
+        TR = AP-1, #just setting truncation to max year simulated. and accounting for
         I=1
       ) %>%
-      select(claim_number, AT, RT, claim_type, AM, RM, DT, DM, DM_rev, DT_rev, TR, I)
+      select(claim_number, AT, RT, claim_type, AP, RP, DT, DP, DP_rev, DT_rev, TR, I)
 
   simulated_dataframe_RM_CT  }
 
@@ -448,16 +460,16 @@ pkg.env$scenario3_simulator <- function(ref_claim,
     mutate(
       claim_number = row_number(),
     )  %>%  mutate(
-      AM = ceiling(AT),
-      RM = ceiling(RT),
+      AP = ceiling(AT),
+      RP = ceiling(RT),
       DT = RT-AT,
-      DM = RM-AM+1,
-      DM_rev = years/time_unit - DM+1,
+      DP = RP-AP+1,
+      DP_rev = years/time_unit - DP+1,
       DT_rev = years/time_unit - DT,
-      TR = AM-1, #just setting truncation to max year simulated. and accounting for
+      TR = AP-1, #just setting truncation to max year simulated. and accounting for
       I=1
     ) %>%
-    select(claim_number, AT, RT, claim_type, AM, RM, DT, DM, DM_rev, DT_rev, TR, I)
+    select(claim_number, AT, RT, claim_type, AP, RP, DT, DP, DP_rev, DT_rev, TR, I)
 
   simulated_dataframe_RM_CT
 
@@ -525,16 +537,20 @@ pkg.env$scenario4_simulator <- function(ref_claim,
       mutate(
         claim_number = row_number(),
       )  %>%  mutate(
-        AM = ceiling(AT),
-        RM = ceiling(RT),
+        AP = ceiling(AT),
+        RP = ceiling(RT),
         DT = RT-AT,
-        DM = RM-AM+1,
-        DM_rev = years/time_unit - DM+1,
+        DP = RP-AP+1,
+        DP_rev = years/time_unit - DP+1,
         DT_rev = years/time_unit - DT,
-        TR = AM-1, #just setting truncation to max year simulated. and accounting for
+        TR = AP-1, #just setting truncation to max year simulated. and accounting for
         I=1
       ) %>%
-      select(claim_number, AT, RT, claim_type, AM, RM, DT, DM, DM_rev, DT_rev, TR, I) %>% as.data.frame()
+      select(claim_number, AT, RT,
+             claim_type,
+             AP,
+             RP,
+             DT, DP, DP_rev, DT_rev, TR, I) %>% as.data.frame()
 
     simulated_dataframe_RM_CT
 
