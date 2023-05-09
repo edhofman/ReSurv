@@ -20,7 +20,10 @@ In this vignette we show how to simulate the individual data we included in the 
 # Input data
 
 input_data0 <- data_generator(random_seed = 1964,
-                              scenario=0)
+                              scenario=0,
+                              time_unit = 1/360,
+                              years = 4,
+                              yearly_exposure = 200)
 
 ```
 
@@ -58,7 +61,10 @@ input_data0 %>%
 # Input data
 
 input_data1 <- data_generator(random_seed = 1964,
-                             scenario=1)
+                             scenario=1,
+                              time_unit = 1/360,
+                              years = 4,
+                              yearly_exposure = 200)
 
 ```
 
@@ -92,7 +98,10 @@ input_data1 %>%
 # Input data
 
 input_data2 <- data_generator(random_seed = 1964,
-                             scenario=2)
+                             scenario=2,
+                              time_unit = 1/360,
+                              years = 4,
+                              yearly_exposure = 200)
 
 ```
 
@@ -127,7 +136,10 @@ input_data2 %>%
 # Input data
 
 input_data3 <- data_generator(random_seed = 1964,
-                             scenario=3)
+                             scenario=3,
+                              time_unit = 1/360,
+                              years = 4,
+                              yearly_exposure = 200)
 
 ```
 
@@ -161,7 +173,10 @@ input_data3 %>%
 # Input data
 
 input_data4 <- data_generator(random_seed = 1964,
-                             scenario=4)
+                             scenario=4,
+                              time_unit = 1/360,
+                              years = 4,
+                              yearly_exposure = 200)
 
 ```
 

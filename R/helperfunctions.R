@@ -34,16 +34,24 @@ RTFWD_inverse <- function(n, alpha, beta, lambda, k,b){
 }
 
 period_function <-function(x){
-  if((x%%12) %in% (c(2,3,4))){
+
+  "
+  Add monthly seasonal effect starting from daily input.
+
+  "
+
+  tmp <- floor((x-1)/30)
+
+  if((tmp%%12) %in% (c(2,3,4))){
     return(-0.3)
   }
-  if((x%%12) %in% (c(5,6,7))){
+  if((tmp%%12) %in% (c(5,6,7))){
     return(0.4)
   }
-  if((x%%12) %in% (c(8,9,10))){
+  if((tmp%%12) %in% (c(8,9,10))){
     return(-0.7)
   }
-  if((x%%12) %in% (c(11,0,1))){ #0 instead of 12
+  if((tmp%%12) %in% (c(11,0,1))){ #0 instead of 12
     return(0.1)
   }
 }
@@ -232,7 +240,7 @@ pkg.env$scenario1_simulator <- function(ref_claim,
   scenario=1
 
   #Decreasing the exposure, and hence lowering the claims occurred
-  E_1 <- c(rep(yearly_exposure, I)) + seq(from = 0, by = -100, length = I)
+  E_1 <- c(rep(yearly_exposure, I)) + round(seq(from = 0, by = -.1, length = I))# now adjusted for days: monthly code was seq(from = 0, by = -100, length = I)
   #Frequency simulation
   n_vector_0 <- claim_frequency(I = I, E = E, freq = lambda)
   n_vector_1 <- claim_frequency(I = I, E = E_1, freq = lambda)
@@ -592,8 +600,8 @@ pkg.env$maximum.time <- function(years,
 
   "
 
-  time_unit_string <- c('months','quarters','year')
-  time_unit_numeric <- c(1/12,1/4,1)
+  time_unit_string <- c('days','months','quarters','year')
+  time_unit_numeric <- c(1/360,1/12,1/4,1)
 
   input.pos <- which(time_unit_string%in%intersect(input_time_granularity,time_unit_string))
 
@@ -616,8 +624,8 @@ pkg.env$conversion.factor.of.time.units <- function(input_time_unit,
 
   "
 
-  time_unit_string <- c('months','quarters', 'semesters', 'years')
-  time_unit_numeric <- c(1/12,1/4,1/2,1)
+  time_unit_string <- c('days','months','quarters', 'semesters', 'years')
+  time_unit_numeric <- c(1/360,1/12,1/4,1/2,1)
 
   input.pos <- which(time_unit_string%in%intersect(input_time_unit,time_unit_string))
   output.pos <- which(time_unit_string%in%intersect(output_time_unit,time_unit_string))

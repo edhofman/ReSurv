@@ -38,10 +38,10 @@
 #'
 #' @export
 data_generator <- function(ref_claim = 200000,
-                           time_unit = 1/12,
+                           time_unit = 1/360,
                            years = 4,
                            random_seed=1964,
-                           yearly_exposure= 6000,
+                           yearly_exposure= 200,
                            yearly_frequency=0.2,
                            scenario=1){
 
