@@ -11,11 +11,12 @@ ReSurvCV(
   folds,
   random_seed,
   continuous_features_scaling_method = "minmax",
-  print_every_n = NULL,
+  print_every_n = 1L,
   nrounds = NULL,
   early_stopping_rounds = NULL,
   epochs = 1,
   parallel = F,
+  ncores = 1,
   num_workers = 0,
   verbose.cv = F,
   verbose = F

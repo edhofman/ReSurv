@@ -6,6 +6,7 @@
 #' @importFrom bshazard bshazard
 #' @importFrom reshape2 melt
 #' @import survival
+#' @import data.table
 #' @import forecast
 #' @import reticulate
 #' @import xgboost
@@ -1280,6 +1281,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
       eval(parse(text=expression_1))
 
   }
+
   return(list(hazard_group=hazard_group, groups = groups))
 
 
@@ -1308,6 +1310,16 @@ pkg.env$latest_observed_values_i <- function(data,
     summarize(max_DP_i = max(DP_i),
               .groups="drop")
 
+  # l1 <- as.data.table(list(AP_i=min(data_reserve$AP_i):max(data_reserve$AP_i)))
+  # l2 <- as.data.table(list(DP_rev_i= min(data_reserve$DP_rev_i):max(data_reserve$DP_rev_i)))
+  #
+  # tmp<-setkey(l1[,c(k=1,.SD)],k)[l2[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]
+  #
+  # l3 <- as.data.table(list(group_i = groups$group_i ))
+  # tmp<-setkey(tmp[,c(k=1,.SD)],k)[l3[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]
+  #
+
+
   #create grid to hold observed values for all possible times (also where we have no observations)
   observed_grid <- expand.grid(AP_i = min(data_reserve$AP_i):max(data_reserve$AP_i),
                                DP_rev_i = min(data_reserve$DP_rev_i):max(data_reserve$DP_rev_i),
@@ -1317,6 +1329,7 @@ pkg.env$latest_observed_values_i <- function(data,
     filter(DP_i <= max_DP_i) %>%
     filter(DP_i>0) %>%  #as we might not have observed at perfect triangle
     select(-c(max_DP_i))
+
 
   #Max possible development time per accident period
   max_DP_i <- data_reserve %>% group_by(AP_i) %>%
@@ -2124,7 +2137,7 @@ pkg.env$spline_hp <- function(hparameters,IndividualData){
 }
 
 
-pkg.env$create.df.2.fcst <- function(IndividualData,
+create.df.2.fcst <- function(IndividualData,
                                      hazard_model){
 
   l1 <- lapply(IndividualData$training.data %>% select(IndividualData$categorical_features), levels)
@@ -2133,7 +2146,7 @@ pkg.env$create.df.2.fcst <- function(IndividualData,
   l4 <- list()
   l5 <- list()
 
-  if(!("AP_i"%in%c(IndividualData$categorical_features,IndividualData$continuous_features))){
+  if(!('AP_i'%in%c(IndividualData$categorical_features,IndividualData$continuous_features))){
     l3$AP_i <- unique(IndividualData$full.data[,'AP_i'])
   }else{
     l3 <- NULL
@@ -2141,10 +2154,28 @@ pkg.env$create.df.2.fcst <- function(IndividualData,
 
   l4$DP_rev_i <- min(IndividualData$training.data[,'DP_rev_i']):max(IndividualData$training.data[,'DP_rev_i'])
 
+  # s1 <- Sys.time()
+  # tmp = cross_df(c(l1,l2,l3,l4)) %>%
+  #   as.data.frame()
+  # e1 <- Sys.time()
+  #Time difference of 1.092559 mins
 
-  tmp = cross_df(c(l1,l2,l3,l4)) %>%
+  # s2 <- Sys.time()
+  l1 <- as.data.table(cross_df(l1))
+  l2 <- as.data.table(cross_df(l2))
+  tmp<-setkey(l1[,c(k=1,.SD)],k)[l2[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]
+
+  if(!is.null(l3)){
+  l3 <- as.data.table(cross_df(l3))
+  tmp<-setkey(tmp[,c(k=1,.SD)],k)[l3[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]}
+
+  l4 <- as.data.table(cross_df(l4))
+  tmp<-setkey(tmp[,c(k=1,.SD)],k)[l4[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]
+  tmp <- tmp %>%
     as.data.frame()
-  # browser()
+  # e2 <- Sys.time()
+  # Time difference of 0.6656282 secs
+
 
   if(IndividualData$calendar_period_extrapolation & (hazard_model=='cox')){
     tmp$RP_i <- tmp$AP_i+tmp$DP_rev_i-1
@@ -2155,7 +2186,7 @@ pkg.env$create.df.2.fcst <- function(IndividualData,
 
   }
 
-  tmp
+  return(tmp)
 
 }
 
@@ -2215,7 +2246,7 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
                                  remove_first_dummy = T)
 
   if(!is.null(Xc)){X <- cbind(X,Xc)}
-  # browser()
+
   ds_train_fcst <- xgboost::xgb.DMatrix(as.matrix.data.frame(X), label=rep(1, dim(X)[1]))
 
   return(ds_train_fcst)
@@ -2250,6 +2281,17 @@ pkg.env$benchmark_id <- function(X,
 
 }
 
+
+
+## Data handling
+
+pkg.env$fix.double.ap<-function(features,accident_period){
+
+  features[features==accident_period] <- "AP_i"
+
+  return(features)
+
+}
 
 ## xgboost ----
 
@@ -2411,7 +2453,7 @@ pkg.env$baseline.calc <- function(hazard_model,
 
   #for baseline need full training data
   datads_pp <- pkg.env$xgboost_pp(X,Y, training_test_split = 1)
-  # browser()
+
   if(hazard_model=="deepsurv"){
     datads_pp_nn = pkg.env$deep_surv_pp(X=X,
                                      Y=Y,
@@ -2529,12 +2571,12 @@ pkg.env$ltrcart_cv <- function(IndividualData,
 
     LTRCART.fit <- LTRCART(formula_ct, data=IndividualData$training.data, control=control.pars)
 
-    # browser()
+
 
     tmp <- as.data.frame.matrix(LTRCART.fit$cptable)
 
     out <- rbind(out,tmp[which.min(tmp[,"xerror"]),])
-    # browser()
+
   }
 
   out <- cbind(hparameters.f, out)

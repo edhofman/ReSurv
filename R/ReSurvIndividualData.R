@@ -52,7 +52,7 @@
 #' @import xgboost
 #' @import rpart
 #' @import LTRCtrees
-#'
+#' @import data.table
 #'
 #' @references
 #' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
@@ -242,8 +242,10 @@ ReSurv.IndividualData <- function(IndividualData,
 
   formula_ct <- as.formula(IndividualData$string_formula_i)
 
-  newdata <- pkg.env$create.df.2.fcst(IndividualData=IndividualData,
+  newdata <- create.df.2.fcst(IndividualData=IndividualData,
                                       hazard_model=hazard_model)
+
+
 
 
   if(hazard_model=="cox"){
@@ -368,7 +370,6 @@ ReSurv.IndividualData <- function(IndividualData,
 
     training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
 
-
     X=cbind(X,Xc)
 
     Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
@@ -379,6 +380,8 @@ ReSurv.IndividualData <- function(IndividualData,
 
     model.out <- pkg.env$fit_xgboost(datads_pp,
                                      hparameters=hparameters)
+    return(list(data=X,
+                model.out = model.out))
 
     bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
                                   model.out = model.out,
@@ -517,6 +520,7 @@ ReSurv.IndividualData <- function(IndividualData,
                                                  continuous_features = IndividualData$continuous_features,
                                                  calendar_period_extrapolation = IndividualData$calendar_period_extrapolation)
 
+
   hazard_frame_grouped <- pkg.env$covariate_mapping(
     hazard_frame = hazard_frame_updated,
     categorical_features = IndividualData$categorical_features,
@@ -530,12 +534,14 @@ ReSurv.IndividualData <- function(IndividualData,
   # In case some development (accident) periods are missing I fill the holes
   # (e.g. for a given I do not observe DP 11, 12 in the middle of the triangle but my DP go from 1 to 25 and I add them)
 
+
   missing.obsevations <- pkg.env$fill_data_frame(data=IndividualData$full.data,
                                                  continuous_features=IndividualData$continuous_features,
                                                  categorical_features=IndividualData$categorical_features,
                                                  years=IndividualData$years,
                                                  input_time_granularity=IndividualData$input_time_granularity,
                                                  conversion_factor=IndividualData$conversion_factor)
+
 
   latest_observed <- pkg.env$latest_observed_values_i(
     data=bind_rows(IndividualData$training.data, missing.obsevations),
@@ -703,7 +709,8 @@ ReSurv.IndividualData <- function(IndividualData,
   return(out)
   }
 
-  out=list(df_input = df_i,
+  out=list(model.out=model.out,
+           df_input = df_i,
            hazard_frame_input = hazard_frame_input,
            IndividualData=IndividualData)
 
@@ -713,14 +720,13 @@ ReSurv.IndividualData <- function(IndividualData,
 }
 
 #' Draft for plot of \code{ReSurvFit} models for simulated data.
-#' @export
 
-plot.ReSurvFit <- function(ReSurv){
-
-  "
-  Plot different development patterns. Currently only works for simulations with no accident-period dependency.
-  "
-  warning("Plotting functionality is not implemented yet.")
+# plot.ReSurvFit <- function(ReSurv){
+#
+#   "
+#   Plot different development patterns. Currently only works for simulations with no accident-period dependency.
+#   "
+#   warning("Plotting functionality is not implemented yet.")
   # df_output<- ReSurv$df_output
   # df_input <- ReSurv$df_input
 
@@ -847,7 +853,7 @@ plot.ReSurvFit <- function(ReSurv){
   #
   # return(list(plot.df,plot.triangle.ratio))
 
-}
+# }
 
 
 
