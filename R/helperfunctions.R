@@ -1107,6 +1107,7 @@ pkg.env$hazard_f<-function(i,
 # }
 
 pkg.env$hazard_data_frame <- function(hazard,
+                                      Om.df,
                                       eta_old=1/2,
                                       categorical_features,
                                       continuous_features,
@@ -1117,7 +1118,7 @@ pkg.env$hazard_data_frame <- function(hazard,
 
   "
   # continuous_features <- ifelse(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
-  #categorical_features <- switch(!is.null(categorical_features), categorical_features, NULL)
+  # categorical_features <- switch(!is.null(categorical_features), categorical_features, NULL)
 
   #Need special handling if we ahve continuous variables
   if( (length(continuous_features)==1 & "AP_i" %in% continuous_features) | is.null(continuous_features)){
@@ -1126,7 +1127,9 @@ pkg.env$hazard_data_frame <- function(hazard,
 
     #Calculate input development factors and corresponding survival probabilities
     hazard_frame_tmp <- hazard %>%
-      mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>% #Follows from the assumption that claims are distributed evenly in the input period
+      left_join(Om.df, "DP_rev_i") %>%
+      #mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>% #Follows from the assumption that claims are distributed evenly in the input period
+      mutate(dev_f_i = (2*Om+(Om+1)*hazard)/(2*Om-(Om-1)*hazard) ) %>%
       mutate(dev_f_i = ifelse(dev_f_i<0,1,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
       group_by(pick(all_of(categorical_features), AP_i)) %>%
       arrange(DP_rev_i) %>%
@@ -1151,7 +1154,9 @@ pkg.env$hazard_data_frame <- function(hazard,
       #Equivalent to above expect we now also join by continuous features
       continuous_features_group=continuous_features[!("AP_i" %in% continuous_features)]
       hazard_frame_tmp <- hazard %>%
-        mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>%
+        left_join(Om.df, "DP_rev_i") %>%
+        #mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>%
+        mutate(dev_f_i = (2*Om+(Om+1)*hazard)/(2*Om-(Om-1)*hazard) ) %>%
         mutate(dev_f_i = ifelse(dev_f_i<0,0,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
         group_by(pick(all_of(categorical_features), AP_i)) %>%
         arrange(DP_rev_i) %>%
@@ -1172,6 +1177,7 @@ pkg.env$hazard_data_frame <- function(hazard,
                S_i_lag = coalesce(S_i_lag, 1),
                cum_dev_f_i = coalesce(cum_dev_f_i,1))
     }
+
   return(hazard_frame)
 }
 
@@ -2300,7 +2306,7 @@ pkg.env$benchmark_id <- function(X,
 
 
 
-## Data handling
+## Data handling ----
 
 pkg.env$fix.double.ap<-function(features,accident_period){
   if(is.null(features)){
@@ -2311,6 +2317,36 @@ pkg.env$fix.double.ap<-function(features,accident_period){
   return(features)
 
 }
+
+pkg.env$create.om.df<-function(training.data,
+                               input_time_granularity,
+                               years){
+
+  tmp <- training.data %>%
+    group_by(DP_rev_i) %>%
+    summarise(Om= sum(I))
+
+  tmp.v <- tmp$DP_rev_i
+  sequ.v <- seq(1,pkg.env$maximum.time(years,input_time_granularity))
+
+  cond <- !sequ.v %in% tmp.v
+
+  if(sum(cond) > 0){
+
+    tmp2 <- data.frame(DP_rev_i=sequ.v[cond],
+                       Om=0)
+
+    tmp <- bind_rows(tmp,tmp2)
+
+  }
+
+  tmp <- tmp %>% as.data.frame()
+
+
+  return(tmp)
+
+}
+
 
 ## xgboost ----
 
