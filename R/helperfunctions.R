@@ -1195,7 +1195,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
     continuous_features_group=continuous_features[!(continuous_features %in% c("AP_i","RP_i"))]
   }
 
-  ## The next steps generate a grouping key, used for aggregating from input periods to output periods
+  ## Generate a grouping key, used for aggregating from input periods to output periods
 
 
   hazard_frame$covariate <- pkg.env$name_covariates(
@@ -1209,6 +1209,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
   if("AP_i" %in% continuous_features |
      "RP_i" %in% continuous_features){
 
+    #Generic approach that groups by either AP_i, RP_i or both, and craete the corresponding dataset.
     time_features <- continuous_features[continuous_features %in% c("AP_i","RP_i")]
 
     time_elements_0 <- paste(sapply(time_features, function(x){paste0(x,"=hazard_frame[['",x,"']]")}
@@ -1235,6 +1236,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
     #hazard_group <- hazard_frame %>%  left_join(groups, by=c("AP_i", "covariate"))
 
   }else{
+    #Only by covariate, since no time dependency.
     groups <- unique(data.frame(covariate = hazard_frame$covariate)) %>%
       mutate(group_i = row_number())
 
@@ -1244,6 +1246,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
   #If we have to group for later output, add the relevant groups as well
   groups$group_o <- groups$group_i
   # The only time the groups will be different, is when we are including accident period as a covariate
+  # As the dimension of the time periods are changing, we add the group_o output to keep track of which output group each input period corresponds to.
   if(conversion_factor != 1 & sum(c("AP_i","RP_i") %in% continuous_features)>0 ){
 
       time_elements_0 <- paste(sapply(time_features, function(x){
@@ -1303,8 +1306,10 @@ pkg.env$latest_observed_values_i <- function(data,
 
   data_reserve <- data
 
+  #Used to calculate normal time development.
   trunc = max(data_reserve$DP_rev_i)
 
+  #find latest observed amount and development period pr. accident period.
   max_observed_ap_dp <- data_reserve %>%
     group_by(AP_i) %>%
     summarize(max_DP_i = max(DP_i),
@@ -1321,13 +1326,14 @@ pkg.env$latest_observed_values_i <- function(data,
 
 
   #create grid to hold observed values for all possible times (also where we have no observations)
+  #We need this for exposure based development factor grouping at a later stage.
   observed_grid <- expand.grid(AP_i = min(data_reserve$AP_i):max(data_reserve$AP_i),
                                DP_rev_i = min(data_reserve$DP_rev_i):max(data_reserve$DP_rev_i),
                                group_i = groups$group_i ) %>%
     mutate(DP_i = trunc-DP_rev_i+1) %>%
     left_join(max_observed_ap_dp, by = "AP_i") %>%
     filter(DP_i <= max_DP_i) %>%
-    filter(DP_i>0) %>%  #as we might not have observed at perfect triangle
+    filter(DP_i>0) %>%  #as we might not have observed a perfect triangle
     select(-c(max_DP_i))
 
 
@@ -1343,14 +1349,17 @@ pkg.env$latest_observed_values_i <- function(data,
 
   #The reason for the if statement is due to the !!sym logic, because !!sym(NULL) is not valid
   if(is.null(continuous_features)){ #length(continuous_features) == 1 & "AP_i" %in% continuous_features
+
+    #latest observed pr. covariates
    observed_so_far <- data_reserve2 %>%  group_by(pick(all_of(categorical_features), AP_i, AP_o, DP_max_rev )) %>%
     summarise(latest_I=sum(I), .groups = "drop")
 
+  # observed pr. development period
   observed_dp_rev_i <- data_reserve2 %>%  group_by(pick(AP_i, AP_o, all_of(categorical_features),
                                                  DP_rev_i, DP_i)) %>%
     summarise(I=sum(I), .groups = "drop")
 
-  #Combine covariate values into single variable
+  #Combine covariate values into single variable and add group dimension
   observed_so_far$covariate <- pkg.env$name_covariates(
     observed_so_far,
     categorical_features,
@@ -1512,6 +1521,7 @@ pkg.env$predict_i <- function(hazard_data_frame,
     left_join(latest_cumulative, by=c("group_i", "AP_i"))
 
   # Predict expected numbers, this is also used grouping methodology
+  # For probabilty assumed ultimate = 1, otherwise calculate ultiamte.
   expected <-  grouped_hazard_0 %>%
     select(DP_rev_i, AP_i, group_i, S_i, S_i_lag, DP_max_rev, latest_I ) %>%
     mutate(gm = grouping_method) %>%
@@ -1912,6 +1922,7 @@ pkg.env$update_hazard_frame <- function(
     continuous_features,
     check_value){
 
+  #Periods where we exceed the check_value
   relevant <- hazard_frame_input %>%
     filter(hazard > check_value & DP_rev_i < max(DP_rev_i)) %>%
     mutate(AP_o = ceiling(AP_i*conversion_factor),
@@ -1946,6 +1957,7 @@ pkg.env$update_hazard_frame <- function(
     colnames(df_o_long) <- c("DP_o", "covariate", "df_o", "group_o")
   }
 
+  #Gets latest observed on output scale to predict new development
   observed_o <-  latest_observed_i %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
     mutate(AP_o = ceiling(AP_i*conversion_factor),
@@ -1960,17 +1972,19 @@ pkg.env$update_hazard_frame <- function(
   #handle that we set these cases to 1, hence cant find exposure
   no_exposure <- latest_observed_i %>%  group_by(group_i, DP_rev_i) %>%
     summarize(I_help=sum(I), .groups="drop") %>%
-    inner_join(relevant[relevant$hazard>2,c("DP_rev_i", "group_i")], by =c("DP_rev_i", "group_i"))
+    inner_join(relevant[relevant$hazard>check_value,c("DP_rev_i", "group_i")], by =c("DP_rev_i", "group_i"))
 
   df_o_long_relevant <- df_o_long %>%  inner_join(distinct(relevant[,c("DP_o", "group_o")])
                                                   , by=c("DP_o", "group_o"))
 
+  #Predict new level on input scale.
   predict_new <- observed_o[observed_o$group_o %in% df_o_long_relevant$group_o,] %>%
     left_join(df_o_long, by=c("DP_o_max" = "DP_o", "group_o")) %>%
     mutate(I_new = latest_I*df_o-latest_I) %>%
     mutate(I_new = I_new / (1/conversion_factor)^2) #assuming equal distribution in lower granularity
 
-  #if I_expected is zero it is because hazard>2, hence we draw from no_exposure help
+  #if I_expected is zero it is because hazard>check_value, hence we draw from no_exposure help
+  #Calculate new development factors, by saying (new_predict + exposure)/exposure
   if("AP_i" %in% continuous_features){
   new_df <- relevant %>%
     left_join(predict_new[,c("group_o", "DP_o_join", "I_new")], by =c("group_o", "DP_o" =  "DP_o_join")) %>%
@@ -1996,6 +2010,7 @@ pkg.env$update_hazard_frame <- function(
       replace_na(list(df_i_adjusted=1))
   }
 
+  #Update the previous development factors where relevant.
   hazard_frame_grouped_2 <- hazard_frame_grouped %>%
     mutate(df_i_adjusted = dev_f_i) %>%
     rows_update(new_df[,c("group_i","DP_rev_i", "df_i_adjusted")], by =c("group_i", "DP_rev_i")) %>%
