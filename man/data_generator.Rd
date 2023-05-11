@@ -6,11 +6,12 @@
 \usage{
 data_generator(
   ref_claim = 2e+05,
-  time_unit = 1/12,
+  time_unit = 1/360,
   years = 4,
   random_seed = 1964,
-  yearly_exposure = 6000,
-  yearly_frequency = 0.2
+  yearly_exposure = 200,
+  yearly_frequency = 0.2,
+  scenario = 1
 )
 }
 \arguments{
@@ -23,6 +24,8 @@ data_generator(
 \item{yearly_exposure}{\code{integer}, volume underwritten each year.}
 
 \item{yearly_frequency}{\code{numeric}, yearly frequency.}
+
+\item{scenario}{\code{numeric}, one of the scenarios shown in the accompanying paper.}
 }
 \value{
 Individual claims data. It contains the following columns:
