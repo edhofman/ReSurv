@@ -1036,7 +1036,7 @@ pkg.env$fit_deep_surv <- function(data,
 #
 #
 #   if(baseline == "breslow"){
-#     browser()
+#
 #     data <- data
 #     bs_hazard <- basehaz(cox, centered=FALSE) %>%
 #       mutate(hazard = hazard-lag(hazard,default=0))
@@ -1206,6 +1206,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
     continuous_features_group
   )
 
+
   #Group is pr. covariate, output accident period
   #Ongoing update to be able to handle calender-period
   if("AP_i" %in% continuous_features |
@@ -1220,9 +1221,9 @@ pkg.env$covariate_mapping <- function(hazard_frame,
     ), collapse=", ")
 
     expression_0 <- paste0(sprintf(
-      "groups <- data.frame(%s, covariate = hazard_frame$covariate))",
+      "groups <- data.frame(%s, covariate = hazard_frame$covariate)",
       time_elements_0    ),
-      " %>%   mutate(group_i = row_number() %>% distinct()")
+      " %>%distinct()%>%   mutate(group_i = row_number())")
 
     expression_1 <- paste0(
       "hazard_group <- hazard_frame %>%  left_join(groups, by=",
@@ -1244,6 +1245,8 @@ pkg.env$covariate_mapping <- function(hazard_frame,
 
     hazard_group <- hazard_frame %>%  left_join(groups, by=c("covariate"))
   }
+
+
 
   #If we have to group for later output, add the relevant groups as well
   groups$group_o <- groups$group_i
@@ -1267,9 +1270,9 @@ pkg.env$covariate_mapping <- function(hazard_frame,
       #   " %>% mutate(group_o = row_number())")
 
       expression_0 <- paste0(sprintf(
-        "      groups_o <- data.frame(%s, covariate = hazard_group$covariate))",
+        "      groups_o <- data.frame(%s, covariate = hazard_group$covariate)",
         time_elements_0    ),
-        " %>% mutate(group_o = row_number()%>% distinct()")
+        "%>% distinct() %>% mutate(group_o = row_number())")
 
       expression_1 <- paste0(
         "groups <- groups %>% select(-group_o) %>%",
@@ -1485,34 +1488,62 @@ pkg.env$latest_observed_values_i <- function(data,
 
 }
 
-pkg.env$name_covariates <- function(data,
-                                    categorical_features,
-                                    continuous_features){
-  "
-  Create groups based upon combination of covariates.
-  Here we craete the name of the group
-  "
-  if(is.null(categorical_features)& is_null(continuous_features)){
-    return(rep("0",nrow(data)))
-  }
+pkg.env$name_covariates <-function(data, categorical_features, continuous_features){
 
-  if(is.null(continuous_features)){
-    df <- data %>%  select(all_of(categorical_features))
-    name_seperate <- suppressMessages(map2_dfc(colnames(df), df, paste, sep = '_'))
-    name_combined <- apply( name_seperate , 1 , paste , collapse = ", " )
-  return(name_combined)
-  }
-  else{
-    df <- data %>%  select(all_of(categorical_features), all_of(continuous_features))
-    name_seperate <- suppressMessages(map2_dfc(colnames(df), df, paste, sep = '_'))
-    name_combined <- apply( name_seperate , 1 , paste , collapse = ", " )
+  feats <- c(categorical_features,continuous_features)
 
-  return(name_combined)
-  }
+  if(is.null(feats)){return(0)}
 
+  model_features <- data %>%
+    select(all_of(feats)) %>%
+    as.data.frame()
 
+  mylist<- mapply(paste,
+                  colnames(model_features),
+                  lapply(model_features,c),
+                  MoreArgs= list(sep="_"))
 
+  mydf <- as.data.table(mylist)
+
+  # mydf[,features.id:=paste(.SD,collapse=",")]
+  #
+  mydf[, features.id:=do.call(paste0,.SD)]
+
+  # features.id <- apply(mydf, MARGIN=1, paste, collapse=",")
+  return(mydf$features.id)
 }
+
+# pkg.env$name_covariates <- function(data,
+#                                     categorical_features,
+#                                     continuous_features){
+#   "
+#   Create groups based upon combination of covariates.
+#   Here we craete the name of the group
+#   "
+#   if(is.null(categorical_features)& is_null(continuous_features)){
+#     return(rep("0",nrow(data)))
+#   }
+#
+#   if(is.null(continuous_features)){
+#     df <- data %>%  select(all_of(categorical_features))
+#     name_seperate <- suppressMessages(map2_dfc(colnames(df), df, paste, sep = '_'))
+#     name_combined <- apply( name_seperate , 1 , paste , collapse = ", " )
+#   return(name_combined)
+#   }
+#   else{
+#     df <- data %>%  select(all_of(categorical_features), all_of(continuous_features))
+#     name_seperate <- suppressMessages(map2_dfc(colnames(df), df, paste, sep = '_'))
+#     name_combined <- apply( name_seperate , 1 , paste , collapse = ", " )
+#
+#   return(name_combined)
+#   }
+#
+#
+#
+# }
+
+
+
 
 pkg.env$predict_i <- function(hazard_data_frame,
                               latest_cumulative,
