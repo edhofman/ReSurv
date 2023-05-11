@@ -1112,76 +1112,69 @@ pkg.env$hazard_data_frame <- function(hazard,
                                       categorical_features,
                                       continuous_features,
                                       calendar_period_extrapolation){
-
   "
   Convert hazard matrix to dataframe and add grouping variables.
 
   "
-  # continuous_features <- ifelse(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
-  # categorical_features <- switch(!is.null(categorical_features), categorical_features, NULL)
+  #Calculate input development factors and corresponding survival probabilities
+  hazard_frame_tmp <- hazard %>%
+    left_join(Om.df, "DP_rev_i") %>%
+    #mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>% #Follows from the assumption that claims are distributed evenly in the input period
+    mutate(dev_f_i = (2*Om+(Om+1)*hazard)/(2*Om-(Om-1)*hazard) ) %>%
+    mutate(dev_f_i = ifelse(dev_f_i<0,1,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
+    group_by(pick(all_of(categorical_features), AP_i)) %>%
+    arrange(DP_rev_i) %>%
+    mutate(cum_dev_f_i = cumprod(dev_f_i)) %>%
+    mutate(S_i = ifelse(cum_dev_f_i==0,0,1/cum_dev_f_i), # to handle the ifelse statement from above
+           S_i_lead = lead(S_i, default = 0),
+           S_i_lag = lag(S_i, default = 1)) %>%
+    select(-c(expg, baseline, hazard))
 
-  #Need special handling if we ahve continuous variables
-  if( (length(continuous_features)==1 & "AP_i" %in% continuous_features) | is.null(continuous_features)){
-    #Make sure continuous is null, only applied when AP_i is only continuous feature
-    continuous_features_group=NULL
+  continuous_features_group=unique(c("AP_i",continuous_features))
 
-    #Calculate input development factors and corresponding survival probabilities
-    hazard_frame_tmp <- hazard %>%
-      left_join(Om.df, "DP_rev_i") %>%
-      #mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>% #Follows from the assumption that claims are distributed evenly in the input period
-      mutate(dev_f_i = (2*Om+(Om+1)*hazard)/(2*Om-(Om-1)*hazard) ) %>%
-      replace_na(list(dev_f_i = 1)) %>%
-      mutate(dev_f_i = ifelse(dev_f_i<0,1,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
-      group_by(pick(all_of(categorical_features), AP_i)) %>%
-      arrange(DP_rev_i) %>%
-      mutate(cum_dev_f_i = cumprod(dev_f_i)) %>%
-      mutate(S_i = ifelse(cum_dev_f_i==0,0,1/cum_dev_f_i), # to handle the ifelse statement from above
-             S_i_lead = lead(S_i, default = 0),
-             S_i_lag = lag(S_i, default = 1)) %>%
-      select(-c(expg, baseline, hazard))
-
-     #we need the lead and lag values for later calcualtion of expected amounts, store in the dataset.
-     hazard_frame <- hazard %>%
-       left_join(hazard_frame_tmp, c(categorical_features,
-                              "AP_i",
-                              "DP_rev_i" )) %>%
-       mutate(dev_f_i = coalesce(dev_f_i,1),
+  hazard_frame <- hazard %>%
+    left_join(hazard_frame_tmp, c(categorical_features,
+                                  continuous_features_group,
+                                  "DP_rev_i")) %>%
+    mutate(dev_f_i = coalesce(dev_f_i,1),
            S_i = coalesce(S_i,1),
            S_i_lead = coalesce(S_i_lead,1),
            S_i_lag = coalesce(S_i_lag, 1),
            cum_dev_f_i = coalesce(cum_dev_f_i,1))
+  return(hazard_frame)}
 
-    } else {
-      #Equivalent to above expect we now also join by continuous features
-      continuous_features_group=continuous_features[!("AP_i" %in% continuous_features)]
-      hazard_frame_tmp <- hazard %>%
-        left_join(Om.df, "DP_rev_i") %>%
-        #mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>%
-        mutate(dev_f_i = (2*Om+(Om+1)*hazard)/(2*Om-(Om-1)*hazard) ) %>%
-        replace_na(list(dev_f_i = 1)) %>%
-        mutate(dev_f_i = ifelse(dev_f_i<0,0,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
-        group_by(pick(all_of(categorical_features), AP_i)) %>%
-        arrange(DP_rev_i) %>%
-        mutate(cum_dev_f_i = cumprod(dev_f_i)) %>%
-        mutate(S_i = ifelse(cum_dev_f_i==0,0,1/cum_dev_f_i),
-               S_i_lead = lead(S_i, default = 0),
-               S_i_lag = lag(S_i, default = 1)) %>%
-      select(-c(expg, baseline, hazard))
 
-      hazard_frame <- hazard %>%
-        left_join(hazard_frame_tmp, c(categorical_features,
-                                      continuous_features_group,
-                                      "AP_i",
-                                      "DP_rev_i")) %>%
-        mutate(dev_f_i = coalesce(dev_f_i,1),
-               S_i = coalesce(S_i,1),
-               S_i_lead = coalesce(S_i_lead,1),
-               S_i_lag = coalesce(S_i_lag, 1),
-               cum_dev_f_i = coalesce(cum_dev_f_i,1))
-    }
-
-  return(hazard_frame)
-}
+  #Need special handling if we have continuous variables
+  # if( (length(continuous_features)==1 & "AP_i" %in% continuous_features) | is.null(continuous_features)){
+  #   #Make sure continuous is null, only applied when AP_i is only continuous feature
+  #   continuous_features_group=NULL
+  #
+  #    #we need the lead and lag values for later calcualtion of expected amounts, store in the dataset.
+  #    hazard_frame <- hazard %>%
+  #      left_join(hazard_frame_tmp, c(categorical_features,
+  #                             "AP_i",
+  #                             "DP_rev_i" )) %>%
+  #      mutate(dev_f_i = coalesce(dev_f_i,1),
+  #          S_i = coalesce(S_i,1),
+  #          S_i_lead = coalesce(S_i_lead,1),
+  #          S_i_lag = coalesce(S_i_lag, 1),
+  #          cum_dev_f_i = coalesce(cum_dev_f_i,1))
+  #
+  #   } else {
+  #     #Equivalent to above expect we now also join by continuous features
+  #     continuous_features_group=continuous_features[!("AP_i" %in% continuous_features)]
+  #
+  #     hazard_frame <- hazard %>%
+  #       left_join(hazard_frame_tmp, c(categorical_features,
+  #                                     continuous_features_group,
+  #                                     "AP_i",
+  #                                     "DP_rev_i")) %>%
+  #       mutate(dev_f_i = coalesce(dev_f_i,1),
+  #              S_i = coalesce(S_i,1),
+  #              S_i_lead = coalesce(S_i_lead,1),
+  #              S_i_lag = coalesce(S_i_lag, 1),
+  #              cum_dev_f_i = coalesce(cum_dev_f_i,1))
+  #   return(hazard_frame)}}
 
 pkg.env$covariate_mapping <- function(hazard_frame,
                                       categorical_features,
@@ -1226,9 +1219,9 @@ pkg.env$covariate_mapping <- function(hazard_frame,
     ), collapse=", ")
 
     expression_0 <- paste0(sprintf(
-      "groups <- unique(data.frame(%s, covariate = hazard_frame$covariate))",
+      "groups <- data.frame(%s, covariate = hazard_frame$covariate))",
       time_elements_0    ),
-      " %>%   mutate(group_i = row_number())")
+      " %>%   mutate(group_i = row_number() %>% distinct()")
 
     expression_1 <- paste0(
       "hazard_group <- hazard_frame %>%  left_join(groups, by=",
@@ -1267,10 +1260,15 @@ pkg.env$covariate_mapping <- function(hazard_frame,
       time_elements_2 <- paste(sapply(time_features, function(x){paste0("'",substr(x,1,2),"_o'")}
       ), collapse=", ")
 
+      # expression_0 <- paste0(sprintf(
+      #   "      groups_o <- unique(data.frame(%s, covariate = hazard_group$covariate))",
+      #   time_elements_0    ),
+      #   " %>% mutate(group_o = row_number())")
+
       expression_0 <- paste0(sprintf(
-        "      groups_o <- unique(data.frame(%s, covariate = hazard_group$covariate))",
+        "      groups_o <- data.frame(%s, covariate = hazard_group$covariate))",
         time_elements_0    ),
-        " %>% mutate(group_o = row_number())")
+        " %>% mutate(group_o = row_number()%>% distinct()")
 
       expression_1 <- paste0(
         "groups <- groups %>% select(-group_o) %>%",
