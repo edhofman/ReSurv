@@ -11,11 +11,12 @@
   folds,
   random_seed,
   continuous_features_scaling_method = "minmax",
-  print_every_n = NULL,
+  print_every_n = 1L,
   nrounds = NULL,
   epochs = NULL,
   num_workers = 0,
   parallel = F,
+  ncores = 1,
   verbose.cv = F,
   verbose = F,
   early_stopping_rounds = NULL

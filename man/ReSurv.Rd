@@ -13,7 +13,8 @@ ReSurv(
   random_seed = 1964,
   hparameters = list(),
   percentage_data_training = 0.8,
-  grouping_method = "exposure"
+  grouping_method = "exposure",
+  check_value = 1.85
 )
 }
 \arguments{
@@ -44,6 +45,8 @@ ReSurv(
 \item{\code{"probability"}}
 }
 Default is \code{"exposure"}.}
+
+\item{check_value}{\code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.}
 }
 \value{
 ReSurv fit.

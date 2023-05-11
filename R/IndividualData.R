@@ -115,10 +115,6 @@ IndividualData <- function(data,
                            degrees_of_freedom_cp=4){
 
 
-  # Check the conversion is possible
-  # pkg.env$check.time.units(input_time_granularity,
-                           # output_time_granularity)
-
   # Work on a copy of the input data
   tmp <- as.data.frame(data)
 
@@ -128,6 +124,10 @@ IndividualData <- function(data,
   tmp.cp <- pkg.env$encode.variables.cp(tmp[,calendar_period], ap1=min(tmp[,accident_period]))
   # Development periods encoding
   tmp.dp <- tmp.cp-tmp.ap+1
+
+  # Check the ap among features
+  continuous_features<-pkg.env$fix.double.ap(features=continuous_features,accident_period=accident_period)
+  categorical_features<-pkg.env$fix.double.ap(features=categorical_features,accident_period=accident_period)
 
   # The following checks warn you if there is a missing accident period or reporting period
   # in the data. They do not interrupt the code.
@@ -234,6 +234,7 @@ IndividualData <- function(data,
               categorical_features=categorical_features,
               calendar_period_extrapolation=calendar_period_extrapolation,
               years=years,
+              accident_period=accident_period,
               input_time_granularity=input_time_granularity)
 
   # Return the correct output
