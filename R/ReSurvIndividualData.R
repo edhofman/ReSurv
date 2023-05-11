@@ -596,7 +596,9 @@ ReSurv.IndividualData <- function(IndividualData,
 
   #If we exeed the check value, we calculate on ouput granularity, predict on output granularity, and distribute evenly in the relevant input-periods.
   #From here we do simple chain-ladder to calculate new development factor.
-  if(check_input_hazard){
+  if(#check_input_hazard
+    FALSE
+     ){
     development_factor_o <- mapply(pkg.env$i_to_o_development_factor,
                                    1:max(hazard_frame_grouped$groups$group_o),
                                    MoreArgs=list(hazard_data_frame=hazard_frame_grouped$hazard_group,
