@@ -549,7 +549,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
   latest_observed <- pkg.env$latest_observed_values_i(
-    data_reserve=bind_rows(IndividualData$training.data, missing.obsevations),
+    data_reserve= bind_rows(IndividualData$training.data, missing.obsevations),
     groups = hazard_frame_grouped$groups,
     categorical_features = IndividualData$categorical_features,
     continuous_features = IndividualData$continuous_features,
@@ -596,8 +596,8 @@ ReSurv.IndividualData <- function(IndividualData,
   dp_ranges <- do.call(rbind, dp_ranges)
 
 
-  check_input_hazard <- pkg.env$check_input_hazard(hazard_frame_input,
-                             check_value=check_value)
+  #check_input_hazard <- pkg.env$check_input_hazard(hazard_frame_input,
+  #                           check_value=check_value)
 
   #If we exeed the check value, we calculate on ouput granularity, predict on output granularity, and distribute evenly in the relevant input-periods.
   #From here we do simple chain-ladder to calculate new development factor.
