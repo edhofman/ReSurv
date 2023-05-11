@@ -1130,6 +1130,7 @@ pkg.env$hazard_data_frame <- function(hazard,
       left_join(Om.df, "DP_rev_i") %>%
       #mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>% #Follows from the assumption that claims are distributed evenly in the input period
       mutate(dev_f_i = (2*Om+(Om+1)*hazard)/(2*Om-(Om-1)*hazard) ) %>%
+      replace_na(list(dev_f_i = 1)) %>%
       mutate(dev_f_i = ifelse(dev_f_i<0,1,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
       group_by(pick(all_of(categorical_features), AP_i)) %>%
       arrange(DP_rev_i) %>%
@@ -1157,6 +1158,7 @@ pkg.env$hazard_data_frame <- function(hazard,
         left_join(Om.df, "DP_rev_i") %>%
         #mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>%
         mutate(dev_f_i = (2*Om+(Om+1)*hazard)/(2*Om-(Om-1)*hazard) ) %>%
+        replace_na(list(dev_f_i = 1)) %>%
         mutate(dev_f_i = ifelse(dev_f_i<0,0,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
         group_by(pick(all_of(categorical_features), AP_i)) %>%
         arrange(DP_rev_i) %>%
