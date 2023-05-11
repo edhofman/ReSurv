@@ -246,7 +246,10 @@ ReSurv.IndividualData <- function(IndividualData,
                                       hazard_model=hazard_model)
 
 
-
+  # create data frame of occurrencies to weight development factors
+  Om.df <-   pkg.env$create.om.df(training.data=IndividualData$training.data,
+                         input_time_granularity=IndividualData$input_time_granularity,
+                         years=IndividualData$years)
 
   if(hazard_model=="cox"){
 
@@ -508,6 +511,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
   ############################################################
   #check
+
   #hazard_q <- matrix(nrow=max_DP, ncol=(ncol(hazard)-1)*IndividualData$conversion_factor)
   #eta_o <- c()
 
@@ -516,9 +520,10 @@ ReSurv.IndividualData <- function(IndividualData,
 
   #Add development and relevant survival values to the hazard_frame
   hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
-                                                 categorical_features = IndividualData$categorical_features,
-                                                 continuous_features = IndividualData$continuous_features,
-                                                 calendar_period_extrapolation = IndividualData$calendar_period_extrapolation)
+                                                    Om.df=Om.df,
+                                                    categorical_features = IndividualData$categorical_features,
+                                                    continuous_features = IndividualData$continuous_features,
+                                                    calendar_period_extrapolation = IndividualData$calendar_period_extrapolation)
 
 
   hazard_frame_grouped <- pkg.env$covariate_mapping(
