@@ -6,6 +6,7 @@
 #' @importFrom bshazard bshazard
 #' @importFrom reshape2 melt
 #' @import survival
+#' @import dtplyr
 #' @import data.table
 #' @import forecast
 #' @import reticulate
@@ -1222,7 +1223,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
     expression_0 <- paste0(sprintf(
       "groups <- data.frame(%s, covariate = hazard_frame$covariate))",
       time_elements_0    ),
-      " %>%   mutate(group_i = row_number() %>% distinct()")
+      " %>% distinct() %>%   mutate(group_i = row_number() ")
 
     expression_1 <- paste0(
       "hazard_group <- hazard_frame %>%  left_join(groups, by=",

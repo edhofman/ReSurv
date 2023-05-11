@@ -27,6 +27,7 @@ License: GPL (>= 2)
 Depends: tidyverse
 Imports: stats,
          dplyr,
+         dtplyr,
          fastDummies,
          forecast,
          data.table,

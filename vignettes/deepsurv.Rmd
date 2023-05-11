@@ -23,9 +23,7 @@ library(ReSurv)
 # Input data
 
 input_data <- data_generator(random_seed = 1964,
-                             yearly_exposure= 200,
-                             scenario=0,
-                             years = 4)
+                             scenario=1)
 
 ```
 
@@ -35,7 +33,7 @@ input_data <- data_generator(random_seed = 1964,
 # # # ## Model fit ----
 individual_data <- IndividualData(input_data,
                                   id=NULL,
-                                  continuous_features="AP",
+                                  continuous_features=NULL,
                                   categorical_features="claim_type",
                                   accident_period="AP",
                                   calendar_period="RP",
@@ -54,48 +52,28 @@ resurv.fit.cox <- ReSurv(individual_data,
 
 ```
 
-```{r}
-# # # ## Model fit ----
-resurv.fit.xgb <- ReSurv(individual_data,
-                          hazard_model = "xgboost",
-                         hparameters = list(params=list(eta = c(0.2),
-                                             max_depth = c(15L),
-                                             min_child_weight = c(1),
-                                             subsample = c(1),
-                                             lambda = c(5),
-                                             alpha = c(5)),
-                                             print_every_n = 1L,
-                                             nrounds=5,
-                                             verbose=F,
-                                             verbose.cv=T,
-                                             early_stopping_rounds = 100,
-                                             folds=5))
-                          
-
-```
-
 # With calendar component
 
 ```{r}
 # # # ## Model fit ----
-individual_data <- IndividualData(input_data,
+individual_data <- IndividualData(input_data0,
                                   id="claim_number",
                                   continuous_features=NULL,
                                   categorical_features="claim_type",
-                                  accident_period="AM",
-                                  calendar_period="RM",
-                                  input_time_granularity = "months",
+                                  accident_period="AP",
+                                  calendar_period="RP",
+                                  input_time_granularity = "days",
                                   output_time_granularity = "quarters",
                                   years=4,
                                   continuous_features_spline=NULL,
-                                  calendar_period_extrapolation=T)
+                                  calendar_period_extrapolation=F)
 
 ```
 
 ```{r}
 # # # ## Model fit ----
 resurv.fit.cox <- ReSurv(individual_data,
-                          hazard_model = "cox")
+                          hazard_model = "cox") Individual
 
 ```
 

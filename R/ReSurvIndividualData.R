@@ -52,7 +52,7 @@
 #' @import xgboost
 #' @import rpart
 #' @import LTRCtrees
-#' @import data.table
+#'
 #'
 #' @references
 #' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
@@ -242,14 +242,9 @@ ReSurv.IndividualData <- function(IndividualData,
 
   formula_ct <- as.formula(IndividualData$string_formula_i)
 
-  newdata <- create.df.2.fcst(IndividualData=IndividualData,
+  newdata <- pkg.env$create.df.2.fcst(IndividualData=IndividualData,
                                       hazard_model=hazard_model)
 
-
-  # create data frame of occurrencies to weight development factors
-  Om.df <-   pkg.env$create.om.df(training.data=IndividualData$training.data,
-                         input_time_granularity=IndividualData$input_time_granularity,
-                         years=IndividualData$years)
 
   if(hazard_model=="cox"){
 
@@ -373,6 +368,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
     training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
 
+
     X=cbind(X,Xc)
 
     Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
@@ -381,10 +377,22 @@ ReSurv.IndividualData <- function(IndividualData,
                                     Y=Y,
                                     training_test_split=training_test_split)
 
-    model.out <- pkg.env$fit_xgboost(datads_pp,
-                                     hparameters=hparameters)
-    return(list(data=X,
-                model.out = model.out))
+      hparameters = list(params=list(booster="gbtree",
+                                     tree_method = "hist",
+                                     eta=0.209885476809733,
+                                     subsample=0.5,
+                                     alpha=47.6219724287927,
+                                     lambda=0,
+                                     min_child_weight=48.3462568886268,
+                                     max_depth=5),
+                         print_every_n = 1,
+                         nrounds=10,
+                         verbose=T,
+                         early_stopping_rounds = 500)
+      a<-Sys.time()
+      model.out <- pkg.env$fit_xgboost(datads_pp,
+                                       hparameters=hparameters)
+      print(Sys.time()-a)
 
     bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
                                   model.out = model.out,
@@ -511,7 +519,6 @@ ReSurv.IndividualData <- function(IndividualData,
 
   ############################################################
   #check
-
   #hazard_q <- matrix(nrow=max_DP, ncol=(ncol(hazard)-1)*IndividualData$conversion_factor)
   #eta_o <- c()
 
@@ -520,13 +527,10 @@ ReSurv.IndividualData <- function(IndividualData,
 
   #Add development and relevant survival values to the hazard_frame
   hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
-                                                    Om.df=Om.df,
-                                                    categorical_features = IndividualData$categorical_features,
-                                                    continuous_features = IndividualData$continuous_features,
-                                                    calendar_period_extrapolation = IndividualData$calendar_period_extrapolation)
+                                                 categorical_features = IndividualData$categorical_features,
+                                                 continuous_features = IndividualData$continuous_features,
+                                                 calendar_period_extrapolation = IndividualData$calendar_period_extrapolation)
 
-
-  # return(hazard_frame_updated)
   hazard_frame_grouped <- pkg.env$covariate_mapping(
     hazard_frame = hazard_frame_updated,
     categorical_features = IndividualData$categorical_features,
@@ -535,12 +539,10 @@ ReSurv.IndividualData <- function(IndividualData,
     calendar_period_extrapolation = IndividualData$calendar_period_extrapolation
     )
 
-
   # I add missing observations starting from ALL the combinations of AP_i and DP_i
   # in the training data for EVERY combination of features.
   # In case some development (accident) periods are missing I fill the holes
   # (e.g. for a given I do not observe DP 11, 12 in the middle of the triangle but my DP go from 1 to 25 and I add them)
-
 
   missing.obsevations <- pkg.env$fill_data_frame(data=IndividualData$full.data,
                                                  continuous_features=IndividualData$continuous_features,
@@ -549,9 +551,8 @@ ReSurv.IndividualData <- function(IndividualData,
                                                  input_time_granularity=IndividualData$input_time_granularity,
                                                  conversion_factor=IndividualData$conversion_factor)
 
-
   latest_observed <- pkg.env$latest_observed_values_i(
-    data_reserve= bind_rows(IndividualData$training.data, missing.obsevations),
+    data=bind_rows(IndividualData$training.data, missing.obsevations),
     groups = hazard_frame_grouped$groups,
     categorical_features = IndividualData$categorical_features,
     continuous_features = IndividualData$continuous_features,
@@ -562,7 +563,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
   expected_i <- pkg.env$predict_i(
-    hazard_data_frame = lazy_dt(hazard_frame_grouped$hazard_group),
+    hazard_data_frame = hazard_frame_grouped$hazard_group,
     latest_cumulative = latest_observed$latest_cumulative,
     grouping_method = "exposure"
   )
@@ -598,14 +599,12 @@ ReSurv.IndividualData <- function(IndividualData,
   dp_ranges <- do.call(rbind, dp_ranges)
 
 
-  #check_input_hazard <- pkg.env$check_input_hazard(hazard_frame_input,
-  #                           check_value=check_value)
+  check_input_hazard <- pkg.env$check_input_hazard(hazard_frame_input,
+                             check_value=check_value)
 
   #If we exeed the check value, we calculate on ouput granularity, predict on output granularity, and distribute evenly in the relevant input-periods.
   #From here we do simple chain-ladder to calculate new development factor.
-  if(#check_input_hazard
-    FALSE
-     ){
+  if(check_input_hazard){
     development_factor_o <- mapply(pkg.env$i_to_o_development_factor,
                                    1:max(hazard_frame_grouped$groups$group_o),
                                    MoreArgs=list(hazard_data_frame=hazard_frame_grouped$hazard_group,
@@ -718,8 +717,7 @@ ReSurv.IndividualData <- function(IndividualData,
   return(out)
   }
 
-  out=list(model.out=model.out,
-           df_input = df_i,
+  out=list(df_input = df_i,
            hazard_frame_input = hazard_frame_input,
            IndividualData=IndividualData)
 
@@ -729,13 +727,14 @@ ReSurv.IndividualData <- function(IndividualData,
 }
 
 #' Draft for plot of \code{ReSurvFit} models for simulated data.
+#' @export
 
-# plot.ReSurvFit <- function(ReSurv){
-#
-#   "
-#   Plot different development patterns. Currently only works for simulations with no accident-period dependency.
-#   "
-#   warning("Plotting functionality is not implemented yet.")
+plot.ReSurvFit <- function(ReSurv){
+
+  "
+  Plot different development patterns. Currently only works for simulations with no accident-period dependency.
+  "
+  warning("Plotting functionality is not implemented yet.")
   # df_output<- ReSurv$df_output
   # df_input <- ReSurv$df_input
 
@@ -862,7 +861,7 @@ ReSurv.IndividualData <- function(IndividualData,
   #
   # return(list(plot.df,plot.triangle.ratio))
 
-# }
+}
 
 
 
