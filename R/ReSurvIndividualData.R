@@ -527,6 +527,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
   #Add development and relevant survival values to the hazard_frame
   hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
+                                                    Om.df = Om.df,
                                                  categorical_features = IndividualData$categorical_features,
                                                  continuous_features = IndividualData$continuous_features,
                                                  calendar_period_extrapolation = IndividualData$calendar_period_extrapolation)
@@ -563,7 +564,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
   expected_i <- pkg.env$predict_i(
-    hazard_data_frame = hazard_frame_grouped$hazard_group,
+    hazard_data_frame = lazy_dt(hazard_frame_grouped$hazard_group),
     latest_cumulative = latest_observed$latest_cumulative,
     grouping_method = "exposure"
   )
