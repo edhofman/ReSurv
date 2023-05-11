@@ -562,7 +562,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
   expected_i <- pkg.env$predict_i(
-    hazard_data_frame = hazard_frame_grouped$hazard_group,
+    hazard_data_frame = lazy_dt(hazard_frame_grouped$hazard_group),
     latest_cumulative = latest_observed$latest_cumulative,
     grouping_method = "exposure"
   )

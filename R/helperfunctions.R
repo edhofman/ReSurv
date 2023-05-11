@@ -1121,6 +1121,7 @@ pkg.env$hazard_data_frame <- function(hazard,
     left_join(Om.df, "DP_rev_i") %>%
     #mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>% #Follows from the assumption that claims are distributed evenly in the input period
     mutate(dev_f_i = (2*Om+(Om+1)*hazard)/(2*Om-(Om-1)*hazard) ) %>%
+    replace_na(list(dev_f_i =1)) %>%
     mutate(dev_f_i = ifelse(dev_f_i<0,1,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
     group_by(pick(all_of(categorical_features), AP_i)) %>%
     arrange(DP_rev_i) %>%
@@ -1528,6 +1529,7 @@ pkg.env$predict_i <- function(hazard_data_frame,
   grouped_hazard_0 <- hazard_data_frame %>% #for the last development, if we included group '0', we would be extrapolating for half a parallelogram - doesn't make sense
     left_join(latest_cumulative, by=c("group_i", "AP_i"))
 
+  min_dp_rev_i <- min(as_data_frame(hazard_data_frame)$DP_rev_i)
   # Predict expected numbers, this is also used grouping methodology
   # For probabilty assumed ultimate = 1, otherwise calculate ultiamte.
   expected <-  grouped_hazard_0 %>%
@@ -1542,13 +1544,14 @@ pkg.env$predict_i <- function(hazard_data_frame,
     mutate(U=case_when(
       gm == "probability" ~ 1,
       S_i_lag == 1 ~ latest_I,
-      DP_max_rev == min(hazard_data_frame$DP_rev_i) ~ latest_I,
+      DP_max_rev == min_dp_rev_i ~ latest_I,
       S_ultimate_i ==0 ~ 0,
       AP_i != 1 ~ 1/S_ultimate_i * latest_I,
       TRUE ~ latest_I)) %>%
     mutate(I_expected = U*(S_i_lag-S_i)) %>%
-    mutate(IBNR = ifelse(DP_rev_i < DP_max_rev, I_expected, NA)) %>%
-    select(AP_i, group_i, DP_rev_i, I_expected, IBNR)
+    mutate(IBNR = ifelse(DP_rev_i < DP_max_rev, I_expected, as.numeric(NA)) ) %>%
+    select(AP_i, group_i, DP_rev_i, I_expected, IBNR) %>%
+    as.data.frame()
 
   return(expected)
 
@@ -1725,15 +1728,15 @@ pkg.env$i_to_o_development_factor <- function(i,
 
   "
   # Add output groupings to relevant frames
-  hazard_data_frame <- hazard_data_frame %>%
+  hazard_data_frame <- lazy_dt(hazard_data_frame) %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i"))
 
-  observed_pr_dp_o  <- observed_pr_dp %>%
+  observed_pr_dp_o  <- lazy_dt(observed_pr_dp) %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i"))# %>%
     #group_by(AP_i, group_o, DP_rev_i, DP_i) %>%
     #summarize(I = sum(I, na.rm=T), .groups = "drop")
 
-  latest_cumulative_o <- latest_cumulative %>%
+  latest_cumulative_o <- lazy_dt(latest_cumulative) %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
     group_by(AP_i, group_o, DP_max_rev) %>%
     summarize(latest_I = sum(latest_I, na.rm=T), .groups = "drop")
@@ -1778,7 +1781,7 @@ pkg.env$i_to_o_development_factor <- function(i,
      left_join(cumulative_observed, by=c("AP_i", "group_o",
                                         "max_dp"="DP_rev_i"))
 
-   min_dp_rev = min(grouped_hazard_0$DP_rev_i)
+   min_dp_rev = min(as.data.frame(grouped_hazard_0)$DP_rev_i)
    #Where we do not have any observed correct exposure we extrapolate based on fitted hazard
    no_exposure <-  exposures %>%
      select(DP_rev_i,  DP_rev_o, AP_i, group_o, S_i, DP_max_rev, latest_I ) %>%
@@ -1828,7 +1831,8 @@ pkg.env$i_to_o_development_factor <- function(i,
 
    output_dev_factor <- grouped_hazard_2 %>%
      group_by(DP_rev_o) %>%
-     summarise(dev_f_o = (sum(observed)+  sum(exposure_combined))/sum(exposure_combined) )
+     summarise(dev_f_o = (sum(observed)+  sum(exposure_combined))/sum(exposure_combined) ) %>%
+     as.data.frame()
 
 
    return(output_dev_factor$dev_f_o)
