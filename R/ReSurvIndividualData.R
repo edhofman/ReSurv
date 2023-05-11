@@ -525,7 +525,6 @@ ReSurv.IndividualData <- function(IndividualData,
                                                     continuous_features = IndividualData$continuous_features,
                                                     calendar_period_extrapolation = IndividualData$calendar_period_extrapolation)
 
-
   # return(hazard_frame_updated)
   hazard_frame_grouped <- pkg.env$covariate_mapping(
     hazard_frame = hazard_frame_updated,
@@ -535,7 +534,7 @@ ReSurv.IndividualData <- function(IndividualData,
     calendar_period_extrapolation = IndividualData$calendar_period_extrapolation
     )
 
-
+  # return(hazard_frame_grouped)
   # I add missing observations starting from ALL the combinations of AP_i and DP_i
   # in the training data for EVERY combination of features.
   # In case some development (accident) periods are missing I fill the holes
