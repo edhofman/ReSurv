@@ -544,7 +544,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
   latest_observed <- pkg.env$latest_observed_values_i(
-    data=bind_rows(IndividualData$training.data, missing.obsevations),
+    data_reserve=bind_rows(IndividualData$training.data, missing.obsevations),
     groups = hazard_frame_grouped$groups,
     categorical_features = IndividualData$categorical_features,
     continuous_features = IndividualData$continuous_features,

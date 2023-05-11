@@ -76,7 +76,7 @@ notidel_param_0 <- function(claim_size,
   if(scenario==3){
 
     return(c(alpha=0.5,
-             beta=2,
+             beta=2*30,
              lambda=0.1*exp(1.15129+period_function(ceiling(occurrence_period)))^(1/0.5),
              k=1,
              b=years / time_unit))
@@ -1292,7 +1292,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
 }
 
 
-pkg.env$latest_observed_values_i <- function(data,
+pkg.env$latest_observed_values_i <- function(data_reserve,
                                              groups,
                                              categorical_features,
                                              continuous_features,
@@ -1304,16 +1304,16 @@ pkg.env$latest_observed_values_i <- function(data,
   # continuous_features <- ifelse(calendar_period_extrapolation, c(continuous_features, "RP_i"), continuous_features)
 
 
-  data_reserve <- data
+
 
   #Used to calculate normal time development.
-  trunc = max(data_reserve$DP_rev_i)
+  #trunc = max(data_reserve$DP_rev_i)
 
   #find latest observed amount and development period pr. accident period.
-  max_observed_ap_dp <- data_reserve %>%
-    group_by(AP_i) %>%
-    summarize(max_DP_i = max(DP_i),
-              .groups="drop")
+  # max_observed_ap_dp <- data_reserve %>%
+  #   group_by(AP_i) %>%
+  #   summarize(max_DP_i = max(DP_i),
+  #             .groups="drop")
 
   # l1 <- as.data.table(list(AP_i=min(data_reserve$AP_i):max(data_reserve$AP_i)))
   # l2 <- as.data.table(list(DP_rev_i= min(data_reserve$DP_rev_i):max(data_reserve$DP_rev_i)))
@@ -1327,14 +1327,14 @@ pkg.env$latest_observed_values_i <- function(data,
 
   #create grid to hold observed values for all possible times (also where we have no observations)
   #We need this for exposure based development factor grouping at a later stage.
-  observed_grid <- expand.grid(AP_i = min(data_reserve$AP_i):max(data_reserve$AP_i),
-                               DP_rev_i = min(data_reserve$DP_rev_i):max(data_reserve$DP_rev_i),
-                               group_i = groups$group_i ) %>%
-    mutate(DP_i = trunc-DP_rev_i+1) %>%
-    left_join(max_observed_ap_dp, by = "AP_i") %>%
-    filter(DP_i <= max_DP_i) %>%
-    filter(DP_i>0) %>%  #as we might not have observed a perfect triangle
-    select(-c(max_DP_i))
+  # observed_grid <- expand.grid(AP_i = min(data_reserve$AP_i):max(data_reserve$AP_i),
+  #                              DP_rev_i = min(data_reserve$DP_rev_i):max(data_reserve$DP_rev_i),
+  #                              group_i = groups$group_i ) %>%
+  #   mutate(DP_i = trunc-DP_rev_i+1) %>%
+  #   left_join(max_observed_ap_dp, by = "AP_i") %>%
+  #   filter(DP_i <= max_DP_i) %>%
+  #   filter(DP_i>0) %>%  #as we might not have observed a perfect triangle
+  #   select(-c(max_DP_i))
 
 
   #Max possible development time per accident period
@@ -1378,9 +1378,9 @@ pkg.env$latest_observed_values_i <- function(data,
   observed_dp_rev_i_tmp <- observed_dp_rev_i %>%  left_join(groups, by=c("covariate")) %>%
     select(AP_i, group_i, DP_rev_i, DP_i, I)
 
-  #Observed pr. development period
-  observed_dp_rev_i_out <- observed_grid %>%
-    left_join(observed_dp_rev_i_tmp, by=c("AP_i", "DP_i", "DP_rev_i", "group_i"))
+  # #Observed pr. development period
+  # observed_dp_rev_i_out <- observed_grid %>%
+  #   left_join(observed_dp_rev_i_tmp, by=c("AP_i", "DP_i", "DP_rev_i", "group_i"))
 
 
 
@@ -1466,15 +1466,17 @@ pkg.env$latest_observed_values_i <- function(data,
       select(AP_i, all_of(time_features), group_i, DP_max_rev,latest_I )
 
     observed_dp_rev_i_tmp <- observed_dp_rev_i %>%  left_join(groups, by=c(time_features, "covariate")) %>%
-      select(AP_i, all_of(time_features), group_i, DP_rev_i, DP_i, I)
-
-    observed_dp_rev_i_out <- observed_grid %>%
-      left_join(observed_dp_rev_i_tmp, by=c("AP_i", "DP_i", "DP_rev_i", "group_i")) %>%
+      select(AP_i, all_of(time_features), group_i, DP_rev_i, DP_i, I) %>%
       inner_join(groups[,c(time_features, "group_i")], by =c(time_features, "group_i")) #filter only relevant combinations
+
+
+    # observed_dp_rev_i_out <- observed_grid %>%
+    #   left_join(observed_dp_rev_i_tmp, by=c("AP_i", "DP_i", "DP_rev_i", "group_i")) %>%
+    #   inner_join(groups[,c(time_features, "group_i")], by =c(time_features, "group_i")) #filter only relevant combinations
 
   }
 
-  return(list(latest_cumulative = observed_so_far_out, observed_pr_dp = observed_dp_rev_i_out))
+  return(list(latest_cumulative = observed_so_far_out, observed_pr_dp = observed_dp_rev_i_tmp))
 
 }
 
@@ -2301,7 +2303,9 @@ pkg.env$benchmark_id <- function(X,
 ## Data handling
 
 pkg.env$fix.double.ap<-function(features,accident_period){
-
+  if(is.null(features)){
+    return(NULL)
+  }
   features[features==accident_period] <- "AP_i"
 
   return(features)
