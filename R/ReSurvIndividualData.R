@@ -727,6 +727,26 @@ ReSurv.IndividualData <- function(IndividualData,
   return(out)
 }
 
+
+
+summary.ReSurvPredict <- function(ReSurvPredict)
+{
+
+  IBNR_AP_i <-data.table(ReSurvPredict$hazard_frame_input)[, .(IBNR=sum(IBNR, na.rm=T)), by = AP_i]
+
+  IBNR_AP_o <-data.table(ReSurvPredict$hazard_frame_input)[, .(IBNR=sum(IBNR, na.rm=T)), by = AP_o]
+
+  summary <- list(
+    IBNR_AP_i = IBNR_AP_i,
+    IBNR_AP_o = IBNR_AP_o,
+    Total_IBNR = sum(IBNR_AP_o)
+  )
+
+  class(summary) <- "summary.ReSurvPredict"
+  return(summary)
+}
+
+
 #' Draft for plot of \code{ReSurvFit} models for simulated data.
 
 # plot.ReSurvFit <- function(ReSurv){
@@ -862,6 +882,7 @@ ReSurv.IndividualData <- function(IndividualData,
 # return(list(plot.df,plot.triangle.ratio))
 
 # }
+
 
 
 
