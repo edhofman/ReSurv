@@ -1550,7 +1550,8 @@ pkg.env$name_covariates <-function(data, categorical_features, continuous_featur
 
 pkg.env$predict_i <- function(hazard_data_frame,
                               latest_cumulative,
-                              grouping_method
+                              grouping_method,
+                              min_DP_rev_i
 ){
   "
   Calculate expected incremential claim number on input scale.
@@ -1561,7 +1562,6 @@ pkg.env$predict_i <- function(hazard_data_frame,
   grouped_hazard_0 <- hazard_data_frame %>% #for the last development, if we included group '0', we would be extrapolating for half a parallelogram - doesn't make sense
     left_join(latest_cumulative, by=c("group_i", "AP_i"))
 
-  min_dp_rev_i <- min(as.data.frame(hazard_data_frame)$DP_rev_i)
   # Predict expected numbers, this is also used grouping methodology
   # For probabilty assumed ultimate = 1, otherwise calculate ultiamte.
   expected <-  grouped_hazard_0 %>%
@@ -1576,7 +1576,7 @@ pkg.env$predict_i <- function(hazard_data_frame,
     mutate(U=case_when(
       gm == "probability" ~ 1,
       S_i_lag == 1 ~ latest_I,
-      DP_max_rev == min_dp_rev_i ~ latest_I,
+      DP_max_rev == min_DP_rev_i ~ latest_I,
       S_ultimate_i ==0 ~ 0,
       AP_i != 1 ~ 1/S_ultimate_i * latest_I,
       TRUE ~ latest_I)) %>%
@@ -1746,19 +1746,20 @@ pkg.env$predict_o <- function(
 
 }
 
-pkg.env$i_to_o_development_factor <- function(i,
-                                              hazard_data_frame,
+pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
                                               expected_i,
                                               dp_ranges,
                                               groups,
                                               observed_pr_dp,
                                               latest_cumulative,
                                               conversion_factor,
-                                              grouping_method){
+                                              grouping_method,
+                                              min_DP_rev_i){
   "
   Group input development factor to output.
 
   "
+
   # Add output groupings to relevant frames
   hazard_data_frame <- lazy_dt(hazard_data_frame) %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i"))
@@ -1779,7 +1780,8 @@ pkg.env$i_to_o_development_factor <- function(i,
     expected_i <-  pkg.env$predict_i(
       hazard_data_frame = hazard_data_frame,
       latest_cumulative = latest_cumulative,
-      grouping_method = "probability"
+      grouping_method = "probability",
+      min_DP_rev_i = min_DP_rev_i
     ) %>%
       left_join(groups[,c("group_i", "group_o")], by =c("group_i"))
   } else{
@@ -1791,7 +1793,6 @@ pkg.env$i_to_o_development_factor <- function(i,
 
   # #select relevant hazard value group and add output variables, and other variables to help with grouping
   grouped_hazard_0 <- hazard_data_frame %>%
-    filter(group_o==i) %>%
     mutate(DP_rev_o = ceiling((DP_rev_i-(AP_i-1)%%(1/conversion_factor) ) *conversion_factor)) %>%
     filter(DP_rev_o > 0) %>%  #for the last development, if we included group '0', we would be extrapolating for half a parallelogram - doesn't make sense
     left_join(dp_ranges, by=c("AP_i", "DP_rev_o")) %>%
@@ -1800,8 +1801,7 @@ pkg.env$i_to_o_development_factor <- function(i,
 
   # Create cumulative observed to find exposure for each period
   cumulative_observed <- observed_pr_dp_o %>%
-    filter(group_o == i) %>%
-    group_by(AP_i) %>%
+    group_by(AP_i, group_o) %>%
     arrange(DP_i) %>%
     mutate(exposure = cumsum(ifelse(is.na(I),0,I) )) %>%
     mutate(DP_rev_i = DP_rev_i -1) %>%  #as we want this as exposure we join by the previous development period
@@ -1813,7 +1813,6 @@ pkg.env$i_to_o_development_factor <- function(i,
     left_join(cumulative_observed, by=c("AP_i", "group_o",
                                         "max_dp"="DP_rev_i"))
 
-  min_dp_rev = min(as.data.frame(grouped_hazard_0)$DP_rev_i)
   #Where we do not have any observed correct exposure we extrapolate based on fitted hazard
   no_exposure <-  exposures %>%
     select(DP_rev_i,  DP_rev_o, AP_i, group_o, S_i, DP_max_rev, latest_I ) %>%
@@ -1827,7 +1826,7 @@ pkg.env$i_to_o_development_factor <- function(i,
     mutate(U=ifelse(
       S_ultimate_i ==0, 0,
       1/S_ultimate_i * latest_I) ) %>% #handle special ultimate cases
-    mutate(U = ifelse(DP_max_rev ==min_dp_rev , latest_I, U))  %>%
+    mutate(U = ifelse(DP_max_rev ==min_DP_rev_i , latest_I, U))  %>%
     mutate(U = ifelse(gm=="probability", 1 ,U)) %>%
     mutate(exposure_expected = U*(S_i)) %>%  #in theory one could say U*S_i- ifelse(DP_max_rev==DP_rev_i-1, latest_I, U*S_i_lead ), but this might lead to negative expected as we are not sure latest equal the same as distribution estimate
     select(AP_i, group_o, DP_rev_o, DP_rev_i, exposure_expected)
@@ -1861,13 +1860,15 @@ pkg.env$i_to_o_development_factor <- function(i,
     summarize(observed = sum(I_combined), .groups="drop") %>%
     left_join(exposures_combined, by=c("AP_i", "group_o", "DP_rev_o"))
 
+
   output_dev_factor <- grouped_hazard_2 %>%
-    group_by(DP_rev_o) %>%
-    summarise(dev_f_o = (sum(observed)+  sum(exposure_combined))/sum(exposure_combined) ) %>%
-    as.data.frame()
+    group_by(DP_rev_o, group_o) %>%
+    summarise(dev_f_o = (sum(observed)+  sum(exposure_combined))/sum(exposure_combined),.groups="drop" ) %>%
+    as.data.table() %>%
+    dcast(DP_rev_o ~group_o, value.var="dev_f_o")
 
 
-  return(output_dev_factor$dev_f_o)
+  return(output_dev_factor[,-c("DP_rev_o")])
 
 }
 

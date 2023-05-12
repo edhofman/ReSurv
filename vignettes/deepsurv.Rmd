@@ -56,8 +56,9 @@ resurv.fit.cox <- ReSurv(individual_data,
 ```
 
 ```{r}
-
+a<-Sys.time()
 resurv.cox.predictions <- predict(resurv.fit.cox)
+b<-Sys.time()-a
 resurv.cox.summary<-summary(resurv.cox.predictions, granularity = "input")
 
 ```
