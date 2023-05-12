@@ -58,8 +58,6 @@ resurv.cox.predictions <- predict(resurv.fit.cox)
 
 ```
 
-
-
 # With calendar component
 
 ```{r}

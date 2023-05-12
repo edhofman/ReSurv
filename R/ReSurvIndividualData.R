@@ -244,6 +244,7 @@ ReSurv.IndividualData <- function(IndividualData,
   if(hazard_model=="cox"){
 
     data=IndividualData$training.data
+    X=data
     model.out <- pkg.env$fit_cox_model(data=data,
                                        formula_ct=formula_ct,
                                        newdata=newdata)
@@ -373,8 +374,6 @@ ReSurv.IndividualData <- function(IndividualData,
 
     model.out <- pkg.env$fit_xgboost(datads_pp,
                                      hparameters=hparameters)
-    return(list(data=X,
-                model.out = model.out))
 
     bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
                                   model.out = model.out,
@@ -515,7 +514,9 @@ ReSurv.IndividualData <- function(IndividualData,
                                                     continuous_features = IndividualData$continuous_features,
                                                     calendar_period_extrapolation = IndividualData$calendar_period_extrapolation)
 
-  out=list(model.out=model.out,
+
+  out=list(model.out=list(data=X,
+                          model.out),
            hazard_frame = hazard_frame_updated,
            IndividualData=IndividualData)
 
