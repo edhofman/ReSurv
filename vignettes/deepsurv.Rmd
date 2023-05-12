@@ -58,6 +58,7 @@ resurv.fit.cox <- ReSurv(individual_data,
 ```{r}
 
 resurv.cox.predictions <- predict(resurv.fit.cox)
+resurv.cox.summary<-summary(resurv.cox.predictions, granularity = "input")
 
 ```
 

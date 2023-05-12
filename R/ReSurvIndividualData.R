@@ -516,7 +516,8 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
   out=list(model.out=list(data=X,
-                          model.out),
+                          model.out,
+                          hazard_model = hazard_model),
            hazard_frame = hazard_frame_updated,
            IndividualData=IndividualData)
 

@@ -1561,7 +1561,7 @@ pkg.env$predict_i <- function(hazard_data_frame,
   grouped_hazard_0 <- hazard_data_frame %>% #for the last development, if we included group '0', we would be extrapolating for half a parallelogram - doesn't make sense
     left_join(latest_cumulative, by=c("group_i", "AP_i"))
 
-  min_dp_rev_i <- min(as_data_frame(hazard_data_frame)$DP_rev_i)
+  min_dp_rev_i <- min(as.data.frame(hazard_data_frame)$DP_rev_i)
   # Predict expected numbers, this is also used grouping methodology
   # For probabilty assumed ultimate = 1, otherwise calculate ultiamte.
   expected <-  grouped_hazard_0 %>%
