@@ -23,7 +23,10 @@ library(ReSurv)
 # Input data
 
 input_data <- data_generator(random_seed = 1964,
-                             scenario=1)
+                              scenario=0,
+                              time_unit = 1/360,
+                              years = 4,
+                              yearly_exposure = 200)
 
 ```
 
