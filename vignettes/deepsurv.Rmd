@@ -33,7 +33,7 @@ input_data <- data_generator(random_seed = 1964,
 # # # ## Model fit ----
 individual_data <- IndividualData(input_data,
                                   id=NULL,
-                                  continuous_features=NULL,
+                                  continuous_features="AP",
                                   categorical_features="claim_type",
                                   accident_period="AP",
                                   calendar_period="RP",
@@ -51,6 +51,14 @@ resurv.fit.cox <- ReSurv(individual_data,
                           hazard_model = "cox")
 
 ```
+
+```{r}
+
+resurv.cox.predictions <- predict(resurv.fit.cox)
+
+```
+
+
 
 # With calendar component
 
