@@ -46,11 +46,65 @@ individual_data <- IndividualData(input_data,
 ```
 
 ```{r}
-# # # ## Model fit ----
+# Model fit ----
 resurv.fit.cox <- ReSurv(individual_data,
                           hazard_model = "cox")
 
 ```
+
+```{r}
+# # # ## Model fit ----
+s1 <- Sys.time()
+resurv.fit.xgb <- ReSurv(individual_data,
+                         hazard_model = "xgboost",
+                         hparameters = list(params=list(booster="gbtree",
+                                             eta=.01,
+                                             subsample=.5,
+                                             alpha=1,
+                                             lambda=1,
+                                             min_child_weight=.2),
+                                             print_every_n = 1,
+                                             nrounds=10,
+                                             verbose=F,
+                                             early_stopping_rounds = 500))
+e1 <- Sys.time()
+e1-s1
+```
+
+
+```{r}
+# Model fit ----
+resurv.fit.LTRCtrees <- ReSurv(individual_data,
+                               hazard_model = "LTRCtrees")
+
+```
+
+```{r}
+s1 <- Sys.time()
+resurv.fit.deepsurv <- ReSurv(individual_data,
+                              hazard_model = "deepsurv",
+                              hparameters=list(num_layers=c(1),
+                                              early_stopping = FALSE,
+                                              patience = 20,
+                                              verbose=T,
+                                              network_structure = NULL,
+                                              num_nodes = c(10),
+                                              activation = "LeakyReLU",
+                                              optim="Adam",
+                                              lr = 0.5,
+                                              xi=1,
+                                              epsilon = 0,
+                                              batch_size=as.integer(1000),
+                                              epochs=as.integer(5),
+                                              num_workers=0,
+                                              tie='Efron'))
+
+e1 <- Sys.time()
+# Time difference of 8.310856 mins
+
+```
+
+
 
 ```{r}
 
@@ -58,30 +112,7 @@ resurv.cox.predictions <- predict(resurv.fit.cox)
 
 ```
 
-# With calendar component
 
-```{r}
-# # # ## Model fit ----
-individual_data <- IndividualData(input_data0,
-                                  id="claim_number",
-                                  continuous_features=NULL,
-                                  categorical_features="claim_type",
-                                  accident_period="AP",
-                                  calendar_period="RP",
-                                  input_time_granularity = "days",
-                                  output_time_granularity = "quarters",
-                                  years=4,
-                                  continuous_features_spline=NULL,
-                                  calendar_period_extrapolation=F)
-
-```
-
-```{r}
-# # # ## Model fit ----
-resurv.fit.cox <- ReSurv(individual_data,
-                          hazard_model = "cox") Individual
-
-```
 
 # Standard code
 

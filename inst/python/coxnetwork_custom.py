@@ -386,13 +386,43 @@ class _CoxPHBase(_CoxBase):
                             index=bch.index)
 
 
+# def cox_ph_loss(log_h: Tensor, durations: Tensor, events: Tensor, truncation: Tensor, tie:str) -> Tensor:
+#     """Loss for CoxPH model. If data is sorted by descending duration, see `cox_ph_loss_sorted`.
+# 
+#     Dependent on the tie handlng, we create different apporaches for the risk set.
+#     Be aware that for larger batch sizes, the continuous case can be quite slow.
+# 
+#     At first we create matrixes holding the necesarry values. This approach is taken to limit the calculations being done in for loops.
+# 
+#     """
+#     idx = durations.sort(descending=False)[1]
+#     events = events[idx]
+#     durations = durations[idx]
+#     truncation = truncation[idx]
+#     log_h = log_h[idx].view(-1).mul(events)  # "Handles Censoring"
+# 
+#     labels = durations.sort(descending=False)[0].to(torch.double)
+#     unique = labels.to(torch.double).unique().tolist()
+#     lkh= torch.zeros(labels.unique().shape[0])
+# 
+#     for i in (range(len(unique))):
+#         val= unique[i]
+#         risk_set = log_h[(durations >= val) * (truncation < val)].exp().sum()
+#         cond1 = (labels == val)
+#         event_set = log_h[cond1].exp().sum()
+#         Om = sum(cond1)
+#         phi = np.arange(0,Om)/Om
+#         lkh[i]=((risk_set-event_set.mul(phi)).log()- log_h[cond1]).sum()
+# 
+#     return lkh.sum()/len(labels)
+
 def cox_ph_loss(log_h: Tensor, durations: Tensor, events: Tensor, truncation: Tensor, tie: str) -> Tensor:
     """Loss for CoxPH model. If data is sorted by descending duration, see `cox_ph_loss_sorted`.
 
     Dependent on the tie handlng, we create different apporaches for the risk set.
     Be aware that for larger batch sizes, the continuous case can be quite slow.
 
-    At first we create matrixes holding the necesarry values. This approach is taken to limit the calculations being done in for loops. 
+    At first we create matrixes holding the necesarry values. This approach is taken to limit the calculations being done in for loops.
 
     """
     idx = durations.sort(descending=False)[1]
@@ -405,72 +435,74 @@ def cox_ph_loss(log_h: Tensor, durations: Tensor, events: Tensor, truncation: Te
 
     event_set = torch.zeros(labels.unique().shape[0],len(labels.tolist()))
     risk_set = torch.zeros(labels.unique().shape[0],len(labels.tolist()))
-    
+
     unique = labels.to(torch.double).unique().tolist()
 
-    if(tie == 'Continuous'):
-        log_like = 0
-        for i in(range(len(unique))): 
-            event_set =  (labels == unique[i]) * (events==1) #Handles censoring
-            risk_set = (log_h.exp().mul((durations>= unique[i]) * (truncation < unique[i]) * (events==1)) ).sum().log() #Handles censoring   
-            
-            h_events = log_h.mul( (labels == unique[i]) ).sum() 
-           # events_summed = event_set.matmul(events) 
-            log_like = log_like -h_events.sub(risk_set).sum()
-        
-        #log_h_tmp = log_h.clone()
+    # if(tie == 'Continuous'):
+    #     log_like = 0
+    #     for i in(range(len(unique))):
+    #         event_set =  (labels == unique[i]) * (events==1) #Handles censoring
+    #         risk_set = (log_h.exp().mul((durations>= unique[i]) * (truncation < unique[i]) * (events==1)) ).sum().log() #Handles censoring
+    #
+    #         h_events = log_h.mul( (labels == unique[i]) ).sum()
+    #        # events_summed = event_set.matmul(events)
+    #         log_like = log_like -h_events.sub(risk_set).sum()
+    #
+    #     #log_h_tmp = log_h.clone()
+    #
+    #     #def risk_set_tmp(time):
+    #     #    return( (log_h_tmp.exp().mul((durations>=time) * (truncation<time)) ).sum() )
+    #
+    #     event_set = events
+    #
+    #  if(tie == 'Breslow'):
+    #     for i in(range(len(unique))): #This handles ties the breslow way (see https://people.math.aau.dk/~rw/Undervisning/DurationAnalysis/Slides/lektion3.pdf slide 24)
+    #         event_set[i,:] = (labels == unique[i]) * (events==1) #Handles censoring
+    #         risk_set[i,:] = (durations>= unique[i]) * (truncation < unique[i]) * (events==1) #Handles censoring
+    #
+    #
+    #     h_events = event_set.matmul(log_h) #the breslow tie approach (simple sum all covaries that have equal ties)
+    #     h_risk = (risk_set.matmul(log_h.exp()).sub((event_set.matmul(log_h.exp())).mul(1/2))).log() #the 1/2 approach since not all claims should count
+    #
+    #     #if no exposure in relevant risk group, set to 0 (would also be handled by events_summed multiplication, but inf*0 = inf in python)
+    #     h_risk[h_risk.abs()==float('inf')]= 0
+    #     h_risk = h_risk.nan_to_num()
+    #
+    #     events_summed = event_set.matmul(events)
+    #     log_like = -h_events.sub(h_risk.mul(events_summed)).sum()
 
-        #def risk_set_tmp(time):
-        #    return( (log_h_tmp.exp().mul((durations>=time) * (truncation<time)) ).sum() )
-
-        event_set = events
-
-    if(tie == 'Breslow'):
-        for i in(range(len(unique))): #This handles ties the breslow way (see https://people.math.aau.dk/~rw/Undervisning/DurationAnalysis/Slides/lektion3.pdf slide 24)
-            event_set[i,:] = (labels == unique[i]) * (events==1) #Handles censoring
-            risk_set[i,:] = (durations>= unique[i]) * (truncation < unique[i]) * (events==1) #Handles censoring
-
-    
-        h_events = event_set.matmul(log_h) #the breslow tie approach (simple sum all covaries that have equal ties)
-        h_risk = (risk_set.matmul(log_h.exp()).sub((event_set.matmul(log_h.exp())).mul(1/2))).log() #the 1/2 approach since not all claims should count
-
-        #if no exposure in relevant risk group, set to 0 (would also be handled by events_summed multiplication, but inf*0 = inf in python)
-        h_risk[h_risk.abs()==float('inf')]= 0
-        h_risk = h_risk.nan_to_num() 
-
-        events_summed = event_set.matmul(events) 
-        log_like = -h_events.sub(h_risk.mul(events_summed)).sum()
-    
-    if(tie == 'Efron'):
-        efron_set  = torch.zeros(labels.unique().shape[0],len(labels.tolist()))
-        for i in(range(len(unique))): #This handles ties the efron way (see https://people.math.aau.dk/~rw/Undervisning/DurationAnalysis/Slides/lektion3.pdf slide 24)
-            event_set[i,:] = (labels == unique[i]) * (events==1) #Handles censoring
-            risk_set[i,:] = (durations>= unique[i]) * (truncation < unique[i])
-            tmp =  torch.arange(0,torch.sum(event_set[i,:]))
-            efron_set[i, tmp.int().tolist()] = tmp #Diffrent set,since we need a special risk set for each claim during a tied event time.
-
-
-        h_risk = risk_set.matmul(log_h.exp())
-
-        h_events0 = event_set.matmul(log_h.exp())
-
-        efron_risk = (1/torch.sum(event_set,1)).mul(h_events0).reshape(-1,1).matmul(torch.ones(1,len(labels.tolist())))
-
-        efron_risk = efron_risk.mul(efron_set)
-
-        #if no exposure in relevant risk group, set to 0 (would also be handled by events_summed multiplication, but inf*0 = inf in python)
-        h_risk[h_risk.abs()==float('inf')]= 1
-
-        events_sort,_ = event_set.sort(-1, descending=True)
-        efron_risk = (h_risk.reshape(-1,1).sub(efron_risk)).log().matmul(events_sort.t()).diagonal() #only need the diagonal column,can probably be done smarter
-        efron_risk[efron_risk.abs()==float('inf')]= 0
-
-        h_events = event_set.matmul(log_h)
+    # if(tie == 'Efron'):
+    efron_set  = torch.zeros(labels.unique().shape[0],len(labels.tolist()))
+    for i in(range(len(unique))): #This handles ties the efron way (see https://people.math.aau.dk/~rw/Undervisning/DurationAnalysis/Slides/lektion3.pdf slide 24)
+        event_set[i,:] = (labels == unique[i]) * (events==1) #Handles censoring
+        risk_set[i,:] = (durations>= unique[i]) * (truncation < unique[i])
+        tmp =  torch.arange(0,torch.sum(event_set[i,:]))
+        efron_set[i, tmp.int().tolist()] = tmp #Diffrent set,since we need a special risk set for each claim during a tied event time.
 
 
-        log_like = -h_events.sub (efron_risk ).sum()
-            
+    h_risk = risk_set.matmul(log_h.exp())
+
+    h_events0 = event_set.matmul(log_h.exp())
+
+    efron_risk = (1/torch.sum(event_set,1)).mul(h_events0).reshape(-1,1).matmul(torch.ones(1,len(labels.tolist())))
+
+    efron_risk = efron_risk.mul(efron_set)
+
+    #if no exposure in relevant risk group, set to 0 (would also be handled by events_summed multiplication, but inf*0 = inf in python)
+    h_risk[h_risk.abs()==float('inf')]= 1
+
+    events_sort,_ = event_set.sort(-1, descending=True)
+    efron_risk = (h_risk.reshape(-1,1).sub(efron_risk)).log().matmul(events_sort.t()).diagonal() #only need the diagonal column,can probably be done smarter
+    efron_risk[efron_risk.abs()==float('inf')]= 0
+
+    h_events = event_set.matmul(log_h)
+
+
+    log_like = -h_events.sub (efron_risk ).sum()
+
     return log_like.div(event_set.sum()) #"return average log likelihood"
+
+
 
 class CoxPHLoss(torch.nn.Module):
     """

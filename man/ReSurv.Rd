@@ -12,9 +12,7 @@ ReSurv(
   continuous_features_scaling_method = "minmax",
   random_seed = 1964,
   hparameters = list(),
-  percentage_data_training = 0.8,
-  grouping_method = "exposure",
-  check_value = 1.85
+  percentage_data_training = 0.8
 )
 }
 \arguments{
@@ -38,15 +36,6 @@ ReSurv(
 \item{hparameters}{\code{list}, hyperparameters for the machine learning models. It will be disregarded for the cox approach.}
 
 \item{percentage_data_training}{\code{numeric}, percentage of data used for training on the upper triangle.}
-
-\item{grouping_method}{\code{character}, use probability or exposure approach to group from input to output development factors. Choice between:
-\itemize{
-\item{\code{"exposure"}}
-\item{\code{"probability"}}
-}
-Default is \code{"exposure"}.}
-
-\item{check_value}{\code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.}
 }
 \value{
 ReSurv fit.

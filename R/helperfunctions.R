@@ -2332,6 +2332,7 @@ pkg.env$benchmark_id <- function(X,
   if(remove_first_dummy==T){
     newdata.mx <- newdata.mx[,colnames(newdata.mx) %in% names(X)]
   }
+
   benchmark_id <- which(apply(newdata.mx, 1, function(x) sum(benchmark == x) == length(benchmark) ))[1]
 
 
@@ -2868,4 +2869,345 @@ pkg.env$fill_data_frame<-function(data,
     return(tmp.missing)
 
   }}
+
+
+pkg.env$deep_surv_lkh_pp <- function(X,
+                                     Y){
+
+  # data_transformed <- cbind(X, Y)
+  X <- cbind(X, DP_rev_i = Y$DP_rev_i) %>%
+    arrange(DP_rev_i) %>%
+    select(-DP_rev_i)
+
+  Y <- Y %>%
+    arrange(DP_rev_i) %>%
+    as.data.frame()
+
+  #id_train <- sample(c(TRUE,FALSE), nrow(X), replace=T, prob= c(training_test_split,1-training_test_split) )
+
+  tmp <- as.data.frame(seq(1,dim(X)[1]))
+  colnames(tmp) <- "id"
+
+  if(is.null(samples_TF)){
+
+    samples_cn <- tmp %>% sample_frac(size=training_test_split)
+    id_train <- tmp$id %in% samples_cn$id
+
+  }else{
+
+    cond <- samples_TF
+    samples_cn <- tmp %>% select(id) %>% filter(cond)
+    id_train <- tmp$id %in% samples_cn$id
+  }
+
+
+  #convert to array for later numpy transforamtion
+  data_train <- as.array(as.matrix(X[id_train,]))
+  data_val <- as.array(as.matrix(X[!id_train,]))
+  y_train <- as.array(as.matrix(Y[id_train,]))
+  y_val <- as.array(as.matrix(Y[!id_train,]))
+
+
+  #create tuples holding target and validation values. Convert to same dtype to ensure safe pytorch handling.
+  y_train <- reticulate::tuple(reticulate::np_array(y_train[,1], dtype = "float32"), #duration
+                               reticulate::np_array(y_train[,2], dtype = "float32"), #event
+                               reticulate::np_array(y_train[,3], dtype = "float32")) #truncation
+
+  validation_data = reticulate::tuple(reticulate::np_array(data_val, dtype = "float32"),
+                                      reticulate::tuple(reticulate::np_array(y_val[,1], dtype = "float32"), #duration
+                                                        reticulate::np_array(y_val[,2], dtype = "float32"), #event
+                                                        reticulate::np_array(y_val[,3], dtype = "float32"))) #truncation
+
+  x_train = reticulate::np_array(data_train, dtype = "float32")
+
+
+  return(list(
+    x_train = x_train,
+    y_train = y_train,
+    validation_data = validation_data
+  ))
+
+}
+
+
+pkg.env$evaluate_lkh_nn <-function(X_train,
+                                   Y_train,
+                                   model){
+
+
+  # data_transformed <- cbind(X, Y)
+  data_train <- cbind(X_train, DP_rev_i = Y_train$DP_rev_i) %>%
+    arrange(DP_rev_i) %>%
+    select(-DP_rev_i) %>%
+    as.matrix() %>%
+    as.array() %>%
+    reticulate::np_array(dtype = "float32")
+
+  preds <- model$predict(input=data_train,
+                         batch_size=NULL,
+                         num_workers=0)
+  preds <-preds-preds[1]
+
+  # data_train <- as.array(as.matrix(X[id_train,]))
+
+  xy_tr=cbind(X_train,Y_train)
+
+  tmp_tr=xy_tr %>%
+    arrange(DP_rev_i) %>%
+    as.data.frame()
+
+  # tmp_tr[,'id'] = seq(1,dim(tmp_tr)[1])
+  # tmp_tst[,'id'] = seq(1,dim(tmp_tst)[1])
+
+  tmp_train <- tmp_tr %>%
+    arrange(DP_rev_i) %>%
+    group_by(DP_rev_i) %>%
+    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
+
+
+  ds_train_m <- tmp_train %>%
+    arrange(DP_rev_i) %>%
+    group_by(DP_rev_i) %>%
+    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
+
+
+  # if(hazard_model %in% c("cox","LTRCtrees")){ds_train_m <- X_train}
+  # if(hazard_model == "xgboost"){
+
+
+  attr(ds_train_m, 'truncation') <- tmp_train$TR_i
+  attr(ds_train_m, 'claim_arrival') <- tmp_train$DP_rev_i
+
+
+  attr(ds_train_m, 'risk_sets') <- risks_in_the_tie(starts_i=tmp_train$TR_i,
+                                                    stops_i=tmp_train$DP_rev_i,
+                                                    stops = unique(tmp_train$DP_rev_i))
+
+  attr(ds_train_m, 'event_sets') <- events_in_the_tie(starts_i=tmp_train$TR_i,
+                                                      stops_i=tmp_train$DP_rev_i,
+                                                      stops = unique(tmp_train$DP_rev_i))
+
+  attr(ds_train_m, 'efron_c') <- tmp_train$efron_c
+
+  attr(ds_train_m, 'tieid') <- unname(table(tmp_train$DP_rev_i))
+
+  attr(ds_train_m, 'groups') <- rep( as.integer(names(table(tmp_train$end_time))),
+                                     attr(ds_train_m, 'tieid'))
+
+
+
+  # if(hazard_model == "cox"){
+  #   preds_tr <- predict(model$cox,ds_train_m)
+  # }
+
+
+
+  # if(hazard_model == "LTRCtrees"){
+  #   preds_tr <- predict(model$cox,ds_train_m)
+  #   preds_tr <- preds_tr - preds_tr[1]
+  # }
+
+
+  train_lkh=cox_evaluation_metrix(dtrain=ds_train_m,
+                                  preds=as.vector(preds))
+
+
+  return(train_lkh)
+
+
+}
+
+pkg.env$evaluate_lkh_xgb <-function(X_train,
+                                Y_train,
+                                model){
+
+  xy_tr=cbind(X_train,Y_train)
+
+
+  tmp_tr=xy_tr %>%
+    arrange(DP_rev_i) %>%
+    as.data.frame()
+
+  # tmp_tr[,'id'] = seq(1,dim(tmp_tr)[1])
+  # tmp_tst[,'id'] = seq(1,dim(tmp_tst)[1])
+
+  tmp_train <- tmp_tr %>%
+    arrange(DP_rev_i) %>%
+    group_by(DP_rev_i) %>%
+    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
+
+
+  # if(hazard_model %in% c("cox","LTRCtrees")){ds_train_m <- X_train}
+  # if(hazard_model == "xgboost"){
+  ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X_train))),
+                                      label=tmp_train$I)
+
+  attr(ds_train_m, 'truncation') <- tmp_train$TR_i
+  attr(ds_train_m, 'claim_arrival') <- tmp_train$DP_rev_i
+
+
+  attr(ds_train_m, 'risk_sets') <- risks_in_the_tie(starts_i=tmp_train$TR_i,
+                                                    stops_i=tmp_train$DP_rev_i,
+                                                    stops = unique(tmp_train$DP_rev_i))
+
+  attr(ds_train_m, 'event_sets') <- events_in_the_tie(starts_i=tmp_train$TR_i,
+                                                      stops_i=tmp_train$DP_rev_i,
+                                                      stops = unique(tmp_train$DP_rev_i))
+
+  attr(ds_train_m, 'efron_c') <- tmp_train$efron_c
+
+  attr(ds_train_m, 'tieid') <- unname(table(tmp_train$DP_rev_i))
+
+  attr(ds_train_m, 'groups') <- rep( as.integer(names(table(tmp_train$end_time))),
+                                     attr(ds_train_m, 'tieid'))
+
+
+
+  # if(hazard_model == "cox"){
+  #   preds_tr <- predict(model$cox,ds_train_m)
+  # }
+
+  # if(hazard_model == "xgboost"){
+  preds_tr <- predict(model,ds_train_m)
+  preds_tr <- preds_tr - preds_tr[1]
+  # }
+
+  # if(hazard_model == "LTRCtrees"){
+  #   preds_tr <- predict(model$cox,ds_train_m)
+  #   preds_tr <- preds_tr - preds_tr[1]
+  # }
+
+
+  train_lkh=cox_evaluation_metrix(dtrain=ds_train_m,
+                                  preds=preds_tr)
+
+
+  return(train_lkh)
+
+
+}
+
+
+pkg.env$evaluate_lkh_LTRCtrees <-function(X_train,
+                                          Y_train,
+                                          model){
+
+  xy_tr=cbind(X_train,Y_train)
+
+
+  tmp_tr=xy_tr %>%
+    arrange(DP_rev_i) %>%
+    as.data.frame()
+
+  # tmp_tr[,'id'] = seq(1,dim(tmp_tr)[1])
+  # tmp_tst[,'id'] = seq(1,dim(tmp_tst)[1])
+
+  tmp_train <- tmp_tr %>%
+    arrange(DP_rev_i) %>%
+    group_by(DP_rev_i) %>%
+    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
+
+
+  ds_train_m <- X_train
+  # if(hazard_model == "xgboost"){
+  #   ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X_train))),
+  #                                       label=tmp_train$I)}
+
+  attr(ds_train_m, 'truncation') <- tmp_train$TR_i
+  attr(ds_train_m, 'claim_arrival') <- tmp_train$DP_rev_i
+
+
+  attr(ds_train_m, 'risk_sets') <- risks_in_the_tie(starts_i=tmp_train$TR_i,
+                                                    stops_i=tmp_train$DP_rev_i,
+                                                    stops = unique(tmp_train$DP_rev_i))
+
+  attr(ds_train_m, 'event_sets') <- events_in_the_tie(starts_i=tmp_train$TR_i,
+                                                      stops_i=tmp_train$DP_rev_i,
+                                                      stops = unique(tmp_train$DP_rev_i))
+
+  attr(ds_train_m, 'efron_c') <- tmp_train$efron_c
+
+  attr(ds_train_m, 'tieid') <- unname(table(tmp_train$DP_rev_i))
+
+  attr(ds_train_m, 'groups') <- rep( as.integer(names(table(tmp_train$end_time))),
+                                     attr(ds_train_m, 'tieid'))
+
+
+  # if(hazard_model == "cox"){
+  #   preds_tr <- predict(model$cox,ds_train_m)
+  # }
+  #
+  # if(hazard_model == "xgboost"){
+  #   preds_tr <- predict(model,ds_train_m)
+  #   preds_tr <- preds_tr - preds_tr[1]
+  # }
+
+  preds_tr <- predict(model$cox,ds_train_m)
+  preds_tr <- preds_tr - preds_tr[1]
+
+  train_lkh=cox_evaluation_metrix(dtrain=ds_train_m,
+                                  preds=preds_tr)
+
+
+  return(train_lkh)
+
+
+}
+
+
+pkg.env$evaluate_lkh_cox <-function(X_train,
+                                    Y_train,
+                                    model){
+
+  xy_tr=cbind(X_train,Y_train)
+
+
+  tmp_tr=xy_tr %>%
+    arrange(DP_rev_i) %>%
+    as.data.frame()
+
+  # tmp_tr[,'id'] = seq(1,dim(tmp_tr)[1])
+  # tmp_tst[,'id'] = seq(1,dim(tmp_tst)[1])
+
+  tmp_train <- tmp_tr %>%
+    arrange(DP_rev_i) %>%
+    group_by(DP_rev_i) %>%
+    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
+
+
+  ds_train_m <- X_train
+  # if(hazard_model == "xgboost"){
+  #   ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X_train))),
+  #                                       label=tmp_train$I)}
+
+  attr(ds_train_m, 'truncation') <- tmp_train$TR_i
+  attr(ds_train_m, 'claim_arrival') <- tmp_train$DP_rev_i
+
+
+  attr(ds_train_m, 'risk_sets') <- risks_in_the_tie(starts_i=tmp_train$TR_i,
+                                                    stops_i=tmp_train$DP_rev_i,
+                                                    stops = unique(tmp_train$DP_rev_i))
+
+  attr(ds_train_m, 'event_sets') <- events_in_the_tie(starts_i=tmp_train$TR_i,
+                                                      stops_i=tmp_train$DP_rev_i,
+                                                      stops = unique(tmp_train$DP_rev_i))
+
+  attr(ds_train_m, 'efron_c') <- tmp_train$efron_c
+
+  attr(ds_train_m, 'tieid') <- unname(table(tmp_train$DP_rev_i))
+
+  attr(ds_train_m, 'groups') <- rep( as.integer(names(table(tmp_train$end_time))),
+                                     attr(ds_train_m, 'tieid'))
+
+
+  preds_tr <- predict(model$cox,ds_train_m)
+
+  train_lkh=cox_evaluation_metrix(dtrain=ds_train_m,
+                                  preds=preds_tr)
+
+
+  return(train_lkh)
+
+
+}
 

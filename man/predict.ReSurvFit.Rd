@@ -4,10 +4,19 @@
 \alias{predict.ReSurvFit}
 \title{Predict IBNR frequency}
 \usage{
-\method{predict}{ReSurvFit}(object)
+\method{predict}{ReSurvFit}(object, grouping_method = "exposure", check_value = 1.85)
 }
 \arguments{
 \item{object}{"ResurvFit" object specifying start time, end time and status.}
+
+\item{grouping_method}{\code{character}, use probability or exposure approach to group from input to output development factors. Choice between:
+\itemize{
+\item{\code{"exposure"}}
+\item{\code{"probability"}}
+}
+Default is \code{"exposure"}.}
+
+\item{check_value}{\code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.}
 }
 \value{
 predictions
