@@ -1,8 +1,9 @@
 #' Plot for machine learning models
 #'
-#' This function plots the results from the ReSurv fits.
+#' This function plots the mean absolute SHAP values for the ReSurv fits of machine learning models.
 #'
-#' @param object "ResurvFit" object specifying start time, end time and status.
+#' @param object \code{ReSurvFit} object.
+#' @param nsamples \code{integer}, number of observations to sample for neural networks features importance plot.
 #'
 #' @return predictions
 #'
@@ -10,22 +11,58 @@
 #'
 #' @export
 #' @method plot ReSurvFit
-plot.ReSurvFit <- function(object){
+plot.ReSurvFit <- function(object,
+                           nsamples=NULL){
 
   hazard_model <- object$hazard_model
   output.fit <- object$model.out
 
   if(hazard_model=="xgboost"){
-    shap_long <- shap.prep(xgb_model = output.fit$model.out, X_train = as.matrix(output.fit$data))
-    shap.plot.summary(shap_long)
+
+    #we need the following
+    shap_values <- shap.values(xgb_model = output.fit$model.out,
+                               X_train = as.matrix(output.fit$data))
+
+    df.2.plot <- apply(abs(shap_values$shap_score),2,mean)
+
+
   }
 
-  # if(hazard_model=="deep_surv"){
-  #   shap <- reticulate::import("shap")
+  if(hazard_model=="deep_surv"){
 
-    # shap_long <- shap.prep(xgb_model = output.fit$model.out, X_train = as.matrix(output.fit$data))
-    # shap.plot.summary(shap_long)
-  # }
+    shap <- reticulate::import("shap")
+
+    x_fc= reticulate::np_array(as.matrix( output.fit$data), dtype = "float32")
+
+    explainer = shap$KernelExplainer(output.fit$model.out$predict,
+                                     x_fc)
+
+    if(!is.null(nsamples)){
+      x_fc <- shap$sample(x_fc,as.integer(nsamples))
+      x_fc <- reticulate::np_array(as.matrix(x_fc), dtype = "float32")
+
+      }
+
+    shap_values = explainer$shap_values(x_fc)[[1]]
+    colnames(shap_values) <- colnames(output.fit$data)
+
+    df.2.plot <- apply(abs(shap_values),MARGIN = 2,mean)
+
+  }
+
+
+  df.2.plot %>%
+    reshape2::melt(df.2.plot, na.rm = FALSE, value.name = "value", id = NULL) %>%
+    rownames_to_column(var = "feature") %>%
+  ggplot(aes(x=feature, y=value)) +
+    geom_bar(stat = "identity", fill="navy") +
+    coord_flip() +
+    labs(title=" ",
+         x="",
+         y="mean(|SHAP|)") +
+    theme_bw()
+
+
 
 }
 
@@ -59,13 +96,17 @@ plot.ReSurvFit <- function(object){
 # shap <- reticulate::import("shap")
 #
 #
-# x_fc= reticulate::np_array(as.matrix( resurv.fit.deepsurv$model.out$data), dtype = "float32")
+
+# Kernel
+
+
+# compute SHAP values
+explainer = shap$DeepExplainer(output.fit$model.out$predict,
+                               x_fc2)
+shap_values = explainer.shap_values(x_fc)
+
 #
-# explainer = shap$KernelExplainer(resurv.fit.deepsurv$model.out$model.out$predict,
-#                                  x_fc)
-#
-#
-# x_fc2 <- shap$sample(x_fc,as.integer(100))
+# x_fc2 <- shap$sample(x_fc,as.integer(5))
 #
 # x_fc2 <- reticulate::np_array(as.matrix(x_fc2), dtype = "float32")
 #

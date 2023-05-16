@@ -319,7 +319,6 @@ ReSurv.IndividualData <- function(IndividualData,
                                        num_workers = hparameters$num_workers,
                                        seed = random_seed)
 
-
     # bsln <- model.out$compute_baseline_hazards(
     #   input = datads_pp$x_train,
     #   target = datads_pp$y_train,
@@ -342,7 +341,6 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
     beta_ams <- model.out$predict(input=x_fc,
-                                  batch_size=hparameters$batch_size,
                                   num_workers=hparameters$num_workers)
 
     #make to hazard relative to initial model, to have similiar interpretation as standard cox

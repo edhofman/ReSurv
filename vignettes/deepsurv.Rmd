@@ -105,6 +105,7 @@ resurv.fit.deepsurv <- ReSurv(individual_data,
                                               tie='Efron'))
 
 e1 <- Sys.time()
+e1-s1
 # Time difference of 8.310856 mins
 
 ```
