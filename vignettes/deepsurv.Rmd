@@ -57,6 +57,12 @@ resurv.fit.cox <- ReSurv(individual_data,
 
 ```{r}
 
+ooslkh(resurv.fit.cox)
+
+```
+
+```{r}
+
 # # # ## Model fit ----
 s1 <- Sys.time()
 resurv.fit.xgb <- ReSurv(individual_data,
@@ -74,6 +80,9 @@ resurv.fit.xgb <- ReSurv(individual_data,
 e1 <- Sys.time()
 e1-s1
 ```
+```{r}
+ooslkh.ReSurvFit(resurv.fit.xgb)
+```
 
 
 
@@ -83,6 +92,11 @@ resurv.fit.LTRCtrees <- ReSurv(individual_data,
                                hazard_model = "LTRCtrees")
 
 ```
+
+```{r}
+ooslkh.ReSurvFit(resurv.fit.LTRCtrees)
+```
+
 
 ```{r}
 s1 <- Sys.time()
@@ -105,7 +119,11 @@ resurv.fit.deepsurv <- ReSurv(individual_data,
                                               tie='Efron'))
 
 e1 <- Sys.time()
-# Time difference of 8.310856 mins
+
+
+```
+```{r}
+ooslkh.ReSurvFit(resurv.fit.deepsurv)
 
 ```
 
@@ -238,7 +256,7 @@ resurv.fit.deep_surv <- ReSurv(individual_data,
                                           xi=1,
                                           epsilon = 0,
                                           batch_size=as.integer(1000),
-                                          epochs=as.integer(10),
+                                          epochs=as.integer(5),
                                           num_workers=0,
                                           tie="Efron"))
 
