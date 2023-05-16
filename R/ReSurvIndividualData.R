@@ -277,9 +277,11 @@ ReSurv.IndividualData <- function(IndividualData,
     hazard_frame <- cbind(newdata, model.out$expg)
     colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
 
-    lkh <- pkg.env$evaluate_lkh_cox(X_train=X,
+    is_lkh <- pkg.env$evaluate_lkh_cox(X_train=X,
                                     Y_train=Y,
                                     model=model.out)
+    os_lkh <- NULL
+
 
   }
 
@@ -318,7 +320,6 @@ ReSurv.IndividualData <- function(IndividualData,
                                        epochs = hparameters$epochs,
                                        num_workers = hparameters$num_workers,
                                        seed = random_seed)
-
 
     # bsln <- model.out$compute_baseline_hazards(
     #   input = datads_pp$x_train,
@@ -360,9 +361,13 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
 
-    lkh <- pkg.env$evaluate_lkh_nn(X_train=X,
-                                   Y_train=Y,
+    is_lkh <- pkg.env$evaluate_lkh_nn(X_train=datads_pp$lkh_eval_data$data_train,
+                                   Y_train=datads_pp$lkh_eval_data$y_train,
                                    model=model.out)
+
+    os_lkh <- pkg.env$evaluate_lkh_nn(X_train=datads_pp$lkh_eval_data$data_val,
+                                      Y_train=datads_pp$lkh_eval_data$y_val,
+                                      model=model.out)
 
   }
 
@@ -408,6 +413,7 @@ ReSurv.IndividualData <- function(IndividualData,
                                           newdata=newdata,
                                           continuous_features=IndividualData$continuous_features,
                                           categorical_features=IndividualData$categorical_features)
+
     benchmark_id <- pkg.env$benchmark_id(X = X,
                                          Y =Y ,
                                          newdata.mx = newdata.bs,
@@ -423,11 +429,18 @@ ReSurv.IndividualData <- function(IndividualData,
     bsln <- data.frame(baseline=bsln,
                        DP_rev_i=sort(as.integer(unique(IndividualData$training.data$DP_rev_i))))
 
-
     # compute the likelihood of the fitted model (upper triangle)
-    lkh <- pkg.env$evaluate_lkh_xgb(X_train=X,
-                                    Y_train=Y,
-                                    model=model.out)
+    is_lkh <- pkg.env$evaluate_lkh_xgb(X_train=X,
+                                       Y_train=Y,
+                                       dset='is',
+                                       samples_cn=datads_pp$samples_cn,
+                                       model=model.out)
+
+    os_lkh <- pkg.env$evaluate_lkh_xgb(X_train=X,
+                                       Y_train=Y,
+                                       dset='os',
+                                       samples_cn=datads_pp$samples_cn,
+                                       model=model.out)
 
   }
 
@@ -457,22 +470,12 @@ ReSurv.IndividualData <- function(IndividualData,
                                        control.pars)
 
 
-
-
     bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
                                   model.out = model.out$cox,
                                   X=X,
                                   Y=Y,
                                   training_df=IndividualData$training.data)
 
-
-    #make to hazard relative to initial model, to have similiar interpretation as standard cox
-
-
-    #make to hazard relative to initial model, to have similiar interpretation as standard cox
-    # benchmark_id <- pkg.env$benchmark_id(X = X,
-    #                                      Y =Y ,
-    #                                      newdata.mx = newdata)
 
     pred <- predict(model.out$cox,newdata)
 
@@ -491,9 +494,11 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
 
-    lkh <- pkg.env$evaluate_lkh_LTRCtrees(X_train=IndividualData$training.data %>% select(c(IndividualData$categorical_features,IndividualData$continuous_features)),
+    is_lkh <- pkg.env$evaluate_lkh_LTRCtrees(X_train=IndividualData$training.data %>% select(c(IndividualData$categorical_features,IndividualData$continuous_features)),
                                     Y_train=Y,
                                     model=model.out)
+
+    os_lkh <- NULL
 
   }
 
@@ -545,7 +550,8 @@ ReSurv.IndividualData <- function(IndividualData,
 
   out=list(model.out=list(data=X,
                           model.out=model.out),
-           ut_lkh=lkh,
+           is_lkh=is_lkh,
+           os_lkh=os_lkh,
            hazard_frame = hazard_frame_updated,
            hazard_model = hazard_model,
            IndividualData = IndividualData)

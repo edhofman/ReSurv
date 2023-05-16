@@ -890,7 +890,11 @@ pkg.env$deep_surv_pp <- function(X,
   return(list(
     x_train = x_train,
     y_train = y_train,
-    validation_data = validation_data
+    validation_data = validation_data,
+    lkh_eval_data = list(data_train=X[id_train,],
+                       data_val=X[!id_train,],
+                       y_train=Y[id_train,],
+                       y_val=Y[!id_train,])
   ))
 
 }
@@ -2477,11 +2481,13 @@ pkg.env$xgboost_pp <-function(X,
                                       attr(ds_test_m, 'tieid'))
 
     return(list(ds_train_m=ds_train_m,
-                ds_test_m=ds_test_m))
+                ds_test_m=ds_test_m,
+                samples_cn=samples_cn))
   }
   else{
     return(list(ds_train_m=ds_train_m,
-                ds_test_m=NULL))
+                ds_test_m=NULL,
+                samples_cn=samples_cn))
   }
 }
 
@@ -2872,63 +2878,63 @@ pkg.env$fill_data_frame<-function(data,
   }}
 
 
-pkg.env$deep_surv_lkh_pp <- function(X,
-                                     Y){
-
-  # data_transformed <- cbind(X, Y)
-  X <- cbind(X, DP_rev_i = Y$DP_rev_i) %>%
-    arrange(DP_rev_i) %>%
-    select(-DP_rev_i)
-
-  Y <- Y %>%
-    arrange(DP_rev_i) %>%
-    as.data.frame()
-
-  #id_train <- sample(c(TRUE,FALSE), nrow(X), replace=T, prob= c(training_test_split,1-training_test_split) )
-
-  tmp <- as.data.frame(seq(1,dim(X)[1]))
-  colnames(tmp) <- "id"
-
-  if(is.null(samples_TF)){
-
-    samples_cn <- tmp %>% sample_frac(size=training_test_split)
-    id_train <- tmp$id %in% samples_cn$id
-
-  }else{
-
-    cond <- samples_TF
-    samples_cn <- tmp %>% select(id) %>% filter(cond)
-    id_train <- tmp$id %in% samples_cn$id
-  }
-
-
-  #convert to array for later numpy transforamtion
-  data_train <- as.array(as.matrix(X[id_train,]))
-  data_val <- as.array(as.matrix(X[!id_train,]))
-  y_train <- as.array(as.matrix(Y[id_train,]))
-  y_val <- as.array(as.matrix(Y[!id_train,]))
-
-
-  #create tuples holding target and validation values. Convert to same dtype to ensure safe pytorch handling.
-  y_train <- reticulate::tuple(reticulate::np_array(y_train[,1], dtype = "float32"), #duration
-                               reticulate::np_array(y_train[,2], dtype = "float32"), #event
-                               reticulate::np_array(y_train[,3], dtype = "float32")) #truncation
-
-  validation_data = reticulate::tuple(reticulate::np_array(data_val, dtype = "float32"),
-                                      reticulate::tuple(reticulate::np_array(y_val[,1], dtype = "float32"), #duration
-                                                        reticulate::np_array(y_val[,2], dtype = "float32"), #event
-                                                        reticulate::np_array(y_val[,3], dtype = "float32"))) #truncation
-
-  x_train = reticulate::np_array(data_train, dtype = "float32")
-
-
-  return(list(
-    x_train = x_train,
-    y_train = y_train,
-    validation_data = validation_data
-  ))
-
-}
+# pkg.env$deep_surv_lkh_pp <- function(X,
+#                                      Y){
+#
+#   # data_transformed <- cbind(X, Y)
+#   X <- cbind(X, DP_rev_i = Y$DP_rev_i) %>%
+#     arrange(DP_rev_i) %>%
+#     select(-DP_rev_i)
+#
+#   Y <- Y %>%
+#     arrange(DP_rev_i) %>%
+#     as.data.frame()
+#
+#   #id_train <- sample(c(TRUE,FALSE), nrow(X), replace=T, prob= c(training_test_split,1-training_test_split) )
+#
+#   tmp <- as.data.frame(seq(1,dim(X)[1]))
+#   colnames(tmp) <- "id"
+#
+#   if(is.null(samples_TF)){
+#
+#     samples_cn <- tmp %>% sample_frac(size=training_test_split)
+#     id_train <- tmp$id %in% samples_cn$id
+#
+#   }else{
+#
+#     cond <- samples_TF
+#     samples_cn <- tmp %>% select(id) %>% filter(cond)
+#     id_train <- tmp$id %in% samples_cn$id
+#   }
+#
+#
+#   #convert to array for later numpy transforamtion
+#   data_train <- as.array(as.matrix(X[id_train,]))
+#   data_val <- as.array(as.matrix(X[!id_train,]))
+#   y_train <- as.array(as.matrix(Y[id_train,]))
+#   y_val <- as.array(as.matrix(Y[!id_train,]))
+#
+#
+#   #create tuples holding target and validation values. Convert to same dtype to ensure safe pytorch handling.
+#   y_train <- reticulate::tuple(reticulate::np_array(y_train[,1], dtype = "float32"), #duration
+#                                reticulate::np_array(y_train[,2], dtype = "float32"), #event
+#                                reticulate::np_array(y_train[,3], dtype = "float32")) #truncation
+#
+#   validation_data = reticulate::tuple(reticulate::np_array(data_val, dtype = "float32"),
+#                                       reticulate::tuple(reticulate::np_array(y_val[,1], dtype = "float32"), #duration
+#                                                         reticulate::np_array(y_val[,2], dtype = "float32"), #event
+#                                                         reticulate::np_array(y_val[,3], dtype = "float32"))) #truncation
+#
+#   x_train = reticulate::np_array(data_train, dtype = "float32")
+#
+#
+#   return(list(
+#     x_train = x_train,
+#     y_train = y_train,
+#     validation_data = validation_data
+#   ))
+#
+# }
 
 
 pkg.env$evaluate_lkh_nn <-function(X_train,
@@ -3018,18 +3024,23 @@ pkg.env$evaluate_lkh_nn <-function(X_train,
 }
 
 pkg.env$evaluate_lkh_xgb <-function(X_train,
-                                Y_train,
-                                model){
+                                    Y_train,
+                                    dset,
+                                    samples_cn,
+                                    model){
 
-  xy_tr=cbind(X_train,Y_train)
-
-
-  tmp_tr=xy_tr %>%
+  xy_tr=cbind(X_train,Y_train) %>%
     arrange(DP_rev_i) %>%
     as.data.frame()
 
-  # tmp_tr[,'id'] = seq(1,dim(tmp_tr)[1])
-  # tmp_tst[,'id'] = seq(1,dim(tmp_tst)[1])
+  id <- seq(1, dim(X_train)[1])
+  cond <- id %in% samples_cn$id
+
+  if(dset=='os'){cond <- !cond}
+
+  tmp_tr=xy_tr[cond,] %>%
+    arrange(DP_rev_i) %>%
+    as.data.frame()
 
   tmp_train <- tmp_tr %>%
     arrange(DP_rev_i) %>%

@@ -57,6 +57,12 @@ resurv.fit.cox <- ReSurv(individual_data,
 
 ```{r}
 
+oos_lkh.ReSurvFit(resurv.fit.cox)
+
+```
+
+```{r}
+
 # # # ## Model fit ----
 s1 <- Sys.time()
 resurv.fit.xgb <- ReSurv(individual_data,
@@ -105,7 +111,13 @@ resurv.fit.deepsurv <- ReSurv(individual_data,
                                               tie='Efron'))
 
 e1 <- Sys.time()
+e1-s1
 # Time difference of 8.310856 mins
+
+```
+```{r}
+
+oos_lkh(resurv.fit.deepsurv)
 
 ```
 

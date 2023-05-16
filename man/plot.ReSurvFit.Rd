@@ -4,14 +4,16 @@
 \alias{plot.ReSurvFit}
 \title{Plot for machine learning models}
 \usage{
-\method{plot}{ReSurvFit}(object)
+\method{plot}{ReSurvFit}(object, nsamples = NULL)
 }
 \arguments{
-\item{object}{"ResurvFit" object specifying start time, end time and status.}
+\item{object}{\code{ReSurvFit} object.}
+
+\item{nsamples}{\code{integer}, number of observations to sample for neural networks features importance plot.}
 }
 \value{
 predictions
 }
 \description{
-This function plots the results from the ReSurv fits.
+This function plots the mean absolute SHAP values for the ReSurv fits of machine learning models.
 }
