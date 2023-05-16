@@ -6,7 +6,23 @@
 #' @return Out of the sample likelihood
 #'
 #' @export
-oos_lkh <- function(object){
+ooslkh <- function(object,
+                    ...){
+
+  UseMethod("ooslkh")
+
+}
+
+#' Compute the out-of-the sample likelihood
+#'
+#' When the lower triangle data are available, this method computes the likelihood on the lower triangle.
+#'
+#' @param object \code{ReSurvFit} object.
+#' @return Out of the sample likelihood
+#'
+#' @export
+ooslkh.default <- function(object,
+                            ...){
 
   message('The object provided must be of class ReSurvFit')
 
@@ -20,22 +36,8 @@ oos_lkh <- function(object){
 #' @return Out of the sample likelihood
 #'
 #' @export
-oos_lkh.default <- function(object){
-
-  message('The object provided must be of class ReSurvFit')
-
-}
-
-#' Compute the out-of-the sample likelihood
-#'
-#' When the lower triangle data are available, this method computes the likelihood on the lower triangle.
-#'
-#' @param object \code{ReSurvFit} object.
-#' @return Out of the sample likelihood
-#'
-#' @export
-#' @method oos_lkh ReSurvFit
-oos_lkh.ReSurvFit <- function(object){
+ooslkh.ReSurvFit <- function(object,
+                              ...){
 
   # Extract quantities that you need
   starting.data <- object$IndividualData$full.data
@@ -115,7 +117,15 @@ oos_lkh.ReSurvFit <- function(object){
 
   }
 
-  # if()
+  if(hazard_model=="LTRCtrees"){
+
+    Y=test.data[,c("DP_rev_i", "I", "TR_i")]
+    lkh <- pkg.env$evaluate_lkh_LTRCtrees(X_train=test.data %>% select(c(categorical_features,
+                                                                         continuous_features)),
+                                             Y_train=Y,
+                                             model=fitted.model$model.out)
+
+  }
 
   return(lkh)
 
