@@ -75,7 +75,6 @@ exp_sum_computer <- function(x,ypred){
 #   grad <- ratio_k-1
 #
 #   hess <- ratio_k -((ratio_k )^2)
-#   # browser()
 #   return(list(grad=grad,hess=hess))
 # }
 ###
@@ -96,7 +95,6 @@ cox_evaluation_metrix <- function(preds,
   lkh<-(exp_p/r_k)
 
   value <- -sum(log(lkh))
-  # browser()
   return(list(metric = "log-partial likelihood", value = value/length(preds) ))
 }
 
@@ -130,7 +128,6 @@ cox_loss_objective <- function(preds,dtrain){
   grad <- exp_p*(alpha_i-beta_i)-1
 
   hess <- grad+1-(exp_p^2)*(gamma_i-omega_i)
-  # browser()
   return(list(grad=grad,hess=hess))
 }
 
@@ -167,7 +164,6 @@ cox_loss_objective2 <- function(preds,dtrain){
   tmp_beta_i=tmp1[, .(beta_i = sum(efron_c/(risks_s-efron_c*events_s))), by = ties]$beta_i
   beta_i = vector("numeric",length = max(Ei))
   beta_i[unique(Ei)] = tmp_beta_i
-  # browser()
   # alpha_i <- 1/(exp_p_sum-efron_c*exp_p_tie)
   # beta_i <- efron_c/(tmp1$risks_s-efron_c*tmp1$events_s)
 
@@ -201,12 +197,10 @@ cox_loss_objective2 <- function(preds,dtrain){
     omega_i_lt[i] = omega_i[Ei[i]]
   }
 
-  # browser()
   #we consider the nll
   grad <- exp_p*(alpha_i_lt-beta_i_lt)-1
 
   hess <- grad-(exp_p^2)*(gamma_i_lt-omega_i_lt)+1
-  # browser()
   return(list(grad=grad,hess=hess))
 }
 
