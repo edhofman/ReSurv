@@ -342,7 +342,6 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
     beta_ams <- model.out$predict(input=x_fc,
-                                  batch_size=hparameters$batch_size,
                                   num_workers=hparameters$num_workers)
 
     #make to hazard relative to initial model, to have similiar interpretation as standard cox

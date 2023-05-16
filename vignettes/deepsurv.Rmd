@@ -22,8 +22,8 @@ library(ReSurv)
 ```{r}
 # Input data
 
-input_data <- data_generator(random_seed = 1964,
-                              scenario=0,
+input_data <- data_generator(random_seed = 12,
+                              scenario=2,
                               time_unit = 1/360,
                               years = 4,
                               yearly_exposure = 200)
@@ -34,17 +34,17 @@ input_data <- data_generator(random_seed = 1964,
 
 ```{r}
 # # # ## Model fit ----
-individual_data <- IndividualData(input_data,
-                                  id=NULL,
-                                  continuous_features="AP",
-                                  categorical_features="claim_type",
-                                  accident_period="AP",
-                                  calendar_period="RP",
-                                  input_time_granularity = "days",
-                                  output_time_granularity = "quarters",
-                                  years=4,
-                                  continuous_features_spline=NULL,
-                                  calendar_period_extrapolation=F)
+  individual_data <- IndividualData(data = input_data,
+                                    id=NULL,
+                                    categorical_features = c("claim_type"),
+                                    continuous_features = "AP_i",
+                                    accident_period="AP",
+                                    calendar_period="RP",
+                                    input_time_granularity = "days",
+                                    output_time_granularity = "quarters",
+                                    years=4 #check this. I see strange development periods
+  )
+  
 
 ```
 
@@ -88,19 +88,19 @@ resurv.fit.LTRCtrees <- ReSurv(individual_data,
 s1 <- Sys.time()
 resurv.fit.deepsurv <- ReSurv(individual_data,
                               hazard_model = "deepsurv",
-                              hparameters=list(num_layers=c(1),
-                                              early_stopping = FALSE,
-                                              patience = 20,
+                              hparameters=list(num_layers=c(10),
+                                              early_stopping = TRUE,
+                                              patience = 50,
                                               verbose=T,
                                               network_structure = NULL,
                                               num_nodes = c(10),
                                               activation = "LeakyReLU",
                                               optim="Adam",
-                                              lr = 0.5,
-                                              xi=1,
+                                              lr = 0.005,
+                                              xi=0.480269023349308,
                                               epsilon = 0,
-                                              batch_size=as.integer(1000),
-                                              epochs=as.integer(5),
+                                              batch_size=as.integer(5000),
+                                              epochs=as.integer(2),
                                               num_workers=0,
                                               tie='Efron'))
 
@@ -153,23 +153,23 @@ resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
 
 resurv.cv.deep_surv_par <- ReSurvCV(IndividualData=individual_data,
                                model="deepsurv",
-                               hparameters_grid=list(num_layers = c(2L,3L),
-                                                      num_nodes = c(2),
+                               hparameters_grid=list(num_layers = c(10L),
+                                                      num_nodes = c(10L),
                                                       optim=c("Adam"),
                                                       activation = "LeakyReLU",
-                                                      lr=c(0.01),
-                                                      xi=c(0),
-                                                      eps = c(0.2),
+                                                      lr=c(0.005),
+                                                      xi=c(0.480269023349308),
+                                                      eps = c(00),
                                                       tie = "Efron",
-                                                      batch_size = c(as.integer(1000)),
+                                                      batch_size = c(as.integer(5000)),
                                                       early_stopping = 'TRUE',
                                                       patience  = 20
                                 ),
                               epochs = as.integer(2),
                               num_workers = 0,
-                              parallel = T,
-                              ncores = 2,
-                              verbose = F,
+                              parallel = F,
+                              ncores = 1,
+                              verbose = T,
                               folds=2,
                               random_seed=1)
 

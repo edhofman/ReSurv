@@ -437,7 +437,7 @@ def cox_ph_loss(log_h: Tensor, durations: Tensor, events: Tensor, truncation: Te
     risk_set = torch.zeros(labels.unique().shape[0],len(labels.tolist()))
 
     unique = labels.to(torch.double).unique().tolist()
-
+    
     # if(tie == 'Continuous'):
     #     log_like = 0
     #     for i in(range(len(unique))):
@@ -479,7 +479,7 @@ def cox_ph_loss(log_h: Tensor, durations: Tensor, events: Tensor, truncation: Te
         tmp =  torch.arange(0,torch.sum(event_set[i,:]))
         efron_set[i, tmp.int().tolist()] = tmp #Diffrent set,since we need a special risk set for each claim during a tied event time.
 
-
+    
     h_risk = risk_set.matmul(log_h.exp())
 
     h_events0 = event_set.matmul(log_h.exp())

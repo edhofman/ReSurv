@@ -48,6 +48,10 @@ cv_deep_surv <- function(hp,
 
 
     best.it <- model.out.k$log$to_pandas()[,1] == min(model.out.k$log$to_pandas()[,1])
+
+    if(any(is.na(best.it))){
+      best.it<-1
+    }
     tmp.train.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['train_loss']))
     tmp.test.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['val_loss']))
 

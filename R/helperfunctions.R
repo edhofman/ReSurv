@@ -2945,7 +2945,6 @@ pkg.env$evaluate_lkh_nn <-function(X_train,
     reticulate::np_array(dtype = "float32")
 
   preds <- model$predict(input=data_train,
-                         batch_size=NULL,
                          num_workers=0)
   preds <-preds-preds[1]
 
