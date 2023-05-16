@@ -101,9 +101,9 @@ plot.ReSurvFit <- function(object,
 
 
 # compute SHAP values
-explainer = shap$DeepExplainer(output.fit$model.out$predict,
-                               x_fc2)
-shap_values = explainer.shap_values(x_fc)
+# explainer = shap$DeepExplainer(output.fit$model.out$predict,
+#                                x_fc2)
+# shap_values = explainer.shap_values(x_fc)
 
 #
 # x_fc2 <- shap$sample(x_fc,as.integer(5))

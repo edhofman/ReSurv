@@ -4,7 +4,7 @@
 \alias{summary.ReSurvPredict}
 \title{Summary of IBNR predictions}
 \usage{
-\method{summary}{ReSurvPredict}(object, granularity)
+\method{summary}{ReSurvPredict}(object, granularity = "input")
 }
 \arguments{
 \item{object}{"ReSurvPredict" object specifying hazard and development factors.}
