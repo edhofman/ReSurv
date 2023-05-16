@@ -49,7 +49,8 @@ predict.ReSurvFit <- function(object,
   expected_i <- pkg.env$predict_i(
     hazard_data_frame = lazy_dt(hazard_frame_grouped$hazard_group),
     latest_cumulative = latest_observed$latest_cumulative,
-    grouping_method = "exposure"
+    grouping_method = "exposure",
+    min_DP_rev_i = min(hazard_frame_grouped$hazard_group$DP_rev_i)
   )
 
   df_i <- pkg.env$retrieve_df_i(
@@ -89,16 +90,17 @@ predict.ReSurvFit <- function(object,
     if(#check_input_hazard
       FALSE
     ){
-      development_factor_o <- mapply(pkg.env$i_to_o_development_factor,
-                                     1:max(hazard_frame_grouped$groups$group_o),
-                                     MoreArgs=list(hazard_data_frame=hazard_frame_grouped$hazard_group,
-                                                   expected_i = expected_i,
-                                                   dp_ranges = dp_ranges,
-                                                   groups = hazard_frame_grouped$groups,
-                                                   observed_pr_dp = latest_observed$observed_pr_dp,
-                                                   latest_cumulative = latest_observed$latest_cumulative,
-                                                   conversion_factor = object$IndividualData$conversion_factor,
-                                                   grouping_method = "probability"))
+      development_factor_o <- pkg.env$i_to_o_development_factor(
+        hazard_data_frame=hazard_frame_grouped$hazard_group,
+        expected_i = expected_i,
+        dp_ranges = dp_ranges,
+        groups = hazard_frame_grouped$groups,
+        observed_pr_dp = latest_observed$observed_pr_dp,
+        latest_cumulative = latest_observed$latest_cumulative,
+        conversion_factor = object$IndividualData$conversion_factor,
+        grouping_method = "probability",
+        min_DP_rev_i = min(hazard_frame_grouped$hazard_group$DP_rev_i)
+      )
 
       if(ncol(hazard_frame_grouped$groups) == 5){
         colnames(development_factor_o) <- unique(c(paste0("AP_o_",hazard_frame_grouped$groups$AP_o,",", hazard_frame_grouped$groups$covariate )))
@@ -155,16 +157,17 @@ predict.ReSurvFit <- function(object,
 
 
 
-    development_factor_o <- mapply(pkg.env$i_to_o_development_factor,
-                                   1:max(hazard_frame_grouped$groups$group_o),
-                                   MoreArgs=list(hazard_data_frame=hazard_frame_grouped$hazard_group,
-                                                 expected_i = expected_i,
-                                                 dp_ranges = dp_ranges,
-                                                 groups = hazard_frame_grouped$groups,
-                                                 observed_pr_dp = latest_observed$observed_pr_dp,
-                                                 latest_cumulative = latest_observed$latest_cumulative,
-                                                 conversion_factor = object$IndividualData$conversion_factor,
-                                                 grouping_method = grouping_method))
+    development_factor_o <- pkg.env$i_to_o_development_factor(
+      hazard_data_frame=hazard_frame_grouped$hazard_group,
+      expected_i = expected_i,
+      dp_ranges = dp_ranges,
+      groups = hazard_frame_grouped$groups,
+      observed_pr_dp = latest_observed$observed_pr_dp,
+      latest_cumulative = latest_observed$latest_cumulative,
+      conversion_factor = object$IndividualData$conversion_factor,
+      grouping_method = grouping_method,
+      min_DP_rev_i = min(hazard_frame_grouped$hazard_group$DP_rev_i)
+    )
 
 
 
@@ -190,20 +193,24 @@ predict.ReSurvFit <- function(object,
       groups = hazard_frame_grouped$groups
     )
 
-    out=list(df_output = df_o,
+    out=list(ReSurvFit = object,
+             df_output = df_o,
              df_input = df_i,
              hazard_frame_input = hazard_frame_input,
-             hazard_frame_output = hazard_frame_output)
+             hazard_frame_output = hazard_frame_output,
+             grouping_method = grouping_method)
 
-    class(out) <- c('ReSurvFit')
+    class(out) <- c('ReSurvPredict')
 
     return(out)
   }
 
-  out=list(df_input = df_i,
-           hazard_frame_input = hazard_frame_input)
+  out=list(ReSurvFit = object,
+           df_input = df_i,
+           hazard_frame_input = hazard_frame_input,
+           grouping_method = grouping_method)
 
-  class(out) <- c('ReSurvFit')
+  class(out) <- c('ReSurvPredict')
 
   return(out)
 

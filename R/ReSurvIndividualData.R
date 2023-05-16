@@ -759,6 +759,7 @@ ReSurv.IndividualData <- function(IndividualData,
 #   return(out)
 # }
 
+
 #' Draft for plot of \code{ReSurvFit} models for simulated data.
 
 # plot.ReSurvFit <- function(ReSurv){
@@ -894,6 +895,7 @@ ReSurv.IndividualData <- function(IndividualData,
 # return(list(plot.df,plot.triangle.ratio))
 
 # }
+
 
 
 
