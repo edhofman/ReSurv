@@ -113,7 +113,49 @@ e1 <- Sys.time()
 
 ```{r}
 
-resurv.cox.predictions <- predict(resurv.fit.cox)
+#Plot different development factors
+
+resurv.cox.predictions <- predict(resurv.fit.cox,grouping_method="probability")
+resurv.deepsurv.predictions <- predict(resurv.fit.deepsurv,grouping_method="probability")
+resurv.LTRCtrees.predictions <- predict(resurv.fit.LTRCtrees,grouping_method="probability")
+resurv.xgb.predictions <- predict(resurv.fit.xgb,grouping_method="probability")
+
+df_output_combined <- bind_rows(
+  resurv.cox.predictions$df_output %>%
+    reshape2::melt(id.vars="DP_o") %>% 
+    mutate(Model="Cox"),
+    resurv.deepsurv.predictions$df_output %>% reshape2::melt(id.vars="DP_o") %>% 
+    mutate(Model="DeepSurv"),
+    resurv.LTRCtrees.predictions$df_output %>% reshape2::melt(id.vars="DP_o") %>% 
+    mutate(Model="LTRCTrees"),
+    resurv.xgb.predictions$df_output %>% reshape2::melt(id.vars="DP_o") %>% 
+    mutate(Model="XgBoost"),
+) %>% rowwise() %>% 
+  mutate(
+    AP_o =  substr(variable,
+                     unlist(gregexpr('_', variable))[2] +1,
+                     unlist(gregexpr('\\,', variable))[1]-1 ),
+    claim_type = substr(variable, nchar(as.character(variable)), nchar(as.character(variable)))
+  ) %>% 
+  ungroup() %>% 
+  mutate(relevant=ifelse(AP_o==10, 1,0)) %>% 
+  arrange(desc(relevant)) %>% 
+  mutate(col=paste0(Model,AP_o))
+
+p <- ggplot(data=df_output_combined) + geom_line(aes(x=DP_o, y=value, colour=col, linetype=claim_type)) +
+  scale_linetype_manual(name = "Claim type", values=c(1,2), labels = c("Claim type 0","Claim type 1" ))+ 
+  scale_colour_manual( values=c(
+    c("red","green","blue","yellow"),
+    c(rep("grey",60))
+    ),
+    guide="none"
+    )+
+  ggtitle("Simulation 2 development factor comparison") +
+  xlab("Quarterly development period") + ylab("Development factor")+
+  theme_bw()
+  
+p
+
 
 ```
 
@@ -307,7 +349,7 @@ resurv.fit <- ReSurv(individual_data,
                                           num_workers=0,
                                           tie="Efron"))
   
-
+resurv.fit <- 
 
   
   
