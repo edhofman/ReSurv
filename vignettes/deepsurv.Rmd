@@ -55,9 +55,36 @@ resurv.fit.cox <- ReSurv(individual_data,
 
 ```
 
+
 ```{r}
 
 ooslkh(resurv.fit.cox)
+
+```
+
+```{r}
+
+resurv.cox.predictions <- predict(resurv.fit.cox)
+
+```
+
+```{r}
+
+individual_data2 <- IndividualData(input_data,
+                                  id=NULL,
+                                  continuous_features="AP",
+                                  categorical_features="claim_type",
+                                  accident_period="AP",
+                                  calendar_period="RP",
+                                  input_time_granularity = "days",
+                                  output_time_granularity = "years",
+                                  years=4,
+                                  continuous_features_spline=NULL,
+                                  calendar_period_extrapolation=F)
+
+
+resurv.cox.predictions <- predict(resurv.fit.cox,
+                                  newdata=individual_data2)
 
 ```
 

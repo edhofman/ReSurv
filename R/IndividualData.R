@@ -115,6 +115,7 @@ IndividualData <- function(data,
                            degrees_of_freedom_cp=4){
 
 
+
   # Work on a copy of the input data
   tmp <- as.data.frame(data)
 
@@ -235,7 +236,8 @@ IndividualData <- function(data,
               calendar_period_extrapolation=calendar_period_extrapolation,
               years=years,
               accident_period=accident_period,
-              input_time_granularity=input_time_granularity)
+              input_time_granularity=input_time_granularity,
+              output_time_granularity=output_time_granularity)
 
   # Return the correct output
   class(out) <- "IndividualData"

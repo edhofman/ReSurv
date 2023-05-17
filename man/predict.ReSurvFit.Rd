@@ -4,10 +4,17 @@
 \alias{predict.ReSurvFit}
 \title{Predict IBNR frequency}
 \usage{
-\method{predict}{ReSurvFit}(object, grouping_method = "exposure", check_value = 1.85)
+\method{predict}{ReSurvFit}(
+  object,
+  newdata = NULL,
+  grouping_method = "exposure",
+  check_value = 1.85
+)
 }
 \arguments{
-\item{object}{"ResurvFit" object specifying start time, end time and status.}
+\item{object}{\code{ResurvFit} object specifying start time, end time and status.}
+
+\item{newdata}{\code{IndividualData} object that contains}
 
 \item{grouping_method}{\code{character}, use probability or exposure approach to group from input to output development factors. Choice between:
 \itemize{
