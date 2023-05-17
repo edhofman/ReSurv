@@ -116,7 +116,7 @@ notidel_param_1 <- function(claim_size,
   if(scenario==2){
     return(c(alpha=0.5,
              beta=2*30,
-             lambda=0.1*exp(1.95601-0.116151*sqrt(ceiling(occurrence_period)))^(1/0.5),
+             lambda=0.1*exp(1.95601-0.02120623*sqrt(ceiling(occurrence_period)))^(1/0.5),
              k=1,
              b=years / time_unit))}
 
