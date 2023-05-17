@@ -129,7 +129,7 @@ notidel_param_1 <- function(claim_size,
 
   if(scenario==4){
     return(c(alpha=0.5,
-             beta=(2+0.5*1.15129)*30,
+             beta=(2+0.5*1.95601)*30,
              lambda=0.1*exp(1.95601)^(1/0.5)+0.5*1.95601,
              k=1,
              b=years / time_unit))}

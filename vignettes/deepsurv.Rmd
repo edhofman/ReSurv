@@ -310,10 +310,10 @@ df_output_combined <- bind_rows(
     TRUE   ~0 )) %>% 
   arrange(desc(relevant)) %>% 
     mutate(col=case_when(
-    AP_o == min(df_output_combined$AP_o) ~"Initial accident period",
-    AP_o == max(df_output_combined$AP_o) ~"Last accident period",
+    as.numeric(AP_o) == min(as.numeric(df_output_combined$AP_o)) ~"Initial accident period",
+    as.numeric(AP_o) == max(as.numeric(df_output_combined$AP_o))  ~"Last accident period",
     TRUE   ~"Other accident periods of LTRCTrees" ))  %>% 
-  mutate(col= factor(col,levels=c("Other accident periods of LTRCTrees", "Initial accident period" ,"Last accident period") )) %>% 
+  mutate(col= factor(col,levels=c("Other accident periods of LTRCTrees","Last accident period", "Initial accident period" ) )) %>% 
   mutate(alpha=factor(paste0(Model,AP_o)))
 
 alpha_vector <- df_output_combined %>%  group_by(alpha) %>%  summarize(relevant=sum(relevant)) %>% 
