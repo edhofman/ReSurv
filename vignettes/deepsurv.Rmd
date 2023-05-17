@@ -108,7 +108,7 @@ e1 <- Sys.time()
 e1-s1
 ```
 ```{r}
-ooslkh.ReSurvFit(resurv.fit.xgb)
+ooslkh(resurv.fit.xgb)
 ```
 
 
@@ -121,7 +121,7 @@ resurv.fit.LTRCtrees <- ReSurv(individual_data,
 ```
 
 ```{r}
-ooslkh.ReSurvFit(resurv.fit.LTRCtrees)
+ooslkh(resurv.fit.LTRCtrees)
 ```
 
 
@@ -150,7 +150,7 @@ e1 <- Sys.time()
 
 ```
 ```{r}
-ooslkh.ReSurvFit(resurv.fit.deepsurv)
+ooslkh(resurv.fit.deepsurv)
 
 ```
 
