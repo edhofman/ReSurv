@@ -127,6 +127,7 @@ ooslkh.ReSurvFit(resurv.fit.deepsurv)
 
 ```
 
+# Some plots
 
 
 ```{r}
