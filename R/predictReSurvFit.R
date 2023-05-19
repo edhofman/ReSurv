@@ -168,7 +168,9 @@ predict.ReSurvFit <- function(object,
 
     expected_o <-pkg.env$predict_o(expected_i = expected_i,
                                    groups = hazard_frame_grouped$groups,
-                                   conversion_factor = idata$conversion_factor)
+                                   conversion_factor = idata$conversion_factor,
+                                   years = object$IndividualData$years,
+                                   input_time_granularity = object$IndividualData$input_time_granularity)
 
 
 
@@ -181,7 +183,9 @@ predict.ReSurvFit <- function(object,
       latest_cumulative = latest_observed$latest_cumulative,
       conversion_factor = idata$conversion_factor,
       grouping_method = grouping_method,
-      min_DP_rev_i = min(hazard_frame_grouped$hazard_group$DP_rev_i)
+      min_DP_rev_i = min(hazard_frame_grouped$hazard_group$DP_rev_i),
+      years = object$IndividualData$years,
+      input_time_granularity = object$IndividualData$input_time_granularity
     )
 
 

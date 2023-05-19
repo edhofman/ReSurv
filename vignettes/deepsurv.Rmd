@@ -28,6 +28,7 @@ input_data <- data_generator(random_seed = 12,
                               years = 4,
                               yearly_exposure = 200)
 
+
 ```
 
 # Without calendar component (same as before, notice new inputs)
@@ -357,7 +358,7 @@ scoring_function <-function(resurv.predict){
   conversion_factor <- resurv.predict$ReSurvFit$IndividualData$conversion_factor
 
 
-  max_dp_i <- max(IndividualData$full.data %>%
+  max_dp_i <- max(resurv.predict$ReSurvFit$IndividualData$full.data %>%
                     filter(DP_rev_i > TR_i) %>% select(DP_i))
 
 
@@ -371,7 +372,7 @@ scoring_function <-function(resurv.predict){
     group_by(claim_type, AP_o, DP_rev_o) %>%
     mutate(claim_type = as.character(claim_type)) %>%
     summarize(I=sum(I), .groups = "drop") %>%
-    filter(DP_rev_o>0)
+    filter(DP_rev_o>0) #we cant have =0, because corresponds to half a parallelogram.
 
   #Total output
   score_total<- resurv.predict$hazard_frame_output[,c("claim_type","AP_o", "DP_rev_o", "I_expected")] %>%
@@ -381,7 +382,7 @@ scoring_function <-function(resurv.predict){
 
   dfs_output <- resurv.predict$hazard_frame_output %>%
     select(AP_o, claim_type, DP_rev_o, df_o) %>%
-    mutate(DP_rev_o = DP_rev_o -1)
+    mutate(DP_rev_o = DP_rev_o)
     distinct()
 
   #Cashflow on output scale.Etc quarterly cashflow development
@@ -408,20 +409,20 @@ scoring_function <-function(resurv.predict){
   relative_total = sum(score_total$ave)/sum(score_total$I)
   RMSE_total = sqrt(mean(score_total$ave^2))
 
-  relative_diagnoal = score_diagonal %>% group_by(RP_o) %>%
-    summarize(relative_diagnoal = sum(ave_2)/sum(I),
+  relative_diagonal = score_diagonal %>% group_by(RP_o) %>%
+    summarize(relative_diagonal = sum(ave_2)/sum(I),
               I=sum(I))
 
-  weighted_relative_diagonal = sum(relative_diagnoal$relative_diagnoal*relative_diagnoal$I)/(sum(relative_diagnoal$I))
+  weighted_relative_diagonal = sum(relative_diagonal$relative_diagonal*relative_diagonal$I)/(sum(relative_diagonal$I))
 
-  return(
+  return(list(
     score_total = score_total,
     score_diagonal = score_diagonal,
     relative_diagonal = relative_diagonal,
     metrics =list(relative_total = relative_total,
     RMSE_total = RMSE_total,
     weighted_relative_diagonal = weighted_relative_diagonal
-  ))
+  )))
 }
 
 scoring_function_CL <- function(IndividualData){
@@ -457,7 +458,7 @@ scoring_function_CL <- function(IndividualData){
     arrange(DP_o) %>%
     mutate(df_cum = cumprod(df) ) %>%
     mutate(I_expected= I*df_cum-I*lag(df_cum,default=1)) %>%
-    mutate(DP_o = DP_o ) %>%
+    mutate(DP_o = DP_o+1 ) %>%
     select(DP_o, AP_o, I_expected)
 
   conversion_factor = IndividualData$conversion_factor
@@ -474,7 +475,7 @@ scoring_function_CL <- function(IndividualData){
     mutate(DP_o = max(IndividualData$training.data$DP_rev_o)-DP_rev_o + 1) %>%
     group_by(AP_o, DP_o, DP_rev_o) %>%
     summarize(I=sum(I), .groups="drop") %>%
-    filter(DP_rev_o>0)
+    filter(DP_rev_o>=0)
 
   score_total <- predictions  %>%
     inner_join(true_output_cl,
@@ -495,7 +496,8 @@ scoring_function_CL <- function(IndividualData){
     arrange(desc(DP_rev_o)) %>%
     mutate(I_cum=cumsum(I)) %>%
     mutate(I_cum_lag = lag(I_cum, default = 0)) %>%
-    left_join(CL[,c("DP_rev_o","df")], by = c("DP_rev_o")) %>%
+     mutate(DP_o = max(IndividualData$training.data$DP_rev_o)-DP_rev_o + 1) %>%
+    left_join(CL[,c("DP_o","df")], by = c("DP_o")) %>%
     mutate(ave_2 = I_cum-I_cum_lag * df,
            abs_ave_2 = abs(ave_2),
            RP_o = max(DP_rev_o)-DP_rev_o + AP_o) %>%
@@ -506,24 +508,67 @@ scoring_function_CL <- function(IndividualData){
   relative_total = sum(score_total$ave)/sum(score_total$I)
   RMSE_total = sqrt(mean(score_total$ave^2))
 
-  relative_diagnoal = score_diagonal %>% group_by(RP_o) %>%
-    summarize(relative_diagnoal = sum(ave_2)/sum(I),
+  relative_diagonal = score_diagonal %>% group_by(RP_o) %>%
+    summarize(relative_diagonal = sum(ave_2)/sum(I),
               I=sum(I))
 
-  weighted_relative_diagonal = sum(relative_diagnoal$relative_diagnoal*relative_diagnoal$I)/(sum(relative_diagnoal$I))
+  weighted_relative_diagonal = sum(relative_diagonal$relative_diagonal*relative_diagonal$I)/(sum(relative_diagonal$I))
 
 
-  return(
+  return(list(
     score_total = score_total,
     score_diagonal = score_diagonal,
     relative_diagonal = relative_diagonal,
     metrics =list(relative_total = relative_total,
                   RMSE_total = RMSE_total,
                   weighted_relative_diagonal = weighted_relative_diagonal
-    ))
+    )))
 
 }
-
+scores_cl <- expand.grid(sim=1:20, scenario=0:4) %>% tibble() %>%  mutate(relative_total=as.numeric(NA),
+                    RMSE_total =as.numeric(NA),
+                    cash_flow_quarterly=as.numeric(NA),
+                    cash_flow_yearly=as.numeric(NA))
+for(i in 1:20){
+  print(i)
+  for(j in 0:4){
+    print(j)
+input_data <- data_generator(random_seed = i,
+                              scenario=j,
+                              time_unit = 1/360,
+                              years = 4,
+                              yearly_exposure = 200)
+  individual_data <- IndividualData(data = input_data,
+                                    id=NULL,
+                                    categorical_features = c("claim_type"),
+                                    continuous_features = "AP_i",
+                                    accident_period="AP",
+                                    calendar_period="RP",
+                                    input_time_granularity = "days",
+                                    output_time_granularity = "quarters",
+                                    years=4 #check this. I see strange development periods
+  )
+  score<-scoring_function_CL(individual_data)
+  
+  scores_cl[scores_cl$sim==i & scores_cl$scenario==j,]$RMSE_total <-score$metrics$RMSE_total
+  scores_cl[scores_cl$sim==i & scores_cl$scenario==j,]$relative_total <-score$metrics$relative_total
+  scores_cl[scores_cl$sim==i & scores_cl$scenario==j,]$cash_flow_quarterly <-score$metrics$weighted_relative_diagonal
+  
+    individual_data <- IndividualData(data = input_data,
+                                    id=NULL,
+                                    categorical_features = c("claim_type"),
+                                    continuous_features = "AP_i",
+                                    accident_period="AP",
+                                    calendar_period="RP",
+                                    input_time_granularity = "days",
+                                    output_time_granularity = "years",
+                                    years=4 #check this. I see strange development periods
+  )
+  score<-scoring_function_CL(individual_data)
+  
+   scores_cl[scores_cl$sim==i & scores_cl$scenario==j,]$cash_flow_yearly <-score$metrics$weighted_relative_diagonal
+  }
+}
 
 ```
 

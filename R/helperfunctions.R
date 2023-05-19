@@ -1727,22 +1727,26 @@ pkg.env$input_hazard_frame <- function(
 pkg.env$predict_o <- function(
     expected_i,
     groups,
-    conversion_factor
+    conversion_factor,
+    years,
+    input_time_granularity
 ){
   "
   Calculate expected incremential claim number on output scale
 
    "
+  max_dp_i <-pkg.env$maximum.time(years,input_time_granularity)
 
   # Predict expected numbers, this is also used grouping methodology
   expected <-  expected_i %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
+    mutate(DP_i =  max_dp_i-DP_rev_i + 1) %>%
     mutate(AP_o = ceiling(AP_i*conversion_factor),
-           DP_rev_o = ceiling((DP_rev_i-(AP_i-1)%%(1/conversion_factor) ) *conversion_factor)) %>%
+           DP_rev_o = floor(max(DP_i)*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1) %>%
     filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parrallelogram in the end of the development time
     group_by(AP_o, DP_rev_o, group_o) %>%
     summarize(I_expected = sum(I_expected),
-              IBNR = sum(IBNR), .groups="drop") %>%
+              IBNR = sum(IBNR, na.rm=T), .groups="drop") %>%
     select(AP_o, group_o, DP_rev_o, I_expected, IBNR)
 
   return(expected)
@@ -1758,12 +1762,14 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
                                               latest_cumulative,
                                               conversion_factor,
                                               grouping_method,
-                                              min_DP_rev_i){
+                                              min_DP_rev_i,
+                                              years,
+                                              input_time_granularity){
   "
   Group input development factor to output.
 
   "
-
+  max_dp_i <-pkg.env$maximum.time(years,input_time_granularity)
   # Add output groupings to relevant frames
   hazard_data_frame <- lazy_dt(hazard_data_frame) %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i"))
@@ -1797,7 +1803,8 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
 
   # #select relevant hazard value group and add output variables, and other variables to help with grouping
   grouped_hazard_0 <- hazard_data_frame %>%
-    mutate(DP_rev_o = ceiling((DP_rev_i-(AP_i-1)%%(1/conversion_factor) ) *conversion_factor)) %>%
+    mutate(DP_i =  max_dp_i-DP_rev_i + 1) %>%
+    mutate( DP_rev_o = floor(max(DP_i)*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1) %>%
     filter(DP_rev_o > 0) %>%  #for the last development, if we included group '0', we would be extrapolating for half a parallelogram - doesn't make sense
     left_join(dp_ranges, by=c("AP_i", "DP_rev_o")) %>%
     left_join(latest_cumulative_o, by=c("group_o", "AP_i")) %>%
@@ -1882,7 +1889,8 @@ pkg.env$output_hazard_frame <- function(
     categorical_features,
     continuous_features,
     df_o,
-    groups)
+    groups
+    )
 {
   "
   Create output hazard frame
@@ -1969,13 +1977,16 @@ pkg.env$update_hazard_frame <- function(
     conversion_factor,
     categorical_features,
     continuous_features,
-    check_value){
-
+    check_value,
+    years,
+    input_time_granularity
+    ){
+  max_dp_i <-pkg.env$maximum.time(years,input_time_granularity)
   #Periods where we exceed the check_value
   relevant <- hazard_frame_input %>%
     filter(hazard > check_value & DP_rev_i < max(DP_rev_i)) %>%
     mutate(AP_o = ceiling(AP_i*conversion_factor),
-           DP_rev_o = ceiling((DP_rev_i-(AP_i-1)%%(1/conversion_factor) ) *conversion_factor))
+           DP_rev_o =   floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1)
 
 
   max_DP_rev_o = max(relevant$DP_rev_o)
@@ -2010,7 +2021,7 @@ pkg.env$update_hazard_frame <- function(
   observed_o <-  latest_observed_i %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
     mutate(AP_o = ceiling(AP_i*conversion_factor),
-           DP_rev_o = ceiling((DP_rev_i-(AP_i-1)%%(1/conversion_factor) ) *conversion_factor)) %>%
+           DP_rev_o =   floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1) %>%
     filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parrallelogram in the end of the development time
     mutate(DP_o = max_DP_rev_o-DP_rev_o +1) %>%
     group_by(AP_o,group_o) %>%
