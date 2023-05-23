@@ -22,8 +22,8 @@ library(ReSurv)
 ```{r}
 # Input data
 
-input_data <- data_generator(random_seed = 12,
-                              scenario=2,
+input_data <- data_generator(random_seed = 1,
+                              scenario=0,
                               time_unit = 1/360,
                               years = 4,
                               yearly_exposure = 200)
@@ -38,7 +38,7 @@ input_data <- data_generator(random_seed = 12,
   individual_data <- IndividualData(data = input_data,
                                     id=NULL,
                                     categorical_features = c("claim_type"),
-                                    continuous_features = "AP_i",
+                                    continuous_features = NULL,
                                     accident_period="AP",
                                     calendar_period="RP",
                                     input_time_granularity = "days",
@@ -352,6 +352,8 @@ p
 
 #Scoring functions
 ```{r eval=FALSE, include=FALSE}
+
+
 scoring_function <-function(resurv.predict){
 
   conversion_factor <- resurv.predict$ReSurvFit$IndividualData$conversion_factor
@@ -571,6 +573,97 @@ input_data <- data_generator(random_seed = i,
 ```
 
 # Standard code
+``` {r eval=FALSE, include=FALSE}
+
+resurv.predict<- readRDS("C:/Users/emil_/Downloads/13-18_xgboost_2023_05_23_14_11.RData")
+scoring_function <-function(resurv.predict){
+
+  conversion_factor <- resurv.predict$ReSurvFit$IndividualData$conversion_factor
+
+  df <- fread("C:/Users/emil_/OneDrive/Dokumenter/Uni/Speciale/R code/data/case_data_all_ng_13-18.csv")
+  df<- df %>%
+  filter(DM <=48 &AM<=48)%>%
+  mutate(CM=AM+DM-1)
+
+  prova <- IndividualData(data = df,
+                        id=NULL,
+                        categorical_features = c("Claim_type_key"),
+                        continuous_features = NULL,
+                        accident_period="AM",
+                        calendar_period="CM",
+                        input_time_granularity = "months",
+                        output_time_granularity = "quarters",
+                        years=4 #check this. I see strange development periods
+                        )
+  
+  max_dp_i <-48
+
+
+  true_output <- prova$full.data %>%
+    mutate(
+      DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+      AP_o = ceiling(AP_i*conversion_factor),
+      TR_o= AP_o-1
+    ) %>%
+    filter(DP_rev_o <=TR_o) %>%
+    group_by(Claim_type_key,Cover_key, AP_o, DP_rev_o) %>%
+    mutate(Claim_type_key = as.character(Claim_type_key), Cover_key=as.character(Cover_key)) %>%
+    summarize(I=sum(I), .groups = "drop") %>%
+    filter(DP_rev_o>0) #we cant have =0, because corresponds to half a parallelogram.
+
+  #Total output
+  score_total<- resurv.predict$hazard_frame_output[,c("Claim_type_key","Cover_key","AP_o", "DP_rev_o", "I_expected")] %>%
+    inner_join(true_output, by =c("Claim_type_key","Cover_key","AP_o", "DP_rev_o")) %>%
+    mutate(ave = I-I_expected,
+           abs_ave = abs(ave))
+
+  dfs_output <- resurv.predict$hazard_frame_output %>%
+    select(AP_o, Claim_type_key,Cover_key, DP_rev_o, df_o) %>%
+    mutate(DP_rev_o = DP_rev_o) %>% 
+    distinct()
+
+  #Cashflow on output scale.Etc quarterly cashflow development
+  score_diagonal <- prova$full.data  %>%
+    mutate(
+      DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+      AP_o = ceiling(AP_i*conversion_factor)
+    ) %>%
+    group_by( Claim_type_key,Cover_key, AP_o, DP_rev_o) %>%
+    mutate(Claim_type_key = as.character(Claim_type_key), Cover_key=as.character(Cover_key)) %>%
+    summarize(I=sum(I), .groups = "drop") %>%
+    group_by( Claim_type_key,Cover_key, AP_o) %>%
+    arrange(desc(DP_rev_o)) %>%
+    mutate(I_cum=cumsum(I)) %>%
+    mutate(I_cum_lag = lag(I_cum, default = 0)) %>%
+    left_join(dfs_output, by = c("AP_o", "Claim_type_key","Cover_key", "DP_rev_o")) %>%
+    mutate(ave_2 =  I_cum-I_cum_lag * df_o,
+           abs_ave_2 = abs(ave_2),
+           RP_o = max(DP_rev_o)-DP_rev_o + AP_o) %>%
+    inner_join(true_output[,c("AP_o", "DP_rev_o")] %>%  distinct()
+               , by =c("AP_o", "DP_rev_o"))
+
+
+  relative_total = sum(score_total$ave)/sum(score_total$I)
+  RMSE_total = sqrt(mean(score_total$ave^2))
+
+  relative_diagonal = score_diagonal %>% group_by(RP_o) %>%
+    summarize(relative_diagonal = sum(ave_2,na.rm=T)/sum(I),
+              I=sum(I))
+
+  weighted_relative_diagonal = sum(relative_diagonal$relative_diagonal*relative_diagonal$I)/(sum(relative_diagonal$I))
+
+  return(list(
+    score_total = score_total,
+    score_diagonal = score_diagonal,
+    relative_diagonal = relative_diagonal,
+    metrics =list(relative_total = relative_total,
+    RMSE_total = RMSE_total,
+    weighted_relative_diagonal = weighted_relative_diagonal
+  )))
+}
+
+```
+
 
 ```{r eval=FALSE, include=FALSE}
 
@@ -694,9 +787,9 @@ resurv.fit.ltrctrees <- ReSurv(individual_data,
 resurv.cv.ltrctrees <- ReSurvCV(IndividualData=individual_data,
                                model="LTRCtrees",
                                hparameters_grid = list(
-                                 minbucket = c(1,2),
-                                 cp=c(.2,.01)),
-                               folds=5,
+                                 cp=0.01,
+                                 minbucket = c(1,2)),
+                               folds=2,
                                random_seed=1,
                                verbose.cv = T)
 

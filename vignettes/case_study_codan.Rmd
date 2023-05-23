@@ -31,6 +31,8 @@ prova <- IndividualData(data = df,
                         continuous_features = NULL,
                         accident_period="AM",
                         calendar_period="CM",
+                        input_time_granularity = "months",
+                        output_time_granularity = "quarters",
                         years=4 #check this. I see strange development periods
                         )
 

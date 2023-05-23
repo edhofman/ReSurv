@@ -1741,10 +1741,10 @@ pkg.env$predict_o <- function(
     left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
     mutate(DP_i =  max_dp_i-DP_rev_i + 1) %>%
     mutate(AP_o = ceiling(AP_i*conversion_factor),
-           DP_rev_o = floor(max(DP_i)*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1) %>%
+           DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1) %>%
     filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parrallelogram in the end of the development time
     group_by(AP_o, DP_rev_o, group_o) %>%
-    summarize(I_expected = sum(I_expected),
+    summarize(I_expected = sum(I_expected,na.rm=T),
               IBNR = sum(IBNR, na.rm=T), .groups="drop") %>%
     select(AP_o, group_o, DP_rev_o, I_expected, IBNR)
 
@@ -1803,7 +1803,7 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
   # #select relevant hazard value group and add output variables, and other variables to help with grouping
   grouped_hazard_0 <- hazard_data_frame %>%
     mutate(DP_i =  max_dp_i-DP_rev_i + 1) %>%
-    mutate( DP_rev_o = floor(max(DP_i)*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1) %>%
+    mutate( DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1) %>%
     filter(DP_rev_o > 0) %>%  #for the last development, if we included group '0', we would be extrapolating for half a parallelogram - doesn't make sense
     left_join(dp_ranges, by=c("AP_i", "DP_rev_o")) %>%
     left_join(latest_cumulative_o, by=c("group_o", "AP_i")) %>%
@@ -2877,7 +2877,7 @@ pkg.env$fill_data_frame<-function(data,
 
   #Take the complete sequence
   tmp1 <- min(data$AP_i):max(data$AP_i)
-  tmp2 <- min(data$DP_i):max(data$DP_i)
+  tmp2 <- 1:max(data$DP_i)
 
   tmp.ls$AP_i <- tmp1
   tmp.ls$DP_i <- tmp2
@@ -2892,13 +2892,14 @@ pkg.env$fill_data_frame<-function(data,
     return(NULL)
   }else{
 
+    max_dp_i = pkg.env$maximum.time(years,input_time_granularity)
     tmp.missing<- tmp.missing %>%
       mutate(DP_rev_i = pkg.env$maximum.time(years,input_time_granularity) - DP_i+1,
              TR_i = AP_i-1, #just setting truncation to max year simulated. and accounting for
              I=0)%>%
       filter(DP_rev_i > TR_i) %>%
       mutate(
-        DP_rev_o = floor(max(DP_i)*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+        DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
         AP_o = ceiling(AP_i*conversion_factor)
       ) %>%
       mutate(TR_o= AP_o-1) %>%

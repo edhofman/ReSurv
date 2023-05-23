@@ -165,13 +165,13 @@ IndividualData <- function(data,
            I=1) %>%
     as.data.frame()
 
-
+  max_dp_i =  pkg.env$maximum.time(years,input_time_granularity)
 
   # Take the training data (upper triangle) and convert it from input_time_granularitys to output_time_granularitys
   train= tmp %>%
     filter(DP_rev_i > TR_i) %>%
     mutate(
-      DP_rev_o = floor(max(DP_i)*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+      DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
       AP_o = ceiling(AP_i*conversion_factor)
     ) %>%
     mutate(TR_o= AP_o-1) %>%
