@@ -600,7 +600,7 @@ pkg.env$check.time.units <- function(input_time_unit,
 
   if((1/input_time_unit)%%(1/output_time_unit) != 0){
 
-    stop('The provided time intervals are not subsettable.')
+    stop('The provided time granularities are not subsettable.')
 
   }
 
@@ -618,8 +618,8 @@ pkg.env$maximum.time <- function(years,
 
   "
 
-  time_unit_string <- c('days','months','quarters','year')
-  time_unit_numeric <- c(1/360,1/12,1/4,1)
+  time_unit_string <- c('days','months','quarters', 'semesters', 'years')
+  time_unit_numeric <- c(1/360, 1/12, 1/4, 1/2, 1)
 
   input.pos <- which(time_unit_string%in%intersect(input_time_granularity,time_unit_string))
 
@@ -641,9 +641,8 @@ pkg.env$conversion.factor.of.time.units <- function(input_time_unit,
   returns: numeric, conversion factor.
 
   "
-
-  time_unit_string <- c('days','months','quarters', 'semesters', 'years')
-  time_unit_numeric <- c(1/360,1/12,1/4,1/2,1)
+  time_unit_string <- c('days', 'months', 'quarters', 'semesters', 'years')
+  time_unit_numeric <- c(1/360, 1/12, 1/4, 1/2, 1)
 
   input.pos <- which(time_unit_string%in%intersect(input_time_unit,time_unit_string))
   output.pos <- which(time_unit_string%in%intersect(output_time_unit,time_unit_string))
@@ -2400,6 +2399,39 @@ pkg.env$create.om.df<-function(training.data,
 
 }
 
+
+pkg.env$check.newdata <- function(newdata,
+                                  pastdata){
+
+
+  cf <- pkg.env$conversion.factor.of.time.units(pastdata$input_time_granularity,
+                                                newdata$output_time_granularity)
+
+  if(!identical(pastdata$input_time_unit,newdata$input_time_unit)){
+
+    stop('newdata must have the same input granularity as pastdata.')
+
+  }
+
+
+  if(class(newdata) != "IndividualData"){
+
+    stop('newdata must be an IndividualData object.')
+
+  }
+
+  newfeatures <- c(newdata$categorical_features, newdata$continuous_features)
+  pastfeatures <- c(pastdata$categorical_features, pastdata$continuous_features)
+
+  if(!identical(newfeatures,pastfeatures)){
+
+    stop('newdata must have the same features as pastdata.')
+
+  }
+
+
+
+}
 
 ## xgboost ----
 
