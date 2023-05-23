@@ -358,8 +358,7 @@ scoring_function <-function(resurv.predict){
   conversion_factor <- resurv.predict$ReSurvFit$IndividualData$conversion_factor
 
 
-  max_dp_i <- max(resurv.predict$ReSurvFit$IndividualData$full.data %>%
-                    filter(DP_rev_i > TR_i) %>% select(DP_i))
+  max_dp_i <-1440
 
 
   true_output <- resurv.predict$ReSurvFit$IndividualData$full.data %>%
@@ -382,7 +381,7 @@ scoring_function <-function(resurv.predict){
 
   dfs_output <- resurv.predict$hazard_frame_output %>%
     select(AP_o, claim_type, DP_rev_o, df_o) %>%
-    mutate(DP_rev_o = DP_rev_o)
+    mutate(DP_rev_o = DP_rev_o+1)
     distinct()
 
   #Cashflow on output scale.Etc quarterly cashflow development
@@ -410,7 +409,7 @@ scoring_function <-function(resurv.predict){
   RMSE_total = sqrt(mean(score_total$ave^2))
 
   relative_diagonal = score_diagonal %>% group_by(RP_o) %>%
-    summarize(relative_diagonal = sum(ave_2)/sum(I),
+    summarize(relative_diagonal = sum(ave_2,na.rm=T)/sum(I),
               I=sum(I))
 
   weighted_relative_diagonal = sum(relative_diagonal$relative_diagonal*relative_diagonal$I)/(sum(relative_diagonal$I))
