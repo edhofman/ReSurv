@@ -2404,8 +2404,8 @@ pkg.env$check.newdata <- function(newdata,
                                   pastdata){
 
 
-  cf <- pkg.env$conversion.factor.of.time.units(pastdata$input_time_granularity,
-                                                newdata$output_time_granularity)
+  # cf <- pkg.env$conversion.factor.of.time.units(pastdata$input_time_granularity,
+  #                                               newdata$output_time_granularity)
 
   if(!identical(pastdata$input_time_unit,newdata$input_time_unit)){
 

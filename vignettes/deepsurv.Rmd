@@ -80,7 +80,6 @@ individual_data2 <- IndividualData(input_data,
                                   input_time_granularity = "days",
                                   output_time_granularity = "years",
                                   years=4,
-                                  continuous_features_spline=NULL,
                                   calendar_period_extrapolation=F)
 
 
@@ -367,7 +366,7 @@ scoring_function <-function(resurv.predict){
       AP_o = ceiling(AP_i*conversion_factor),
       TR_o= AP_o-1
     ) %>%
-    filter(DP_rev_o <TR_o) %>%
+    filter(DP_rev_o <=TR_o) %>%
     group_by(claim_type, AP_o, DP_rev_o) %>%
     mutate(claim_type = as.character(claim_type)) %>%
     summarize(I=sum(I), .groups = "drop") %>%
@@ -381,7 +380,7 @@ scoring_function <-function(resurv.predict){
 
   dfs_output <- resurv.predict$hazard_frame_output %>%
     select(AP_o, claim_type, DP_rev_o, df_o) %>%
-    mutate(DP_rev_o = DP_rev_o+1)
+    mutate(DP_rev_o = DP_rev_o) %>% 
     distinct()
 
   #Cashflow on output scale.Etc quarterly cashflow development
