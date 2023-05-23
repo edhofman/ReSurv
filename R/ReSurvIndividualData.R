@@ -293,7 +293,7 @@ ReSurv.IndividualData <- function(IndividualData,
     scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
 
     Xc <- IndividualData$training.data %>%
-      summarize(across(all_of(IndividualData$continuous_features),
+      reframe(across(all_of(IndividualData$continuous_features),
                        scaler))
 
     training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
@@ -380,7 +380,7 @@ ReSurv.IndividualData <- function(IndividualData,
     scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
 
     Xc <- IndividualData$training.data %>%
-      summarize(across(all_of(IndividualData$continuous_features),
+      reframe(across(all_of(IndividualData$continuous_features),
                        scaler))
 
     training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
@@ -453,7 +453,7 @@ ReSurv.IndividualData <- function(IndividualData,
     scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
 
     Xc <- IndividualData$training.data %>%
-      summarize(across(all_of(IndividualData$continuous_features),
+      reframe(across(all_of(IndividualData$continuous_features),
                        scaler))
 
     training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
