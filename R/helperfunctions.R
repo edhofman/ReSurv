@@ -2717,6 +2717,18 @@ pkg.env$ltrcart_cv <- function(IndividualData,
 
     tmp <- as.data.frame.matrix(LTRCART.fit$cptable)
 
+
+    Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
+
+    model.out <- list()
+    model.out$cox <-LTRCART.fit
+
+    is_lkh <- pkg.env$evaluate_lkh_LTRCtrees(X_train=IndividualData$training.data %>% select(c(IndividualData$categorical_features,IndividualData$continuous_features)),
+                                             Y_train=Y,
+                                             model=model.out)
+
+
+    tmp$is_lkh<- is_lkh$value
     out <- rbind(out,tmp[which.min(tmp[,"xerror"]),])
 
   }

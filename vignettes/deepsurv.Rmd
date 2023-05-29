@@ -23,7 +23,7 @@ library(ReSurv)
 # Input data
 
 input_data <- data_generator(random_seed = 1,
-                              scenario=0,
+                              scenario=2,
                               time_unit = 1/360,
                               years = 4,
                               yearly_exposure = 200)
@@ -38,7 +38,7 @@ input_data <- data_generator(random_seed = 1,
   individual_data <- IndividualData(data = input_data,
                                     id=NULL,
                                     categorical_features = c("claim_type"),
-                                    continuous_features = NULL,
+                                    continuous_features = "AP",
                                     accident_period="AP",
                                     calendar_period="RP",
                                     input_time_granularity = "days",
@@ -353,6 +353,220 @@ p
 #Scoring functions
 ```{r eval=FALSE, include=FALSE}
 
+resurv.predict <- readRDS("C:/Users/emil_/Downloads/12-17_cox_2023_05_25_09_55.RData")
+
+
+full_data <- fread("C:/Users/emil_/OneDrive/Dokumenter/Uni/Speciale/R code/data/case_data_all_ng_12-17.csv")
+
+
+scoring_function_case <-function(resurv.predict, full_data){
+
+  conversion_factor <- resurv.predict$ReSurvFit$IndividualData$conversion_factor
+
+
+  max_dp_i <-48
+
+    #df_name <- paste0("case_data_train_ng_","12-17",".csv")
+    #df <- read.csv(sprintf(path,df_name),header=T)
+    df<- full_data %>%
+        filter(DM <=48 &AM<=48)%>%
+        mutate(CM=AM+DM-1)
+    individual_data <- IndividualData(data = df,
+                                    id=NULL,
+                                    categorical_features = c("Claim_type_key", "Cover_key"),
+                                    continuous_features = "AP_i",
+                                    accident_period="AM",
+                                    calendar_period="CM",
+                                    input_time_granularity = "months",
+                                    output_time_granularity = "quarters",
+                                    continuous_features_spline=NULL,
+                                    years=4 #check this. I see strange development periods
+  )
+
+    
+    resurv.predict <- predict(resurv.predict$ReSurvFit,
+                                  newdata=individual_data2,
+                             grouping_method = "probability")
+
+  true_output <-individual_data$full.data %>%
+    mutate(
+      DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+      AP_o = ceiling(AP_i*conversion_factor),
+      TR_o= AP_o-1
+    ) %>%
+    filter(DP_rev_o <=TR_o) %>%
+    group_by(Claim_type_key,Cover_key,  AP_o, DP_rev_o) %>%
+    mutate(Claim_type_key = as.character(Claim_type_key),
+           Cover_key = as.character(Cover_key)
+           ) %>%
+    summarize(I=sum(I), .groups = "drop") %>%
+    filter(DP_rev_o>0) #we cant have =0, because corresponds to half a parallelogram.
+
+  #Total output
+  score_total<- resurv.predict$hazard_frame_output[,c("Claim_type_key","Cover_key", "AP_o", "DP_rev_o", "I_expected")] %>%
+    inner_join(true_output, by =c("Claim_type_key","Cover_key", "AP_o", "DP_rev_o")) %>%
+    mutate(ave = I-I_expected,
+           abs_ave = abs(ave))
+
+  dfs_output <- resurv.predict$hazard_frame_output %>%
+    select(AP_o, Claim_type_key, Cover_key, DP_rev_o, df_o) %>%
+    mutate(DP_rev_o = DP_rev_o) %>% 
+    distinct()
+
+  #Cashflow on output scale.Etc quarterly cashflow development
+  score_diagonal <- individual_data$full.data  %>%
+    mutate(
+      DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+      AP_o = ceiling(AP_i*conversion_factor)
+    ) %>%
+    group_by(Claim_type_key,Cover_key, AP_o, DP_rev_o) %>%
+    mutate(Claim_type_key = as.character(Claim_type_key),
+           Cover_key = as.character(Cover_key)) %>%
+    summarize(I=sum(I), .groups = "drop") %>%
+    group_by(Claim_type_key, Cover_key, AP_o) %>%
+    arrange(desc(DP_rev_o)) %>%
+    mutate(I_cum=cumsum(I)) %>%
+    mutate(I_cum_lag = lag(I_cum, default = 0)) %>%
+    inner_join(dfs_output, by = c("AP_o", "Claim_type_key", "Cover_key", "DP_rev_o")) %>%
+    mutate(ave_2 =  I_cum-I_cum_lag * df_o,
+           abs_ave_2 = abs(ave_2),
+           RP_o = max(dfs_output$DP_rev_o)-DP_rev_o + AP_o) %>%
+    inner_join(true_output[,c("AP_o", "DP_rev_o")] %>%  distinct()
+               , by =c("AP_o", "DP_rev_o"))
+
+
+  relative_total = sum(score_total$ave)/sum(score_total$I)
+  RMSE_total = sqrt(mean(score_total$ave^2))
+
+  relative_diagonal = score_diagonal %>% group_by(RP_o) %>%
+    summarize(relative_diagonal = sum(ave_2,na.rm=T)/sum(I),
+              I=sum(I))
+
+  weighted_relative_diagonal = sum(relative_diagonal$relative_diagonal*relative_diagonal$I)/(sum(relative_diagonal$I))
+
+  return(list(
+    score_total = score_total,
+    score_diagonal = score_diagonal,
+    relative_diagonal = relative_diagonal,
+    metrics =list(relative_total = relative_total,
+    RMSE_total = RMSE_total,
+    weighted_relative_diagonal = weighted_relative_diagonal
+  )))
+}
+
+scoring_function_CL_case <- function(IndividualData, full_data, period){
+  
+  CL = IndividualData$training.data %>%
+    mutate(DP_o = max(IndividualData$training.data$DP_rev_o)-DP_rev_o + 1) %>%
+    group_by(AP_o, DP_o) %>%
+    summarize(I=sum(I), .groups="drop") %>%
+    group_by(AP_o) %>%
+    arrange(DP_o) %>%
+    mutate(I_cum = cumsum(I),
+           I_cum_lag = lag(I_cum, default=0)) %>%
+    ungroup() %>%
+    group_by(DP_o) %>%
+    reframe(df = sum(I_cum*(AP_o<=max(IndividualData$training.data$AP_o)-DP_o+1)) /
+              sum(I_cum_lag*(AP_o<=max(IndividualData$training.data$AP_o)-DP_o+1)),
+            I=sum(I*(AP_o<=max(IndividualData$training.data$AP_o)-DP_o))) %>%
+    mutate(DP_o_join = DP_o) %>%
+    mutate(DP_rev_o = max(DP_o) - DP_o +1 )
+
+  latest_observed <- IndividualData$training.data %>%
+    filter(DP_rev_o >=TR_o) %>%
+    mutate(DP_o = max(IndividualData$training.data$DP_rev_o)-DP_rev_o + 1) %>%
+    group_by(AP_o) %>%
+    mutate(DP_max =max(DP_o)) %>%
+    group_by(AP_o, DP_max) %>%
+    summarize(I=sum(I),.groups="drop")
+
+  predictions <- expand.grid(AP_o = latest_observed$AP_o, DP_o = CL$DP_o_join) %>%
+    left_join(CL[,c("DP_o_join", "df")], by=c("DP_o"="DP_o_join")) %>%
+    left_join(latest_observed, by="AP_o") %>%
+    rowwise() %>% 
+    filter(DP_o>DP_max) %>%
+    ungroup() %>% 
+    group_by(AP_o) %>%
+    arrange(DP_o) %>%
+    mutate(df_cum = cumprod(df) ) %>%
+    mutate(I_expected= I*df_cum-I*lag(df_cum,default=1)) %>%
+    select(DP_o, AP_o, I_expected)
+
+  conversion_factor = IndividualData$conversion_factor
+  max_dp_i <- 48
+
+  true_output_cl <- full_data$full.data %>%
+    mutate(
+      DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+      AP_o = ceiling(AP_i*conversion_factor),
+      TR_o= AP_o-1
+    ) %>%
+    filter(DP_rev_o <=TR_o) %>%
+    mutate(DP_o = max(IndividualData$training.data$DP_rev_o)-DP_rev_o + 1) %>%
+    group_by(AP_o, DP_o, DP_rev_o) %>%
+    summarize(I=sum(I), .groups="drop") %>%
+    filter(DP_rev_o>0)
+
+  score_total <- predictions  %>%
+    inner_join(true_output_cl,
+               by =c("AP_o", "DP_o")) %>%
+    mutate(ave = I-I_expected,
+           abs_ave = abs(ave))
+
+  #calculate where we update with information from newest diagonal
+  score_diagonal <- full_data$full.data  %>%
+    mutate(
+      DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+      AP_o = ceiling(AP_i*conversion_factor)
+    ) %>%
+    group_by( AP_o, DP_rev_o) %>%
+    summarize(I=sum(I), .groups = "drop") %>%
+    group_by(AP_o) %>%
+    arrange(desc(DP_rev_o)) %>%
+    mutate(I_cum=cumsum(I)) %>%
+    mutate(I_cum_lag = lag(I_cum, default = 0)) %>%
+     mutate(DP_o = max(IndividualData$training.data$DP_rev_o)-DP_rev_o + 1) %>%
+    inner_join(CL[,c("DP_o","df")], by = c("DP_o")) %>%
+    mutate(ave_2 = I_cum-I_cum_lag * df,
+           abs_ave_2 = abs(ave_2),
+           RP_o = max(DP_rev_o)-DP_rev_o + AP_o) %>%
+    inner_join(true_output_cl[,c("AP_o", "DP_rev_o")] %>%  distinct()
+               , by =c("AP_o", "DP_rev_o"))
+
+
+  relative_total = sum(score_total$ave)/sum(score_total$I)
+  RMSE_total = sqrt(mean(score_total$ave^2))
+
+  relative_diagonal = score_diagonal %>% group_by(RP_o) %>%
+    summarize(relative_diagonal = sum(ave_2)/sum(I),
+              I=sum(I))
+
+  weighted_relative_diagonal = sum(relative_diagonal$relative_diagonal*relative_diagonal$I)/(sum(relative_diagonal$I))
+  
+    scoring_result<- list(
+    score_total = score_total,
+    score_diagonal = score_diagonal,
+    relative_diagonal = relative_diagonal,
+    metrics =list(relative_total = relative_total,
+                  RMSE_total = RMSE_total,
+                  weighted_relative_diagonal = weighted_relative_diagonal
+    ))
+    
+  name = paste0("C:/Users/emil_/OneDrive/Dokumenter/Uni/Article/individual_clmplus/scores",  "/",period,"_CL_",format(Sys.time(), "%Y_%m_%d_%H_%M"),".RData")
+  saveRDS(scoring_result, file=name) 
+
+
+  return(list(
+    score_total = score_total,
+    score_diagonal = score_diagonal,
+    relative_diagonal = relative_diagonal,
+    metrics =list(relative_total = relative_total,
+                  RMSE_total = RMSE_total,
+                  weighted_relative_diagonal = weighted_relative_diagonal
+    )))
+
+}
+
 
 scoring_function <-function(resurv.predict){
 
@@ -439,7 +653,7 @@ scoring_function_CL <- function(IndividualData){
     reframe(df = sum(I_cum*(AP_o<=max(IndividualData$training.data$AP_o)-DP_o+1)) /
               sum(I_cum_lag*(AP_o<=max(IndividualData$training.data$AP_o)-DP_o+1)),
             I=sum(I*(AP_o<=max(IndividualData$training.data$AP_o)-DP_o))) %>%
-    mutate(DP_o_join = DP_o-1) %>%
+    mutate(DP_o_join = DP_o) %>%
     mutate(DP_rev_o = max(DP_o) - DP_o +1 )
 
   latest_observed <- IndividualData$training.data %>%
@@ -453,17 +667,17 @@ scoring_function_CL <- function(IndividualData){
   predictions <- expand.grid(AP_o = latest_observed$AP_o, DP_o = CL$DP_o_join) %>%
     left_join(CL[,c("DP_o_join", "df")], by=c("DP_o"="DP_o_join")) %>%
     left_join(latest_observed, by="AP_o") %>%
+    rowwise() %>% 
+    filter(DP_o>DP_max) %>%
+    ungroup() %>% 
     group_by(AP_o) %>%
-    filter(DP_o>=DP_max) %>%
     arrange(DP_o) %>%
     mutate(df_cum = cumprod(df) ) %>%
     mutate(I_expected= I*df_cum-I*lag(df_cum,default=1)) %>%
-    mutate(DP_o = DP_o+1 ) %>%
     select(DP_o, AP_o, I_expected)
 
   conversion_factor = IndividualData$conversion_factor
-  max_dp_i <- max(IndividualData$full.data %>%
-                    filter(DP_rev_i > TR_i) %>% select(DP_i))
+  max_dp_i <- 1440
 
   true_output_cl <- IndividualData$full.data %>%
     mutate(
@@ -471,11 +685,11 @@ scoring_function_CL <- function(IndividualData){
       AP_o = ceiling(AP_i*conversion_factor),
       TR_o= AP_o-1
     ) %>%
-    filter(DP_rev_o <TR_o) %>%
+    filter(DP_rev_o <=TR_o) %>%
     mutate(DP_o = max(IndividualData$training.data$DP_rev_o)-DP_rev_o + 1) %>%
     group_by(AP_o, DP_o, DP_rev_o) %>%
     summarize(I=sum(I), .groups="drop") %>%
-    filter(DP_rev_o>=0)
+    filter(DP_rev_o>0)
 
   score_total <- predictions  %>%
     inner_join(true_output_cl,
@@ -570,6 +784,113 @@ input_data <- data_generator(random_seed = i,
   }
 }
 
+scores_loc <- "C:/Users/emil_/OneDrive/Dokumenter/Uni/Article/individual_clmplus/scores"
+#fwrite(scores_cl, paste0(scores_loc,"/sim_cl_2023_05_23_21_30.csv"))
+
+
+
+periods <- c("12-17",
+             "13-18",
+             "14-19",
+             "15-20",
+             "16-21",
+             "17-22")
+
+path = "C:/Users/emil_/OneDrive/Dokumenter/Uni/Speciale/R code/data/%s"
+
+scores_cl_case <- expand.grid(periods= periods) %>% tibble() %>%  mutate(relative_total=as.numeric(NA),
+                    RMSE_total =as.numeric(NA),
+                    cash_flow_quarterly=as.numeric(NA),
+                    cash_flow_yearly=as.numeric(NA))
+
+for(i in periods){
+  print(i)
+  
+    df_name <- paste0("case_data_train_ng_",i,".csv")
+    df <- read.csv(sprintf(path,df_name),header=T)
+    df<- df %>%
+        filter(DM <=48 &AM<=48)%>%
+        mutate(CM=AM+DM-1)
+
+    individual_data <- IndividualData(data = df,
+                                    id=NULL,
+                                    categorical_features = c("Claim_type_key", "Cover_key"),
+                                    continuous_features = "AP_i",
+                                    accident_period="AM",
+                                    calendar_period="CM",
+                                    input_time_granularity = "months",
+                                    output_time_granularity = "quarters",
+                                    continuous_features_spline="AP_i",
+                                    years=4 #check this. I see strange development periods
+  )
+
+      df_name <- paste0("case_data_all_ng_",i,".csv")
+    df <- read.csv(sprintf(path,df_name),header=T)
+    df<- df %>%
+        filter(DM <=48 &AM<=48)%>%
+        mutate(CM=AM+DM-1)
+    
+      full_data <- IndividualData(data = df,
+                                    id=NULL,
+                                    categorical_features = c("Claim_type_key", "Cover_key"),
+                                    continuous_features = "AP_i",
+                                    accident_period="AM",
+                                    calendar_period="CM",
+                                    input_time_granularity = "months",
+                                    output_time_granularity = "quarters",
+                                    continuous_features_spline="AP_i",
+                                    years=4 #check this. I see strange development periods
+  )
+  
+  
+  score<-scoring_function_CL_case(individual_data,full_data,i)
+  
+  # scores_cl_case[scores_cl_case$periods==i,]$RMSE_total <-score$metrics$RMSE_total
+  # scores_cl_case[scores_cl_case$periods==i,]$relative_total <-score$metrics$relative_total
+  # scores_cl_case[scores_cl_case$periods==i,]$cash_flow_quarterly <-score$metrics$weighted_relative_diagonal
+  # 
+  #   df_name <- paste0("case_data_train_ng_",i,".csv")
+  #   df <- read.csv(sprintf(path,df_name),header=T)
+  #   df<- df %>%
+  #       filter(DM <=48 &AM<=48)%>%
+  #       mutate(CM=AM+DM-1)
+  # 
+  #   individual_data <- IndividualData(data = df,
+  #                                   id=NULL,
+  #                                   categorical_features = c("Claim_type_key", "Cover_key"),
+  #                                   continuous_features = "AP_i",
+  #                                   accident_period="AM",
+  #                                   calendar_period="CM",
+  #                                   input_time_granularity = "months",
+  #                                   output_time_granularity = "years",
+  #                                   continuous_features_spline="AP_i",
+  #                                   years=4 #check this. I see strange development periods
+  # )
+  # 
+  #     df_name <- paste0("case_data_all_ng_",i,".csv")
+  #   df <- read.csv(sprintf(path,df_name),header=T)
+  #   df<- df %>%
+  #       filter(DM <=48 &AM<=48)%>%
+  #       mutate(CM=AM+DM-1)
+  #   
+  #     full_data <- IndividualData(data = df,
+  #                                   id=NULL,
+  #                                   categorical_features = c("Claim_type_key", "Cover_key"),
+  #                                   continuous_features = "AP_i",
+  #                                   accident_period="AM",
+  #                                   calendar_period="CM",
+  #                                   input_time_granularity = "months",
+  #                                   output_time_granularity = "years",
+  #                                   continuous_features_spline="AP_i",
+  #                                   years=4 #check this. I see strange development periods
+  # )
+  # 
+  # score<-scoring_function_CL_case(individual_data,full_data,i)
+  # 
+  #  scores_cl_case[scores_cl_case$periods==i,]$cash_flow_yearly <-score$metrics$weighted_relative_diagonal
+  
+}
+#fwrite(scores_cl_case, paste0(scores_loc,"/case_cl_2023_05_23_21_30.csv"))
 ```
 
 # Standard code
@@ -787,8 +1108,8 @@ resurv.fit.ltrctrees <- ReSurv(individual_data,
 resurv.cv.ltrctrees <- ReSurvCV(IndividualData=individual_data,
                                model="LTRCtrees",
                                hparameters_grid = list(
-                                 cp=0.01,
-                                 minbucket = c(1,2)),
+                                 cp=c(0.01,0.00001),
+                                 minbucket = c(1)),
                                folds=2,
                                random_seed=1,
                                verbose.cv = T)

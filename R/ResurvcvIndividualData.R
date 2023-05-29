@@ -131,7 +131,7 @@ ReSurvCV.IndividualData <- function(IndividualData,
 
     # Take the best result oos
     out.best.oos <- out.cv %>%
-      filter(xerror==min(xerror)) %>%
+      filter(is_lkh==min(is_lkh)) %>%
       as.data.frame()
 
     # List the output of the cv and the best result OOS

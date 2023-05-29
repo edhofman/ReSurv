@@ -15,7 +15,7 @@ library(ReSurv)
 ```{r read the data}
 path_emil <- "C:/Users/emil_/OneDrive/Dokumenter/Uni/Speciale/R code/data/%s"
 path_gabriele <- "C:\\Users\\gpitt\\Documents\\Phd\\visiting\\Individual effects on reserving\\%s"
-df_name <- "case_data_train_ng_16-21.csv"
+df_name <- "case_data_train_ng_12-17.csv"
 df <- read.csv(sprintf(path_emil,df_name),header=T)
 ```
 
@@ -27,12 +27,13 @@ df<- df %>%
 
 prova <- IndividualData(data = df,
                         id=NULL,
-                        categorical_features = c("Claim_type_key"),
-                        continuous_features = NULL,
+                        categorical_features = c("Claim_type_key", "Cover_key"),
+                        continuous_features = "AP_i",
                         accident_period="AM",
                         calendar_period="CM",
                         input_time_granularity = "months",
                         output_time_granularity = "quarters",
+                        continuous_features_spline = "AP_i",
                         years=4 #check this. I see strange development periods
                         )
 
@@ -42,6 +43,9 @@ prova <- IndividualData(data = df,
 # # # ## Model fit ----
 resurv.fit.cox <- ReSurv(prova,
                           hazard_model = "cox")
+
+resurv.cox.predictions <- predict(resurv.fit.cox,
+                                  grouping_method = "probability")
 ```
 
 
