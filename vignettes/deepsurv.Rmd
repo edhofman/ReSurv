@@ -384,9 +384,9 @@ scoring_function_case <-function(resurv.predict, full_data){
   )
 
     
-    resurv.predict <- predict(resurv.predict$ReSurvFit,
-                                  newdata=individual_data2,
-                             grouping_method = "probability")
+#    resurv.predict <- predict(resurv.predict$ReSurvFit,
+#                                  newdata=individual_data2,
+#                             grouping_method = "probability")
 
   true_output <-individual_data$full.data %>%
     mutate(
@@ -435,11 +435,11 @@ scoring_function_case <-function(resurv.predict, full_data){
                , by =c("AP_o", "DP_rev_o"))
 
 
-  relative_total = sum(score_total$ave)/sum(score_total$I)
+  relative_total = sqrt(mean(score_total$ave^2*score_total$I/sum(score_total$I)))/sqrt(mean(score_total$I^2*score_total$I/sum(score_total$I)))
   RMSE_total = sqrt(mean(score_total$ave^2))
 
   relative_diagonal = score_diagonal %>% group_by(RP_o) %>%
-    summarize(relative_diagonal = sum(ave_2,na.rm=T)/sum(I),
+    summarize(relative_diagonal = sqrt(sum(ave_2^2*I/sum(I),na.rm=T))/sqrt(sum(I^2*I/sum(I),na.rm=T)),
               I=sum(I))
 
   weighted_relative_diagonal = sum(relative_diagonal$relative_diagonal*relative_diagonal$I)/(sum(relative_diagonal$I))
@@ -471,6 +471,10 @@ scoring_function_CL_case <- function(IndividualData, full_data, period){
             I=sum(I*(AP_o<=max(IndividualData$training.data$AP_o)-DP_o))) %>%
     mutate(DP_o_join = DP_o) %>%
     mutate(DP_rev_o = max(DP_o) - DP_o +1 )
+  
+  CL<-expand.grid(DP_o_2=1:max(IndividualData$training.data$DP_rev_o)) %>% left_join(CL, , by=c("DP_o_2"="DP_o")) %>% 
+    rename(DP_o = DP_o_2) %>% 
+    replace_na(list(df=1))
 
   latest_observed <- IndividualData$training.data %>%
     filter(DP_rev_o >=TR_o) %>%
@@ -481,7 +485,7 @@ scoring_function_CL_case <- function(IndividualData, full_data, period){
     summarize(I=sum(I),.groups="drop")
 
   predictions <- expand.grid(AP_o = latest_observed$AP_o, DP_o = CL$DP_o_join) %>%
-    left_join(CL[,c("DP_o_join", "df")], by=c("DP_o"="DP_o_join")) %>%
+    left_join(CL[,c("DP_o", "df")], by=c("DP_o"="DP_o")) %>%
     left_join(latest_observed, by="AP_o") %>%
     rowwise() %>% 
     filter(DP_o>DP_max) %>%
@@ -534,14 +538,59 @@ scoring_function_CL_case <- function(IndividualData, full_data, period){
                , by =c("AP_o", "DP_rev_o"))
 
 
-  relative_total = sum(score_total$ave)/sum(score_total$I)
+   relative_total = sum(abs(score_total$abs_ave))/sum(score_total$I)
   RMSE_total = sqrt(mean(score_total$ave^2))
 
   relative_diagonal = score_diagonal %>% group_by(RP_o) %>%
-    summarize(relative_diagonal = sum(ave_2)/sum(I),
+    summarize(relative_diagonal = sqrt(sum(ave_2^2*I/sum(I),na.rm=T))/sqrt(sum(I^2*I/sum(I),na.rm=T)),
               I=sum(I))
 
-  weighted_relative_diagonal = sum(relative_diagonal$relative_diagonal*relative_diagonal$I)/(sum(relative_diagonal$I))
+  #weighted_relative_diagonal = sum(relative_diagonal$relative_diagonal*relative_diagonal$I)/(sum(relative_diagonal$I))
+  
+     
+weighted_relative_diagonal <-(score_diagonal%>%
+  group_by(AP_o,
+           DP_rev_o,
+           RP_o)%>%
+  reframe(ave=sum((ave_2)), I=sum(I)) %>% 
+  group_by(RP_o) %>% 
+  mutate(diagonal.volume=sum(I)) %>%
+  ungroup()%>%
+  mutate(weight=I/diagonal.volume,
+         squared.normalizer=(I^2))%>%
+  ungroup()%>%
+  group_by(
+           RP_o) %>%
+  reframe(diagonal_weight=sum(I),
+          sqerr=sum(abs(ave)),
+          sqnormalizer=sum(squared.normalizer*weight)) %>%
+  ungroup() %>%
+  reframe(diagonal.rmse= sum(sqerr*1/sum(diagonal_weight)) ))$diagonal.rmse
+    
+    
+relative_total <-(score_total %>%
+  mutate(RP_o = AP_o+max(dfs_output$DP_rev_o)-DP_rev_o,
+         # abserr=abs(expected-actual),
+        # sqerr=(ave)^2
+        )%>%
+  group_by(AP_o,
+           DP_rev_o,
+           RP_o)%>%
+  reframe(ave=sum(abs(ave)), I=sum(I)) %>% 
+  group_by(RP_o) %>% 
+  mutate(diagonal.volume=sum(I)) %>%
+  ungroup()%>%
+  mutate(weight=I/diagonal.volume,
+         squared.normalizer=(I^2))%>%
+  ungroup()%>%
+  group_by(
+           RP_o) %>%
+  reframe(diagonal_weight=sum(I),
+          sqerr=sum(ave),
+          sqnormalizer=sum(squared.normalizer*weight)) %>%
+  ungroup() %>%
+  reframe(diagonal.rmse= sum(sqerr*1/sum(diagonal_weight)) ))$diagonal.rmse
+
   
     scoring_result<- list(
     score_total = score_total,
@@ -552,8 +601,8 @@ scoring_function_CL_case <- function(IndividualData, full_data, period){
                   weighted_relative_diagonal = weighted_relative_diagonal
     ))
     
-  name = paste0("C:/Users/emil_/OneDrive/Dokumenter/Uni/Article/individual_clmplus/scores",  "/",period,"_CL_",format(Sys.time(), "%Y_%m_%d_%H_%M"),".RData")
-  saveRDS(scoring_result, file=name) 
+  # name = paste0("C:/Users/emil_/OneDrive/Dokumenter/Uni/Article/individual_clmplus/scores",  "/",period,"_CL_",format(Sys.time(), "%Y_%m_%d_%H_%M"),".RData")
+  # saveRDS(scoring_result, file=name) 
 
 
   return(list(
@@ -565,6 +614,146 @@ scoring_function_CL_case <- function(IndividualData, full_data, period){
                   weighted_relative_diagonal = weighted_relative_diagonal
     )))
 
+}
+
+scoring_function_CL_case_input<-function(IndividualData, full_data, period){
+  
+CL = IndividualData$training.data %>%
+  mutate(DP_i = max(IndividualData$training.data$DP_rev_i)-DP_rev_i + 1) %>%
+  group_by(AP_i, DP_i) %>%
+  summarize(I=sum(I), .groups="drop") %>%
+  group_by(AP_i) %>%
+  arrange(DP_i) %>%
+  mutate(I_cum = cumsum(I),
+         I_cum_lag = lag(I_cum, default=0)) %>%
+  ungroup() %>%
+  group_by(DP_i) %>%
+  reframe(df = sum(I_cum*(AP_i<=max(IndividualData$training.data$AP_i)-DP_i+1)) /
+            sum(I_cum_lag*(AP_i<=max(IndividualData$training.data$AP_i)-DP_i+1)),
+          I=sum(I*(AP_i<=max(IndividualData$training.data$AP_i)-DP_i))) %>%
+  mutate(DP_i_join = DP_i) %>%
+  mutate(DP_rev_i = max(DP_i) - DP_i +1 )
+
+CL<-expand.grid(DP_i_2=1:max(IndividualData$training.data$DP_rev_i)) %>% left_join(CL, , by=c("DP_i_2"="DP_i")) %>% 
+  rename(DP_i = DP_i_2) %>% 
+  replace_na(list(df=1))
+
+latest_observed <- IndividualData$training.data %>%
+  filter(DP_rev_i >=TR_o) %>%
+  mutate(DP_i = max(IndividualData$training.data$DP_rev_i)-DP_rev_i + 1) %>%
+  group_by(AP_i) %>%
+  mutate(DP_max =max(DP_i)) %>%
+  group_by(AP_i, DP_max) %>%
+  summarize(I=sum(I),.groups="drop")
+
+predictions <- expand.grid(AP_i = latest_observed$AP_i, DP_i = CL$DP_i_join) %>%
+  left_join(CL[,c("DP_i", "df")], by=c("DP_i"="DP_i")) %>%
+  left_join(latest_observed, by="AP_i") %>%
+  rowwise() %>% 
+  filter(DP_i>DP_max) %>%
+  ungroup() %>% 
+  group_by(AP_i) %>%
+  arrange(DP_i) %>%
+  mutate(df_cum = cumprod(df) ) %>%
+  mutate(I_expected= I*df_cum-I*lag(df_cum,default=1)) %>%
+  select(DP_i, AP_i, I_expected)
+
+conversion_factor = IndividualData$conversion_factor
+max_dp_i <- 48
+
+true_output_cl <- full_data$full.data %>%
+  filter(DP_rev_i <=TR_i) %>%
+  group_by(AP_i, DP_i, DP_rev_i) %>%
+  summarize(I=sum(I), .groups="drop") %>%
+  filter(DP_rev_i>0)
+
+score_total <- predictions  %>%
+  inner_join(true_output_cl,
+             by =c("AP_i", "DP_i")) %>%
+  mutate(ave = I-I_expected,
+         abs_ave = abs(ave))
+
+#calculate where we update with information from newest diagonal
+score_diagonal <- full_data$full.data  %>%
+  group_by( AP_i, DP_rev_i) %>%
+  summarize(I=sum(I), .groups = "drop") %>%
+  group_by(AP_i) %>%
+  arrange(desc(DP_rev_i)) %>%
+  mutate(I_cum=cumsum(I)) %>%
+  mutate(I_cum_lag = lag(I_cum, default = 0)) %>%
+  mutate(DP_i = max(IndividualData$training.data$DP_rev_i)-DP_rev_i + 1) %>%
+  inner_join(CL[,c("DP_i","df")], by = c("DP_i")) %>%
+  mutate(ave_2 = I_cum-I_cum_lag * df,
+         abs_ave_2 = abs(ave_2),
+         RP_i = max(DP_rev_i)-DP_rev_i + AP_i) %>%
+  inner_join(true_output_cl[,c("AP_i", "DP_rev_i")] %>%  distinct()
+             , by =c("AP_i", "DP_rev_i"))
+
+
+relative_total = sqrt(mean(score_total$ave^2*score_total$I/sum(score_total$I)))/sqrt(mean(score_total$I^2*score_total$I/sum(score_total$I)))
+RMSE_total = sqrt(mean(score_total$ave^2))
+
+relative_diagonal = score_diagonal %>% group_by(RP_i) %>%
+  summarize(relative_diagonal = sqrt(sum(ave_2^2*I/sum(I),na.rm=T))/sqrt(sum(I^2*I/sum(I),na.rm=T)),
+            I=sum(I))
+
+#weighted_relative_diagonal = sum(relative_diagonal$relative_diagonal*relative_diagonal$I)/(sum(relative_diagonal$I))
+
+
+weighted_relative_diagonal <-(score_diagonal%>%
+                                group_by(AP_i,
+                                         DP_rev_i,
+                                         RP_i)%>%
+                                reframe(ave=sum(abs(ave_2)), I=sum(I)) %>% 
+                                group_by(RP_i) %>% 
+                                mutate(diagonal.volume=sum(I)) %>%
+                                ungroup()%>%
+                                mutate(weight=I/diagonal.volume,
+                                       squared.normalizer=(I^2))%>%
+                                ungroup()%>%
+                                group_by(
+                                  RP_i) %>%
+                                reframe(diagonal_weight=sum(I),
+                                        sqerr=sum(ave*1),
+                                        sqnormalizer=sum(squared.normalizer*weight)) %>%
+                                ungroup() %>%
+  reframe(diagonal.rmse= sum(sqerr*1/sum(diagonal_weight)) ))$diagonal.rmse
+
+
+relative_total <-(score_total %>%
+                    mutate(RP_i = AP_i+DP_i-1,
+                           # abserr=abs(expected-actual),
+                           # sqerr=(ave)^2
+                    )%>%
+                    group_by(AP_i,
+                             DP_rev_i,
+                             RP_i)%>%
+                    reframe(ave=sum(abs(ave)), I=sum(I)) %>% 
+                    group_by(RP_i) %>% 
+                    mutate(diagonal.volume=sum(I)) %>%
+                    ungroup()%>%
+                    mutate(weight=I/diagonal.volume,
+                           squared.normalizer=(I^2))%>%
+                    ungroup()%>%
+                    group_by(
+                      RP_i) %>%
+                    reframe(diagonal_weight=sum(I),
+                            sqerr=sum(ave*1),
+                            sqnormalizer=sum(squared.normalizer*weight)) %>%
+                    ungroup() %>%
+  reframe(diagonal.rmse= sum(sqerr*1/sum(diagonal_weight)) ))$diagonal.rmse
+
+
+scoring_result<- list(
+  score_total = score_total,
+  score_diagonal = score_diagonal,
+  relative_diagonal = relative_diagonal,
+  metrics =list(relative_total = relative_total,
+                RMSE_total = RMSE_total,
+                weighted_relative_diagonal = weighted_relative_diagonal
+  ))
+
+return(scoring_result)
 }
 
 
@@ -628,6 +817,17 @@ scoring_function <-function(resurv.predict){
               I=sum(I))
 
   weighted_relative_diagonal = sum(relative_diagonal$relative_diagonal*relative_diagonal$I)/(sum(relative_diagonal$I))
+  
+      scoring_result<- list(
+    score_total = score_total,
+    score_diagonal = score_diagonal,
+    relative_diagonal = relative_diagonal,
+    metrics =list(relative_total = relative_total,
+                  RMSE_total = RMSE_total,
+                  weighted_relative_diagonal = weighted_relative_diagonal
+    ))
+      
+
 
   return(list(
     score_total = score_total,
@@ -759,28 +959,31 @@ input_data <- data_generator(random_seed = i,
                                     accident_period="AP",
                                     calendar_period="RP",
                                     input_time_granularity = "days",
-                                    output_time_granularity = "quarters",
-                                    years=4 #check this. I see strange development periods
-  )
-  score<-scoring_function_CL(individual_data)
-  
-  scores_cl[scores_cl$sim==i & scores_cl$scenario==j,]$RMSE_total <-score$metrics$RMSE_total
-  scores_cl[scores_cl$sim==i & scores_cl$scenario==j,]$relative_total <-score$metrics$relative_total
-  scores_cl[scores_cl$sim==i & scores_cl$scenario==j,]$cash_flow_quarterly <-score$metrics$weighted_relative_diagonal
-  
-    individual_data <- IndividualData(data = input_data,
-                                    id=NULL,
-                                    categorical_features = c("claim_type"),
-                                    continuous_features = "AP_i",
-                                    accident_period="AP",
-                                    calendar_period="RP",
-                                    input_time_granularity = "days",
                                     output_time_granularity = "years",
                                     years=4 #check this. I see strange development periods
   )
   score<-scoring_function_CL(individual_data)
   
-   scores_cl[scores_cl$sim==i & scores_cl$scenario==j,]$cash_flow_yearly <-score$metrics$weighted_relative_diagonal
+          name = paste0("C:/Users/emil_/OneDrive/Dokumenter/Uni/Article/individual_clmplus/scores",  "/sim",j,"_",i,"_CL_yearly",format(Sys.time(), "%Y_%m_%d_%H_%M"),".RData")
+  saveRDS(score, file=name) 
+  # 
+  # scores_cl[scores_cl$sim==i & scores_cl$scenario==j,]$RMSE_total <-score$metrics$RMSE_total
+  # scores_cl[scores_cl$sim==i & scores_cl$scenario==j,]$relative_total <-score$metrics$relative_total
+  # scores_cl[scores_cl$sim==i & scores_cl$scenario==j,]$cash_flow_quarterly <-score$metrics$weighted_relative_diagonal
+  # 
+  #   individual_data <- IndividualData(data = input_data,
+  #                                   id=NULL,
+  #                                   categorical_features = c("claim_type"),
+  #                                   continuous_features = "AP_i",
+  #                                   accident_period="AP",
+  #                                   calendar_period="RP",
+  #                                   input_time_granularity = "days",
+  #                                   output_time_granularity = "years",
+  #                                   years=4 #check this. I see strange development periods
+  # )
+  # score<-scoring_function_CL(individual_data)
+  # 
+  #  scores_cl[scores_cl$sim==i & scores_cl$scenario==j,]$cash_flow_yearly <-score$metrics$weighted_relative_diagonal
   }
 }
 
@@ -801,7 +1004,8 @@ path = "C:/Users/emil_/OneDrive/Dokumenter/Uni/Speciale/R code/data/%s"
 scores_cl_case <- expand.grid(periods= periods) %>% tibble() %>%  mutate(relative_total=as.numeric(NA),
                     RMSE_total =as.numeric(NA),
                     cash_flow_quarterly=as.numeric(NA),
-                    cash_flow_yearly=as.numeric(NA))
+                    cash_flow_yearly=as.numeric(NA),
+                    cash_flow_monthly = as.numeric(NA))
 
 for(i in periods){
   print(i)
@@ -843,54 +1047,57 @@ for(i in periods){
   )
   
   
-  score<-scoring_function_CL_case(individual_data,full_data,i)
+    score<-scoring_function_CL_case(individual_data,full_data,i)
+    score_input<-scoring_function_CL_case_input(individual_data,full_data,i)
+    scores_cl_case[scores_cl_case$periods==i,]$cash_flow_monthly <-score_input$metrics$weighted_relative_diagonal
   
-  # scores_cl_case[scores_cl_case$periods==i,]$RMSE_total <-score$metrics$RMSE_total
-  # scores_cl_case[scores_cl_case$periods==i,]$relative_total <-score$metrics$relative_total
-  # scores_cl_case[scores_cl_case$periods==i,]$cash_flow_quarterly <-score$metrics$weighted_relative_diagonal
-  # 
-  #   df_name <- paste0("case_data_train_ng_",i,".csv")
-  #   df <- read.csv(sprintf(path,df_name),header=T)
-  #   df<- df %>%
-  #       filter(DM <=48 &AM<=48)%>%
-  #       mutate(CM=AM+DM-1)
-  # 
-  #   individual_data <- IndividualData(data = df,
-  #                                   id=NULL,
-  #                                   categorical_features = c("Claim_type_key", "Cover_key"),
-  #                                   continuous_features = "AP_i",
-  #                                   accident_period="AM",
-  #                                   calendar_period="CM",
-  #                                   input_time_granularity = "months",
-  #                                   output_time_granularity = "years",
-  #                                   continuous_features_spline="AP_i",
-  #                                   years=4 #check this. I see strange development periods
-  # )
-  # 
-  #     df_name <- paste0("case_data_all_ng_",i,".csv")
-  #   df <- read.csv(sprintf(path,df_name),header=T)
-  #   df<- df %>%
-  #       filter(DM <=48 &AM<=48)%>%
-  #       mutate(CM=AM+DM-1)
-  #   
-  #     full_data <- IndividualData(data = df,
-  #                                   id=NULL,
-  #                                   categorical_features = c("Claim_type_key", "Cover_key"),
-  #                                   continuous_features = "AP_i",
-  #                                   accident_period="AM",
-  #                                   calendar_period="CM",
-  #                                   input_time_granularity = "months",
-  #                                   output_time_granularity = "years",
-  #                                   continuous_features_spline="AP_i",
-  #                                   years=4 #check this. I see strange development periods
-  # )
-  # 
-  # score<-scoring_function_CL_case(individual_data,full_data,i)
-  # 
-  #  scores_cl_case[scores_cl_case$periods==i,]$cash_flow_yearly <-score$metrics$weighted_relative_diagonal
+  scores_cl_case[scores_cl_case$periods==i,]$RMSE_total <-score$metrics$RMSE_total
+  scores_cl_case[scores_cl_case$periods==i,]$relative_total <-score$metrics$relative_total
+  scores_cl_case[scores_cl_case$periods==i,]$cash_flow_quarterly <-score$metrics$weighted_relative_diagonal
+
+    df_name <- paste0("case_data_train_ng_",i,".csv")
+    df <- read.csv(sprintf(path,df_name),header=T)
+    df<- df %>%
+        filter(DM <=48 &AM<=48)%>%
+        mutate(CM=AM+DM-1)
+
+    individual_data <- IndividualData(data = df,
+                                    id=NULL,
+                                    categorical_features = c("Claim_type_key", "Cover_key"),
+                                    continuous_features = "AP_i",
+                                    accident_period="AM",
+                                    calendar_period="CM",
+                                    input_time_granularity = "months",
+                                    output_time_granularity = "years",
+                                    continuous_features_spline="AP_i",
+                                    years=4 #check this. I see strange development periods
+  )
+
+      df_name <- paste0("case_data_all_ng_",i,".csv")
+    df <- read.csv(sprintf(path,df_name),header=T)
+    df<- df %>%
+        filter(DM <=48 &AM<=48)%>%
+        mutate(CM=AM+DM-1)
+
+      full_data <- IndividualData(data = df,
+                                    id=NULL,
+                                    categorical_features = c("Claim_type_key", "Cover_key"),
+                                    continuous_features = "AP_i",
+                                    accident_period="AM",
+                                    calendar_period="CM",
+                                    input_time_granularity = "months",
+                                    output_time_granularity = "years",
+                                    continuous_features_spline="AP_i",
+                                    years=4 #check this. I see strange development periods
+  )
+
+  score<-scoring_function_CL_case(individual_data,full_data,i)
+
+   scores_cl_case[scores_cl_case$periods==i,]$cash_flow_yearly <-score$metrics$weighted_relative_diagonal
+  
   
 }
-#fwrite(scores_cl_case, paste0(scores_loc,"/case_cl_2023_05_23_21_30.csv"))
+fwrite(scores_cl_case, paste0(scores_loc,"/case_cl_2023_05_31.csv"))
 ```
 
 # Standard code
@@ -1108,7 +1315,7 @@ resurv.fit.ltrctrees <- ReSurv(individual_data,
 resurv.cv.ltrctrees <- ReSurvCV(IndividualData=individual_data,
                                model="LTRCtrees",
                                hparameters_grid = list(
-                                 cp=c(0.01,0.00001),
+                                cp=c(0.0000000001,0.01),
                                  minbucket = c(1)),
                                folds=2,
                                random_seed=1,
