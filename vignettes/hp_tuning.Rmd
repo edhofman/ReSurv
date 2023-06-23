@@ -1,0 +1,299 @@
+---
+title: "Hyperparameters tuning"
+author: "Gabriele Pittarello"
+date: "2023-06-09"
+output: html_document
+bibliography: references.bib  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(ParBayesianOptimization)
+library(ReSurv)
+```
+
+# Introduction 
+
+This vignette shows how to tune the hyperparameters of the machine learning algorithms implemented in `ReSurv` using the approach in @snoek12 implemented in the R package `ParBayesianOptimization` (@ParBayesianOptimization).
+For illustrative purposes, we will simulate daily claim notifications from one of the scenarios introduced in @hiabu23 (scenario Alpha). 
+
+```{r eval=FALSE, include=TRUE}
+input_data0 <- data_generator(random_seed = 1964,
+                              scenario=0,
+                              time_unit = 1/360,
+                              years = 4,
+                              yearly_exposure = 200)
+```
+
+The counts data are then pre-processed using the `IndividualData` function.
+
+```{r eval=FALSE, include=TRUE}
+individual_data <- IndividualData(data = input_data,
+                                  id=NULL,
+                                  categorical_features = c("claim_type"),
+                                  continuous_features = "AP",
+                                  accident_period="AP",
+                                  calendar_period="RP",
+                                  input_time_granularity = "days",
+                                  output_time_granularity = "quarters",
+                                  years=4)
+```
+
+
+# Optimal hyperparameters
+
+In the manuscript we fit the proportional likelihood of a cox model using extreme gradient boosting (XGB) and feed-forward neural networks (NN). The advantage of using the bayesian hyperparameters selection algorithm is in terms the computation time, and of a wide range of parameter choices (see again @snoek12). 
+We show the ranges we inspected in the manuscript in the following table.
+
+| Model | Hyperparameter              | Range                   |
+|-------|-----------------------------|-------------------------|
+| NN    | `num_layers`                | $\left[2,10\right]$     |
+|       | `num_nodes`                 | $\left[2,10\right]$     |
+|       | `optim`                     | $\left[1,2\right]$      |
+|       | `activation`                | $\left[1,2\right]$      |
+|       | `lr`                        | $\left[.005,0.5\right]$ |
+|       | `xi`                        | $\left[0,0.5\right]$    |
+|       | `eps`                       | $\left[0,0.5\right]$    |
+| XGB   | `eta`                       | $\left[0,1\right]$      |
+|       | `max_depth`                 | $\left[0,25\right]$     |
+|       | `min_child_weight`          | $\left[0,50\right]$     |
+|       | `lambda`                    | $\left[0,50\right]$     |
+|       | `alpha`                     | $\left[0,50\right]$     |
+
+
+In the following part of this vignette, we will discuss the steps required to optimize the hyperparameters with NN using the approach of @snoek12. We will provide the code we used for XGB as it follows a similar flow.
+
+## Notes on K-Fold cross validation
+
+In `ReSurv`, we have our own implementation of a standard K-Fold cross-validation (@hastie09), namely the `ReSurvCV` method of an `IndividualData` object. We show an illustrative example for neural networks below. Even if this routine can be used alone for choosing the optimal parameters, we suggest to use it within the bayesian approach of @snoek12. An example is provided in the following chunk for XGB.
+
+```{r eval=FALSE, include=TRUE}
+
+resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
+                               model="xgboost",
+                               hparameters_grid=list(booster="gbtree",
+                                             eta=c(.001,.01,.2,.3),
+                                             max_depth=c(3,6,8),
+                                             subsample=c(1),
+                                             alpha=c(0,.2,1),
+                                             lambda=c(0,.2,1),
+                                             min_child_weight=c(.5,1)),
+                               print_every_n = 1L,
+                               nrounds=500,
+                               verbose=F,
+                               verbose.cv=T,
+                               early_stopping_rounds = 100,
+                               folds=5,
+                               parallel=T,
+                               ncores=2,
+                               random_seed=1)
+
+```
+
+
+## Neural networks
+
+The `ReSurv` neural network implementation uses `reticulate` to interface R Studio to Python and it is based on a similar approach to @katzman18, corrected to account for left-truncation and ties in the data. Similarly to the original implementation we relied on the Python library `pytorch` (@pytorch). The syntax of our NN is then the syntax of `pytorch`. See the [reference guide](https://pytorch.org/) for further information on the NN parametrization.
+
+In order to use the `ParBayesianOptimization` package, we first need to specify the NN parameter ranges we are interested into a vector. We discussed in the last section the ranges we choose for each algorithm.
+
+```{r eval=FALSE, include=TRUE}
+
+bounds <- list(num_layers = c(2L,10L),
+               num_nodes = c(2L,10L),
+               optim=c(1L,2L),
+               activation = c(1L,2L),
+               lr=c(.005,0.5),
+               xi=c(0,0.5),
+               eps = c(0,0.5)
+               )
+
+```
+
+
+Secondly, we need to specify an objective function to be optimized with the bayesian approach. The score metric we inspect is the negative (partial) likelihood. The likelihood is returned with negative sign as @ParBayesianOptimization is maximizing the objective function.
+
+```{r eval=FALSE, include=TRUE}
+
+obj_func <- function(num_layers, 
+                     num_nodes, 
+                     optim, 
+                     activation,
+                     lr, 
+                     xi, 
+                     eps) {
+  
+  optim = switch(optim, 
+                 "Adam", 
+                 "SGD")
+  activation = switch(activation, "LeakyReLU","SELU")
+  batch_size=as.integer(5000)
+  number_layers=as.integer(num_layers)
+  num_nodes=as.integer(num_nodes)
+  
+  deepsurv_cv <- ReSurvCV(IndividualData=individual_data,
+                    model="deepsurv",
+                    hparameters_grid=list(num_layers = num_layers,
+                                         num_nodes = num_nodes,
+                                         optim=optim,
+                                         activation = activation,
+                                         lr=lr,
+                                         xi=xi,
+                                         eps = eps,
+                                         tie = "Efron",
+                                         batch_size = batch_size,
+                                         early_stopping = 'TRUE',
+                                         patience  = 20
+                    ),
+                    epochs=as.integer(300),
+                    num_workers = 0,      
+                    verbose=F,
+                    verbose.cv=T,
+                    folds=3,
+                    parallel=F,
+                    random_seed = as.integer(Sys.time()))
+  
+
+  lst <- list(
+    
+    Score = -deepsurv_cv$out.cv.best.oos$test.lkh,
+    
+    train.lkh = deepsurv_cv$out.cv.best.oos$train.lkh
+  )
+  
+  return(lst)
+}
+
+```
+
+
+As a last step, we use the `bayesOpt` function to perform the optimization.
+
+```{r eval=FALSE, include=TRUE}
+
+bayes_out <- bayesOpt(
+    FUN = obj_func
+    , bounds = bounds
+    , initPoints = 50
+    , iters.n = 1000
+    , iters.k = 50
+    , otherHalting = list(timeLimit = 18000)
+    , parallel = TRUE
+  )
+  
+
+```
+
+
+To select the optimal hyperparameters we inspect `bayes_out$scoreSummary` output. Below we print the first five rows of one of our runs. Observe `scoreSummary` is a `data.table` that contains some parameters specific of the original implementation (see @ParBayesianOptimization for more details)
+
+| Epoch | Iteration | gpUtility | acqOptimum | inBounds | errorMessage |
+|-------|-----------|-----------|------------|----------|--------------|
+| 0     | 1         |           | FALSE      | TRUE     |              |
+| 0     | 2         |           | FALSE      | TRUE     |              |
+| 0     | 3         |           | FALSE      | TRUE     |              |
+| 0     | 4         |           | FALSE      | TRUE     |              |
+| 0     | 5         |           | FALSE      | TRUE     |              |
+
+
+and the parameters we specified during the optimization:
+
+| num_layers  | num_nodes  | optim | activation | lr   | xi   | eps  | batch_size  | Elapsed | Score | train.lkh |
+|-------------|------------|-------|------------|------|------|------|-------------|---------|-------|-----------|
+| 9           | 8          | 1     | 2          | 0.08 | 0.35 | 0.03 | 1226        | 6094.91 | -6.24 | 6.28      |
+| 9           | 2          | 2     | 1          | 0.47 | 0.50 | 0.10 | 3915        | 7307.31 | -7.27 | 7.30      |
+| 9           | 9          | 2     | 1          | 0.40 | 0.49 | 0.18 | 196         | 6719.70 | -5.98 | 5.97      |
+| 8           | 8          | 1     | 2          | 0.03 | 0.23 | 0.01 | 4508        | 8893.46 | -7.39 | 7.41      |
+| 9           | 7          | 2     | 1          | 0.13 | 0.13 | 0.12 | 900         | 3189.15 | -6.21 | 6.23      |
+
+We select the final combination that minimizes the negative (partial) likelihood, in the `Score` column. 
+
+
+## Extreme gradient boosting
+
+In a similar fashion, we can optimize the gradient boosting parameters. We first set the hyperparameters grid.
+
+```{r eval=FALSE, include=TRUE}
+
+bounds <- list(eta = c(0, 1),
+               max_depth = c(1L, 25L),
+               min_child_weight = c(0, 50),
+               subsample = c(0.51, 1),
+               lambda = c(0, 15),
+               alpha = c(0, 15))
+
+```
+
+
+Secondly, we define an objective function.
+
+```{r eval=FALSE, include=TRUE}
+# Function must take the hyper-parameters as inputs
+obj_func <- function(eta, max_depth, min_child_weight, subsample, lambda, alpha) {
+  
+  xgbcv <- ReSurvCV(IndividualData=individual_data,
+                    model="xgboost",
+                    hparameters_grid=list(booster="gbtree",
+                                          eta=eta,
+                                          max_depth=max_depth,
+                                          subsample=subsample,
+                                          alpha=lambda,
+                                          lambda=alpha,
+                                          min_child_weight=min_child_weight),
+                    print_every_n = 1L,
+                    nrounds=500,
+                    verbose=F,
+                    verbose.cv=T,
+                    early_stopping_rounds = 30,
+                    folds=3,
+                    parallel=F,
+                    random_seed = as.integer(Sys.time()))
+  
+  lst <- list(
+    
+    Score = -xgbcv$out.cv.best.oos$test.lkh,
+    train.lkh = xgbcv$out.cv.best.oos$train.lkh
+  )
+  
+  return(lst)
+}
+
+```
+
+
+Lastly, we perform the optimization.
+
+```{r eval=FALSE, include=TRUE}
+
+bayes_out <- bayesOpt(
+  FUN = obj_func
+  , bounds = bounds
+  , initPoints = length(bounds) + 20
+  , iters.n = 1000
+  , iters.k = 50
+  , otherHalting = list(timeLimit = 18000)
+  , parallel = TRUE
+)
+
+```
+
+
+# Bibliography 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
