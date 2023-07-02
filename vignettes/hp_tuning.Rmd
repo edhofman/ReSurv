@@ -179,7 +179,6 @@ bayes_out <- bayesOpt(
     , iters.n = 1000
     , iters.k = 50
     , otherHalting = list(timeLimit = 18000)
-    , parallel = TRUE
   )
   
 
@@ -210,7 +209,7 @@ and the parameters we specified during the optimization:
 We select the final combination that minimizes the negative (partial) likelihood, in the `Score` column. 
 
 
-## Extreme gradient boosting
+## Extreme gradient boosting utilzing parallel computing
 
 In a similar fashion, we can optimize the gradient boosting parameters. We first set the hyperparameters grid.
 
@@ -262,9 +261,16 @@ obj_func <- function(eta, max_depth, min_child_weight, subsample, lambda, alpha)
 ```
 
 
-Lastly, we perform the optimization.
+Lastly, we perform the optimization in a parallel setting using the `DoParallel` package, as recommended in 'BayesOpt'.
 
 ```{r eval=FALSE, include=TRUE}
+
+library(DoParallel)
+
+cl <- makeCluster( parallel::detectCores()  )
+registerDoParallel(cl)
+
+clusterEvalQ(cl, {library("ReSurv")} )
 
 bayes_out <- bayesOpt(
   FUN = obj_func
