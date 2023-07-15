@@ -7,14 +7,14 @@
 \method{predict}{ReSurvFit}(
   object,
   newdata = NULL,
-  grouping_method = "exposure",
+  grouping_method = "probability",
   check_value = 1.85
 )
 }
 \arguments{
 \item{object}{\code{ResurvFit} object specifying start time, end time and status.}
 
-\item{newdata}{\code{IndividualData} object that contains}
+\item{newdata}{\code{IndividualData} object that contains new data to predict.}
 
 \item{grouping_method}{\code{character}, use probability or exposure approach to group from input to output development factors. Choice between:
 \itemize{

@@ -84,6 +84,9 @@ survival_crps.ReSurvFit <- function(ReSurvFit){
 
   hazard_frame <- data.table(hazard_frame)
 
+  categorical_features <- ReSurvFit$IndividualData$categorical_features
+  continuous_features <- ReSurvFit$IndividualData$continuous_features
+
   hazard_frame <- hazard_frame[,
                                ix_group:=.GRP,
                                by=c(categorical_features,
