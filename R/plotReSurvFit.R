@@ -24,11 +24,11 @@ plot.ReSurvFit <- function(object,
                                X_train = as.matrix(output.fit$data))
 
     df.2.plot <- apply(abs(shap_values$shap_score),2,mean)
-
+    plot.color <- "royalblue"
 
   }
 
-  if(hazard_model=="deep_surv"){
+  if(hazard_model=="deepsurv"){
 
     shap <- reticulate::import("shap")
 
@@ -47,6 +47,7 @@ plot.ReSurvFit <- function(object,
     colnames(shap_values) <- colnames(output.fit$data)
 
     df.2.plot <- apply(abs(shap_values),MARGIN = 2,mean)
+    plot.color <- "#a71429"
 
   }
 
@@ -55,7 +56,7 @@ plot.ReSurvFit <- function(object,
     reshape2::melt(df.2.plot, na.rm = FALSE, value.name = "value", id = NULL) %>%
     rownames_to_column(var = "feature") %>%
   ggplot(aes(x=feature, y=value)) +
-    geom_bar(stat = "identity", fill="navy") +
+    geom_bar(stat = "identity", fill=plot.color) +
     coord_flip() +
     labs(title=" ",
          x="",
