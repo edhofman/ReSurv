@@ -156,12 +156,14 @@ png(filename = "~/GitHub/ReSurv/vignettes/alpha_shap_xgb.png", width=600, height
 plot(resurv.model.xgb.A)
 dev.off()
 ```
+![Mean absolute Shap values for XGB on one data set simulated from scenario Alpha.](alpha_shap_xgb.png)
 
 ```{r eval=FALSE, include=TRUE}
 png(filename = "~/GitHub/ReSurv/vignettes/delta_shap_xgb.png", width=600, height=480, res=72)
 plot(resurv.model.xgb.D)
 dev.off()
 ```
+![Mean absolute Shap values for XGB on one data set simulated from scenario Delta.](delta_shap_xgb.png)
 
 ## Shap values (NN)
 
@@ -170,9 +172,11 @@ png(filename = "~/GitHub/ReSurv/vignettes/alpha_shap_nn.png", width=600, height=
 plot(resurv.model.nn.A,nsamples=10000)
 dev.off()
 ```
+![Mean absolute Shap values for NN on one data set simulated from scenario Alpha.](alpha_shap_nn.png)
+
 ```{r}
 png(filename = "~/GitHub/ReSurv/vignettes/delta_shap_nn.png", width=600, height=480, res=72)
-plot(resurv.model.nn.A,nsamples=10000)
+plot(resurv.model.nn.D,nsamples=10000)
 dev.off()
 ```
 
