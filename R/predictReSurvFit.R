@@ -3,7 +3,7 @@
 #' This function predicts the results from the ReSurv fits.
 #'
 #' @param object \code{ResurvFit} object specifying start time, end time and status.
-#' @param newdata \code{IndividualData} object that contains
+#' @param newdata \code{IndividualData} object that contains new data to predict.
 #' @param grouping_method \code{character}, use probability or exposure approach to group from input to output development factors. Choice between:
 #' \itemize{
 #' \item{\code{"exposure"}}
@@ -18,24 +18,31 @@
 #' @method predict ReSurvFit
 predict.ReSurvFit <- function(object,
                               newdata=NULL,
-                              grouping_method = "exposure",
+                              grouping_method = "probability",
                               check_value = 1.85){
 
 
   if(!is.null(newdata)){
     pkg.env$check.newdata(newdata=newdata,
                           pastdata=object$IndividualData)
+
     idata <- newdata
+    # hazard_frame <- adjust.predictions(ResurvFit=object,
+    #                                    hazard_model=object$hazard_model,
+    #                                    idata=idata)
+
+
   }else{
 
     idata <- object$IndividualData
 
+
     }
 
-
+  hazard_frame <-object$hazard_frame
 
   hazard_frame_grouped <- pkg.env$covariate_mapping(
-    hazard_frame = object$hazard_frame,
+    hazard_frame = hazard_frame,
     categorical_features = idata$categorical_features,
     continuous_features = idata$continuous_features,
     conversion_factor = idata$conversion_factor,

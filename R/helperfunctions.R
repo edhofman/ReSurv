@@ -3278,3 +3278,164 @@ pkg.env$evaluate_lkh_cox <-function(X_train,
 
 }
 
+
+adjust.predictions <- function(ResurvFit,
+                               hazard_model,
+                               idata){
+
+  browser()
+  formula_ct <- idata$string_formula_i
+
+  newdata <- create.df.2.fcst(IndividualData=idata,
+                              hazard_model=hazard_model)
+
+  # create data frame of occurrencies to weight development factors
+  Om.df <-   ResurvFit$Om.df
+
+
+  if(hazard_model=="cox"){
+
+    data=idata$training.data
+    X=data %>%
+      select(c(idata$continuous_features,idata$categorical_features))
+
+    Y=data[,c("DP_rev_i", "I", "TR_i")]
+
+    model.out <- ResurvFit$model.out$model.out
+    coxlp <-  predict(model.out$cox,
+              newdata=newdata,
+              'lp',
+              reference='zero')
+
+    expg <- exp(coxlp)
+
+    bs_hazard <- basehaz(model.out$cox,
+                         newdata=newdata, # here the baseline is refitted
+                         centered=FALSE) %>%
+      mutate(hazard = hazard-lag(hazard,default=0))
+
+    bsln <- data.frame(baseline=bs_hazard$hazard,
+                       DP_rev_i=ceiling(bs_hazard$time))  #$hazard
+    # browser()
+    hazard_frame <- cbind(newdata, expg)
+    colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
+
+  }
+
+  if(hazard_model=="deepsurv"){
+
+    X <- pkg.env$model.matrix.creator(data= idata$training.data,
+                                      select_columns = idata$categorical_features)
+
+    scaler <- pkg.env$scaler(continuous_features_scaling_method='minmax')
+
+    Xc <- idata$training.data %>%
+      reframe(across(all_of(idata$continuous_features),
+                     scaler))
+
+    # training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
+
+    X = cbind(X,Xc)
+
+    Y=idata$training.data[,c("DP_rev_i", "I", "TR_i")]
+
+    datads_pp = pkg.env$deep_surv_pp(X=X,
+                                     Y=Y,
+                                     training_test_split = 1)
+
+    # hparameters <- pkg.env$nn_hparameter_nodes_grid(hparameters)
+    #
+    # hparameters <- list(params=as.list.data.frame(hparameters),
+    #                     verbose=hparameters$verbose,
+    #                     epochs = hparameters$epochs,
+    #                     num_workers = hparameters$num_workers)
+
+
+    # model.out <- pkg.env$fit_deep_surv(datads_pp,
+    #                                    params=hparameters$params,
+    #                                    verbose = hparameters$verbose,
+    #                                    epochs = hparameters$epochs,
+    #                                    num_workers = hparameters$num_workers,
+    #                                    seed = random_seed)
+
+    # bsln <- model.out$compute_baseline_hazards(
+    #   input = datads_pp$x_train,
+    #   target = datads_pp$y_train,
+    #   batch_size = hparameters$batch_size)
+
+    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+                                  model.out = ResurvFit$model.out$model.out,
+                                  X=X,
+                                  Y=Y)
+
+    newdata.mx <- pkg.env$df.2.fcst.nn.pp(data=idata$training.data,
+                                          newdata=newdata,
+                                          continuous_features=idata$continuous_features,
+                                          categorical_features=idata$categorical_features)
+
+
+
+    x_fc= reticulate::np_array(as.matrix(newdata.mx), dtype = "float32")
+
+
+
+    beta_ams <- ResurvFit$model.out$model.out$predict(input=x_fc)
+
+    #make to hazard relative to initial model, to have similiar interpretation as standard cox
+
+    benchmark_id <- pkg.env$benchmark_id(X = X,
+                                         Y =Y ,
+                                         newdata.mx = newdata.mx
+    )
+
+    pred_relative <- beta_ams - beta_ams[benchmark_id]
+
+    expg <- exp(pred_relative)
+    hazard_frame <- cbind(newdata,expg)
+    bsln <- data.frame(baseline=bsln,
+                       DP_rev_i=sort(as.integer(unique(idata$training.data$DP_rev_i))))
+
+
+  }
+
+
+  hazard_frame <- hazard_frame %>%
+    full_join(bsln,
+              by="DP_rev_i") %>%
+    as.data.frame() %>%
+    replace_na(list(baseline=0))
+
+  hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
+
+  #Add development and relevant survival values to the hazard_frame
+  hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
+                                                    Om.df=Om.df,
+                                                    categorical_features = idata$categorical_features,
+                                                    continuous_features = idata$continuous_features,
+                                                    calendar_period_extrapolation = idata$calendar_period_extrapolation)
+
+
+  return(hazard_frame_updated)
+
+}
+
+# survival crps ----
+
+survival_information<-function(x,
+                               group,
+                               hazard_list){
+
+  tmp <-hazard_list[[group]]
+  return(tmp[,.(crps=sum((x.vals*cdf2_i)[DP_rev_i<=x])+sum((x.vals*S2_i)[DP_rev_i>x]))]$crps)
+
+}
+
+
+
+
+
+
+
+
+
+

@@ -550,6 +550,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
   out=list(model.out=list(data=X,
                           model.out=model.out),
+           Om.df=Om.df,
            is_lkh=is_lkh,
            os_lkh=os_lkh,
            hazard_frame = hazard_frame_updated,
@@ -560,7 +561,6 @@ ReSurv.IndividualData <- function(IndividualData,
 
   return(out)
 }
-
 
   # return(hazard_frame_updated)
 #   hazard_frame_grouped <- pkg.env$covariate_mapping(
