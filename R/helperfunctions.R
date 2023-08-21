@@ -7,15 +7,14 @@
 #' @importFrom reshape2 melt
 #' @import survival
 #' @import dtplyr
-#' @import data.table
 #' @import forecast
 #' @import reticulate
 #' @import xgboost
 #' @importFrom rpart rpart.control
 #' @importFrom LTRCtrees LTRCART
+#' @import data.table
 
 pkg.env <- new.env()
-
 
 # Utils individual claims generators
 
@@ -3421,15 +3420,31 @@ adjust.predictions <- function(ResurvFit,
 
 # survival crps ----
 
+# pkg.env$survival_information<-function(x,
+#                                group,
+#                                hazard_list){
+#
+#   tmp <-hazard_list[[group]]
+#   return(tmp[,.(crps=sum((x.vals*cdf2_i)[DP_rev_i<=x])+sum((x.vals*S2_i)[DP_rev_i>x]))]$crps)
+#
+# }
+
 survival_information<-function(x,
                                group,
                                hazard_list){
 
   tmp <-hazard_list[[group]]
-  return(tmp[,.(crps=sum((x.vals*cdf2_i)[DP_rev_i<=x])+sum((x.vals*S2_i)[DP_rev_i>x]))]$crps)
+
+  x.vals = tmp$x.vals
+  cdf2_i = tmp$cdf2_i
+  DP_rev_i = tmp$DP_rev_i
+  S2_i = tmp$S2_i
+
+  crps=sum((x.vals*cdf2_i)[DP_rev_i<=x])+sum((x.vals*S2_i)[DP_rev_i>x])
+
+  return(crps)
 
 }
-
 
 
 
