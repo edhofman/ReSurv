@@ -2344,7 +2344,7 @@ pkg.env$benchmark_id <- function(X,
     unname()
 
   if(remove_first_dummy==T){
-    newdata.mx <- newdata.mx[,colnames(newdata.mx) %in% names(X)]
+    newdata.mx <- data.frame(newdata.mx[,colnames(newdata.mx) %in% names(X)])
   }
 
   benchmark_id <- which(apply(newdata.mx, 1, function(x) sum(benchmark == x) == length(benchmark) ))[1]
