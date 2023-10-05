@@ -1110,7 +1110,7 @@ pkg.env$hazard_f<-function(i,
 # }
 
 pkg.env$hazard_data_frame <- function(hazard,
-                                      Om.df,
+                                      # Om.df,
                                       eta_old=1/2,
                                       categorical_features,
                                       continuous_features,
@@ -1121,9 +1121,9 @@ pkg.env$hazard_data_frame <- function(hazard,
   "
   #Calculate input development factors and corresponding survival probabilities
   hazard_frame_tmp <- hazard %>%
-    left_join(Om.df, "DP_rev_i") %>%
-    #mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>% #Follows from the assumption that claims are distributed evenly in the input period
-    mutate(dev_f_i = (2*Om+(Om+1)*hazard)/(2*Om-(Om-1)*hazard) ) %>%
+    # left_join(Om.df, "DP_rev_i") %>%
+    mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>% #Follows from the assumption that claims are distributed evenly in the input period
+    # mutate(dev_f_i = (2*Om+(Om+1)*hazard)/(2*Om-(Om-1)*hazard) ) %>%
     replace_na(list(dev_f_i =1)) %>%
     mutate(dev_f_i = ifelse(dev_f_i<0,1,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
     group_by(pick(all_of(categorical_features), AP_i)) %>%
@@ -1145,7 +1145,8 @@ pkg.env$hazard_data_frame <- function(hazard,
            S_i_lead = coalesce(S_i_lead,1),
            S_i_lag = coalesce(S_i_lag, 1),
            cum_dev_f_i = coalesce(cum_dev_f_i,1))
-  return(hazard_frame)}
+  return(hazard_frame)
+  }
 
 
 #Need special handling if we have continuous variables

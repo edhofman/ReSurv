@@ -1,0 +1,70 @@
+---
+title: "A simple case study"
+author: "Gabriele Pittarello"
+date: "2023-10-05"
+output: html_document
+bibliography: references.bib  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ReSurv)
+```
+
+# Introduction
+
+In this vignette we want to generate a data set from scenario Alpha described in @hiabu23 and using COX to fit and predict future IBNR. Below, we describe the data set covariates.
+
+| Covariates                                       | Description        |
+|--------------------------------------------------|--------------------|
+| `claim_number`                                   | Policy identifier. |
+| `claim_type` $\in  \left\{0, 1 \right\}$         | Type of claim.     |
+| `AM`                                             | Accident month.    |
+| `RM`                                             | Reporting month.   |
+| `DM`                                             | Development month. |
+
+
+The data are simulated on a daily grid, over a four years time horizon with a daily exposure of $200$ claims.
+
+```{r eval=FALSE, include=TRUE}
+# Input data
+
+input_data0 <- data_generator(random_seed = 1964,
+                              scenario=0,
+                              time_unit = 1/360,
+                              years = 4,
+                              yearly_exposure = 200)
+
+```
+
+In the pre-processing of the data, we specify `claim_type`, as a categorical feature and `AP` as a continuous feature. The calendar period of reporting is `RP`. The input data granularity is `"days"` and we want quarterly predictions (we set `output_time_granularity` to `"quarters"`. The time horizon is $4$ years.
+
+```{r eval=FALSE, include=TRUE}
+individual_data <- IndividualData(data = input_data0,
+                                  categorical_features = c("claim_type"),
+                                  continuous_features = "AP",
+                                  accident_period="AP",
+                                  calendar_period="RP",
+                                  input_time_granularity = "days",
+                                  output_time_granularity = "quarters",
+                                  years=4)
+```
+
+```{r eval=FALSE, include=TRUE}
+resurv.fit.cox <- ReSurv(individual_data,
+                         hazard_model = "cox")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+

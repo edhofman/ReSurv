@@ -5,6 +5,7 @@
 #' The model fit uses the theoretical framework of Hiabu et al. (2023), that relies on the
 #'
 #' @param ReSurvFit ReSurvFit object to use for the score computation.
+#' @param user_data_set data.frame provided from the user to compute the survival CRPS, optional.
 #'
 #' @return Survival CRPS.
 #'
@@ -20,7 +21,8 @@
 #' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
 #'
 #' @export
-survival_crps <- function(ReSurvFit){
+survival_crps <- function(ReSurvFit,
+                          user_data_set= NULL){
 
   UseMethod("survival_crps")
 
@@ -34,6 +36,7 @@ survival_crps <- function(ReSurvFit){
 #' The model fit uses the theoretical framework of Hiabu et al. (2023), that relies on the
 #'
 #' @param ReSurvFit ReSurvFit object to use for the score computation.
+#' @param user_data_set data.frame provided from the user to compute the survival CRPS, optional.
 #'
 #' @return Survival CRPS.
 #'
@@ -49,7 +52,8 @@ survival_crps <- function(ReSurvFit){
 #' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
 #'
 #' @export
-survival_crps.default <- function(ReSurvFit){
+survival_crps.default <- function(ReSurvFit,
+                                  user_data_set= NULL){
 
   message('The object provided must be of class ReSurvFit')
 
@@ -62,6 +66,7 @@ survival_crps.default <- function(ReSurvFit){
 #' The model fit uses the theoretical framework of Hiabu et al. (2023), that relies on the
 #'
 #' @param ReSurvFit ReSurvFit object to use for the score computation.
+#' @param user_data_set data.frame provided from the user to compute the survival CRPS, optional.
 #'
 #' @return Survival CRPS.
 #'
@@ -77,7 +82,9 @@ survival_crps.default <- function(ReSurvFit){
 #' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
 #'
 #' @export
-survival_crps.ReSurvFit <- function(ReSurvFit){
+survival_crps.ReSurvFit <- function(ReSurvFit,
+                                    user_data_set= NULL){
+
 
   hazard_frame <- ReSurvFit$hazard_frame
 
@@ -103,17 +110,22 @@ survival_crps.ReSurvFit <- function(ReSurvFit){
                                                               'ix_group')]))
 
   # find the test set
+
   test_for_crps = ReSurvFit$IndividualData$full.data %>%
     filter(DP_rev_i <= TR_i)
 
-  # in case the test set is not available we do not compute it and return NULL
-  if(dim(test_for_crps)[1]==0){
-    warning('No test set available in your data to compute the Survival CRPS')
-    return(NULL)
-  }
+
 
   # Elaborate features on the test set
-  test_for_crps=test_for_crps%>%
+  if(is.null(user_data_set)){
+
+    # in case the test set is not available we do not compute it and return NULL
+    if(dim(test_for_crps)[1]==0){
+      warning('No test set available in your data to compute the Survival CRPS')
+      return(NULL)
+    }
+
+    test_for_crps=test_for_crps%>%
     mutate(
       DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
       AP_o = ceiling(AP_i*conversion_factor)
@@ -132,7 +144,54 @@ survival_crps.ReSurvFit <- function(ReSurvFit){
            TR_i,
            TR_o,
            I) %>%
-    as.data.table()
+    as.data.table()}else{
+
+      tmp_cond= colnames(ReSurvFit$IndividualData$starting.data) %in% colnames(user_data_set)
+
+      tmp_training_set = ReSurvFit$IndividualData$starting.data[,tmp_cond]
+
+      # Simple rbind (full starting data and new data to compute CRPS)
+      tmp_fdata = rbind(tmp_training_set,
+                        user_data_set)
+
+      # Process the data
+      tmp_idata = IndividualData(tmp_fdata,
+                                 continuous_features=continuous_features,
+                                 categorical_features=categorical_features,
+                                 accident_period=ReSurvFit$IndividualData$accident_period,
+                                 calendar_period="CM",
+                                 input_time_granularity=ReSurvFit$IndividualData$input_time_granularity,
+                                 output_time_granularity=ReSurvFit$IndividualData$output_time_granularity,
+                                 years=ReSurvFit$IndividualData$years,
+                                 calendar_period_extrapolation=ReSurvFit$IndividualData$calendar_period_extrapolation,
+                                 continuous_features_spline=NULL)
+
+      test_for_crps = tmp_idata$full.data %>%
+        filter(DP_rev_i <= TR_i)
+
+      test_for_crps=test_for_crps%>%
+        mutate(
+          DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+          AP_o = ceiling(AP_i*conversion_factor)
+        ) %>%
+        mutate(TR_o= AP_o-1) %>%
+        mutate(across(all_of(categorical_features),
+                      as.factor)) %>%
+        select(all_of(categorical_features),
+               all_of(continuous_features),
+               all_of(switch(calendar_period_extrapolation, 'RP_i', NULL)),
+               AP_i,
+               AP_o,
+               DP_i,
+               DP_rev_i,
+               DP_rev_o,
+               TR_i,
+               TR_o,
+               I) %>%
+        as.data.table()
+
+
+    }
 
 
   # Save the different curves

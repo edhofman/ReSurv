@@ -83,7 +83,7 @@ This scenario is similar to simulation `Alpha` but the volume of `claim_type 1` 
 # Input data
 
 input_data1 <- data_generator(random_seed = 1964,
-                             scenario=1,
+                              scenario=1,
                               time_unit = 1/360,
                               years = 4,
                               yearly_exposure = 200)

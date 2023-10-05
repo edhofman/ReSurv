@@ -5,7 +5,7 @@
 \alias{pkg.env}
 \title{Helper functions}
 \format{
-An object of class \code{environment} of length 57.
+An object of class \code{environment} of length 56.
 }
 \usage{
 pkg.env
