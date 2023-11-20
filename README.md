@@ -1,3 +1,3 @@
-# WORK IN PROGRESS - ReSurv
+# ReSurv
 
-Repository of the R package ReSurv
+Repository of the R package ReSurv. 
