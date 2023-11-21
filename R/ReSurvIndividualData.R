@@ -243,7 +243,10 @@ ReSurv.IndividualData <- function(IndividualData,
 
   if(hazard_model=="cox"){
 
+    # browser()
+
     data=IndividualData$training.data
+
     X=data %>%
       select(c(IndividualData$continuous_features,IndividualData$categorical_features))
 
@@ -256,30 +259,48 @@ ReSurv.IndividualData <- function(IndividualData,
     # tmp <- pkg.env$spline_hp(hparameters,IndividualData)
 
 
-    # data <- IndividualData$training.data
+    ## OLD BASELINE COMPUTATION (BRESLOW)
+    # bs_hazard <- basehaz( model.out$cox, centered=FALSE) %>%
+    #   mutate(hazard = hazard-lag(hazard,default=0))
+    #
+    #
+    # bsln <- data.frame(baseline=bs_hazard$hazard,
+    #                    DP_rev_i=ceiling(bs_hazard$time))  #$hazard
 
-    bs_hazard <- basehaz( model.out$cox, centered=FALSE) %>%
-      mutate(hazard = hazard-lag(hazard,default=0))
+    ## NEW BASELINE COMPUTATION (RESURV)
 
-    # baseline_out <- pkg.env$hazard_baseline_model(data=IndividualData$training.data,
-    #                                               cox=cox.model,
-    #                                               hazard=NULL,
-    #                                               baseline=baseline,
-    #                                               conversion_factor=IndividualData$conversion_factor,
-    #                                               nk=tmp$nk,
-    #                                               nbin=tmp$nbin,
-    #                                               phi=tmp$phi)
+    X_tmp_bsln <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
+                                      select_columns = IndividualData$categorical_features,
+                                      remove_first_dummy=T)
 
+    scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
 
-    bsln <- data.frame(baseline=bs_hazard$hazard,
-                       DP_rev_i=ceiling(bs_hazard$time))  #$hazard
+    Xc_tmp_bsln <- IndividualData$training.data %>%
+      reframe(across(all_of(IndividualData$continuous_features),
+                     scaler))
+
+    # training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
+
+    X_tmp_bsln=cbind(X_tmp_bsln,Xc_tmp_bsln)
+
+    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+                                  model.out = model.out,
+                                  X=X_tmp_bsln,
+                                  Y=Y)
+
+    bsln <- data.frame(baseline=bsln,
+                       DP_rev_i=sort(as.integer(unique(IndividualData$training.data$DP_rev_i))))
 
     hazard_frame <- cbind(newdata, model.out$expg)
     colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
 
+
+
     is_lkh <- pkg.env$evaluate_lkh_cox(X_train=X,
                                     Y_train=Y,
                                     model=model.out)
+
+
     os_lkh <- NULL
 
 

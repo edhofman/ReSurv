@@ -908,27 +908,16 @@ pkg.env$fit_cox_model <- function(data,
   cox <- coxph(formula_ct, data=data, ties="efron")
   cox_lp <- predict(cox,newdata=newdata,'lp',reference='zero')
 
-  # beta_2 <- cox$coef
-  # beta<-c(0,beta_2)
+  cox_training_lp <- predict(cox,newdata=data,'lp',reference='zero')
 
-
-  # Xb <- as.matrix(X)%*%beta
-
-  # X_ams <- cbind(X_ams, Xb)
-
-  # beta_ams = unique(round(X_ams,10) )[,ncol(X_ams)] #if no round some systems has too high precision.
-
-
-  list(
+  out <- list(
     cox=cox,
     cox_lp=cox_lp,
-    expg = exp(cox_lp)
-    # beta=beta,
-    # beta_2=beta_2,
-    # Xb=Xb,
-    # X_ams=X_ams,
-    # beta_ams=beta_ams
+    expg = exp(cox_lp),
+    train_expg= exp(cox_training_lp)
   )
+
+  return(out)
 }
 
 
@@ -2570,7 +2559,7 @@ pkg.env$baseline.efron <- function(preds, dtrain){
 
   risk_sets <- attr(dtrain, 'risk_sets')
   event_sets <- attr(dtrain, 'event_sets')
-  efron_c<-attr(dtrain, 'efron_c')
+  # efron_c<-attr(dtrain, 'efron_c')
   tieid<- attr(dtrain, 'tieid')
 
   exp_p_sum <- sapply(risk_sets,FUN=exp_sum_computer, ypred=preds)
@@ -2579,7 +2568,9 @@ pkg.env$baseline.efron <- function(preds, dtrain){
   exp_p_sum <- rep(sapply(risk_sets,FUN=exp_sum_computer, ypred=preds), tieid)
   exp_p_tie <-  rep(sapply(event_sets,FUN=exp_sum_computer, ypred=preds), tieid)
 
-  alpha_i <- 1/(exp_p_sum-efron_c*exp_p_tie)
+  # alpha_i <- 1/(exp_p_sum-efron_c*exp_p_tie)
+
+  alpha_i <- 1/(exp_p_sum-.5*exp_p_tie)
 
   baseline <- sapply(event_sets, FUN = function(x,values){sum(values[x]) }, values=alpha_i)
 
@@ -2595,6 +2586,12 @@ pkg.env$baseline.calc <- function(hazard_model,
 
   #for baseline need full training data
   datads_pp <- pkg.env$xgboost_pp(X,Y, training_test_split = 1)
+
+  if(hazard_model=="cox"){
+
+    predict_bsln <- model.out$train_expg
+
+  }
 
   if(hazard_model=="deepsurv"){
     datads_pp_nn = pkg.env$deep_surv_pp(X=X,
@@ -2616,8 +2613,10 @@ pkg.env$baseline.calc <- function(hazard_model,
                                   as.data.frame()))
 
   }
-  predict_bsln <- predict_bsln - predict_bsln[1] #make relative to intial value, same approach as cox
-  bsln <- pkg.env$baseline.efron(predict_bsln, datads_pp$ds_train_m)
+
+  predict_bsln <- predict_bsln - predict_bsln[1] #make relative to initial value, same approach as cox
+  bsln <- pkg.env$baseline.efron(predict_bsln,
+                                 datads_pp$ds_train_m)
 
   bsln
 
@@ -3283,7 +3282,7 @@ adjust.predictions <- function(ResurvFit,
                                hazard_model,
                                idata){
 
-  browser()
+  # browser()
   formula_ct <- idata$string_formula_i
 
   newdata <- create.df.2.fcst(IndividualData=idata,

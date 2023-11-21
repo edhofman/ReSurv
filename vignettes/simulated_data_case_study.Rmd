@@ -57,6 +57,30 @@ resurv.fit.cox <- ReSurv(individual_data,
 
 
 
+# eXtreme Gradient Boosting
+
+```{r}
+hp_scenario_alpha_xgb <- list(params=list(booster="gbtree",
+                                          eta=0.9887265,
+                                          subsample=0.7924135 ,
+                                          alpha=10.85342,
+                                          lambda=6.213317,
+                                          min_child_weight=3.042204,
+                                          max_depth = 1),
+                                          print_every_n = 0,
+                                          nrounds=10,
+                                          verbose=F,
+                                          early_stopping_rounds = 500)
+
+```
+
+
+```{r}
+resurv.model.xgb.A <-  ReSurv(individual_data,
+                              hazard_model = "xgboost",
+                              hparameters=hp_scenario_alpha_xgb)
+```
+
 
 
 
