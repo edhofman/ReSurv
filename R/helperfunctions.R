@@ -908,13 +908,13 @@ pkg.env$fit_cox_model <- function(data,
   cox <- coxph(formula_ct, data=data, ties="efron")
   cox_lp <- predict(cox,newdata=newdata,'lp',reference='zero')
 
-  cox_training_lp <- predict(cox,newdata=data,'lp',reference='zero')
+  cox_training_lp <- predict(cox,newdata=data %>% arrange(DP_rev_i) %>% as.data.frame(),'lp',reference='zero')
 
   out <- list(
     cox=cox,
     cox_lp=cox_lp,
     expg = exp(cox_lp),
-    train_expg= exp(cox_training_lp)
+    train_expg= cox_training_lp#exp(cox_training_lp)
   )
 
   return(out)
@@ -2583,6 +2583,8 @@ pkg.env$baseline.calc <- function(hazard_model,
                                   X,
                                   Y,
                                   training_df = NULL){
+
+  # browser()
 
   #for baseline need full training data
   datads_pp <- pkg.env$xgboost_pp(X,Y, training_test_split = 1)

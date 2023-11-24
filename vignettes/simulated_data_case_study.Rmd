@@ -9,7 +9,55 @@ bibliography: references.bib
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(ReSurv)
+library(data.table)
 ```
+
+
+```{r}
+
+beta=2*30
+lambda=0.1 #1
+k=1
+b=1440
+alpha=0.5
+beta0 = 1.15129
+beta1 = 1.95601
+
+F_correct <- function(t, alpha, beta, lambda, k,b,beta_coef){
+  #nu/xi*(t/xi)^(nu-1)
+  #exp(-(t/xi)^nu)/(1-exp(-(t/xi)^nu)*
+  #nu/xi*(t/xi)^(nu-1)*exp(beta1)
+  exp(-beta^alpha *(lambda*exp(beta_coef)^(1/(alpha*k)) )^(alpha*k)*(t^(-alpha*k)-b^(-alpha*k)) )
+}
+
+c_correct_grouped<-c()
+for (i in 0:(b-1)){
+  t<-seq(i,i+1, by=0.001)
+  n_t<-length(t)
+  c_correct_grouped[i+1] <- sum(1-F_correct(t, alpha,beta,lambda,k,b, beta0) )/n_t
+}
+c_correct_grouped<-c(1,c_correct_grouped[1:(b-1)])
+
+c_correct_grouped1<-c()
+for (i in 0:(b-1)){
+  t<-seq(i,i+1, by=0.001)
+  n_t<-length(t)
+  c_correct_grouped1[i+1] <- sum(1-F_correct(t, alpha,beta,lambda,k,b, beta1) )/n_t
+}
+c_correct_grouped1<-c(1,c_correct_grouped1[1:(b-1)])
+
+plot_datac0 <- data.table(time=(b-1)-seq(0,(b-1),by=1)+1, true =1-c_correct_grouped)[order(time),]
+plot_datac1 <- data.table(time=(b-1)-seq(0,(b-1),by=1)+1, true =1-c_correct_grouped1)[order(time),]
+
+
+real_cty <- data.table(DP_rev_i=rep((b-1)-seq(0,(b-1),by=1)+1,2),
+                       claim_type=rep(c("0","1"),each=b),
+                       true =c(1-c_correct_grouped,1-c_correct_grouped1))
+
+
+```
+
+
 
 # Introduction
 
@@ -55,6 +103,41 @@ resurv.fit.cox <- ReSurv(individual_data,
                          hazard_model = "cox")
 ```
 
+## Model the survival function (COX model)
+
+```{r}
+
+hazard_frame_updatedCX <- resurv.fit.cox$hazard_frame
+
+dt_totCX <- merge(hazard_frame_updatedCX,
+                real_cty,
+                all=T)
+
+```
+```{r}
+tmp <- dt_totCX %>%
+  filter(claim_type==1, AP_i==1400) %>%
+  select(S_i,true,DP_rev_i,claim_type)
+
+tmp<- tmp %>% pivot_longer(cols=c('S_i','true'),
+                     names_to = c('curve'),
+                     values_to = c('SF'))
+
+
+
+
+```
+```{r}
+dt_totCX
+```
+
+```{r}
+ggplot(tmp, aes(x=DP_rev_i,
+                y=SF,
+                color=curve))+
+  geom_line()
+```
+
 
 
 # eXtreme Gradient Boosting
@@ -68,7 +151,7 @@ hp_scenario_alpha_xgb <- list(params=list(booster="gbtree",
                                           min_child_weight=3.042204,
                                           max_depth = 1),
                                           print_every_n = 0,
-                                          nrounds=10,
+                                          nrounds=3000,
                                           verbose=F,
                                           early_stopping_rounds = 500)
 
@@ -83,6 +166,39 @@ resurv.model.xgb.A <-  ReSurv(individual_data,
 
 
 
+```{r}
+
+hazard_frame_updatedXGB <- resurv.model.xgb.A$hazard_frame
+
+dt_tot <- merge(hazard_frame_updatedXGB,
+                real_cty,
+                all=T)
+
+```
+
+```{r}
+tmp <- dt_tot %>%
+  filter(claim_type==1, AP_i==13) %>%
+  select(S_i,true,DP_rev_i,claim_type)
+
+tmp<- tmp %>% pivot_longer(cols=c('S_i','true'),
+                     names_to = c('curve'),
+                     values_to = c('SF'))
+
+
+
+
+```
+```{r}
+dt_tot
+```
+
+```{r}
+ggplot(tmp, aes(x=DP_rev_i,
+                y=SF,
+                color=curve))+
+  geom_line()
+```
 
 
 

@@ -241,9 +241,11 @@ ReSurv.IndividualData <- function(IndividualData,
                                   # input_time_granularity=IndividualData$input_time_granularity,
                                   # years=IndividualData$years)
 
+  # browser()
+
   if(hazard_model=="cox"){
 
-    # browser()
+
 
     data=IndividualData$training.data
 
