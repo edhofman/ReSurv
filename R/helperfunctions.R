@@ -2584,7 +2584,6 @@ pkg.env$baseline.calc <- function(hazard_model,
                                   Y,
                                   training_df = NULL){
 
-  # browser()
 
   #for baseline need full training data
   datads_pp <- pkg.env$xgboost_pp(X,Y, training_test_split = 1)
@@ -3284,7 +3283,6 @@ adjust.predictions <- function(ResurvFit,
                                hazard_model,
                                idata){
 
-  # browser()
   formula_ct <- idata$string_formula_i
 
   newdata <- create.df.2.fcst(IndividualData=idata,
@@ -3317,7 +3315,7 @@ adjust.predictions <- function(ResurvFit,
 
     bsln <- data.frame(baseline=bs_hazard$hazard,
                        DP_rev_i=ceiling(bs_hazard$time))  #$hazard
-    # browser()
+
     hazard_frame <- cbind(newdata, expg)
     colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
 

@@ -241,10 +241,9 @@ ReSurv.IndividualData <- function(IndividualData,
                                   # input_time_granularity=IndividualData$input_time_granularity,
                                   # years=IndividualData$years)
 
-  # browser()
+
 
   if(hazard_model=="cox"){
-
 
 
     data=IndividualData$training.data
@@ -290,10 +289,27 @@ ReSurv.IndividualData <- function(IndividualData,
                                   X=X_tmp_bsln,
                                   Y=Y)
 
+
     bsln <- data.frame(baseline=bsln,
                        DP_rev_i=sort(as.integer(unique(IndividualData$training.data$DP_rev_i))))
 
-    hazard_frame <- cbind(newdata, model.out$expg)
+    ### make it relative
+    newdata.bs <- ReSurv:::pkg.env$df.2.fcst.nn.pp(data=individual_data$training.data,
+                                                   newdata=newdata,
+                                                   continuous_features=individual_data$continuous_features,
+                                                   categorical_features=individual_data$categorical_features)
+
+    benchmark_id <- ReSurv:::pkg.env$benchmark_id(X = X_tmp_bsln,
+                                                  Y =Y ,
+                                                  newdata.mx = newdata.bs,
+                                                  remove_first_dummy=T)
+
+
+    pred_relative <- model.out$cox_lp-model.out$cox_lp[benchmark_id]
+
+    ###
+
+    hazard_frame <- cbind(newdata, exp(pred_relative))
     colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
 
 

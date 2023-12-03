@@ -116,7 +116,7 @@ dt_totCX <- merge(hazard_frame_updatedCX,
 ```
 ```{r}
 tmp <- dt_totCX %>%
-  filter(claim_type==1, AP_i==1400) %>%
+  filter(claim_type==1, AP_i==5) %>%
   select(S_i,true,DP_rev_i,claim_type)
 
 tmp<- tmp %>% pivot_longer(cols=c('S_i','true'),
@@ -126,9 +126,6 @@ tmp<- tmp %>% pivot_longer(cols=c('S_i','true'),
 
 
 
-```
-```{r}
-dt_totCX
 ```
 
 ```{r}
@@ -200,7 +197,187 @@ ggplot(tmp, aes(x=DP_rev_i,
   geom_line()
 ```
 
+# Compute error measures
 
+In this section we show how to compute the performance measures that we suggest in the manuscript to evaluate our models.
+
+Below we elaborate the data to evaluate our performances yearly.
+
+```{r}
+input_data2 <- data_generator(random_seed = 1,
+                              scenario=0,
+                              time_unit = 1/360,
+                              years = 4,
+                              yearly_exposure = 200)
+
+individual_data2 <- IndividualData(input_data2,
+                                  id="claim_number",
+                                  continuous_features="AP_i",
+                                  categorical_features="claim_type",
+                                  accident_period="AP",
+                                  calendar_period="RP",
+                                  input_time_granularity = "days",
+                                  output_time_granularity = "years",
+                                  years=4,
+                                  continuous_features_spline=NULL,
+                                  calendar_period_extrapolation=F)
+```
+
+
+## COX
+
+```{r}
+
+conversion_factor <- individual_data$conversion_factor
+
+
+resurv.predict <- resurv.fit.predict <- predict(resurv.fit.cox,
+                    grouping_method = "probability")
+
+max_dp_i <-1440
+
+    
+crps_dt <- ReSurv::survival_crps(resurv.predict$ReSurvFit)
+crps_result <- mean(crps_dt$crps)
+
+```
+
+```{r}
+crps_result
+```
+### ARE total
+
+```{r}
+true_output <- resurv.predict$ReSurvFit$IndividualData$full.data %>%
+    mutate(
+      DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+      AP_o = ceiling(AP_i*conversion_factor),
+      TR_o= AP_o-1
+    ) %>%
+    filter(DP_rev_o <=TR_o) %>%
+    group_by(claim_type, AP_o, DP_rev_o) %>%
+    mutate(claim_type = as.character(claim_type)) %>%
+    summarize(I=sum(I), .groups = "drop") %>%
+    filter(DP_rev_o>0) #we cant have =0, because corresponds to half a parallelogram.
+
+  #Total output
+  score_total<- resurv.predict$hazard_frame_output[,c("claim_type","AP_o", "DP_rev_o", "I_expected")] %>%
+    inner_join(true_output, by =c("claim_type","AP_o", "DP_rev_o")) %>%
+    mutate(ave = I-I_expected,
+           abs_ave = abs(ave)) %>%
+    # from here it is reformulated for the are tot
+    ungroup()%>%
+    group_by(AP_o, DP_rev_o) %>%
+    reframe(abs_ave=abs(sum(ave)),
+           I=sum(I))
+    
+are_tot=sum(score_total$abs_ave)/sum(score_total$I)
+```
+
+
+```{r}
+
+are_tot
+```
+
+
+### ARE calendar quarters
+
+```{r}
+  dfs_output <- resurv.predict$hazard_frame_output %>%
+    select(AP_o, claim_type, DP_rev_o, df_o) %>%
+    mutate(DP_rev_o = DP_rev_o) %>% 
+    distinct()
+
+  #Cashflow on output scale.Etc quarterly cashflow development
+  score_diagonal <- resurv.predict$ReSurvFit$IndividualData$full.data  %>%
+    mutate(
+      DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+      AP_o = ceiling(AP_i*conversion_factor)
+    ) %>%
+    group_by(claim_type, AP_o, DP_rev_o) %>%
+    mutate(claim_type = as.character(claim_type)) %>%
+    summarize(I=sum(I), .groups = "drop") %>%
+    group_by(claim_type, AP_o) %>%
+    arrange(desc(DP_rev_o)) %>%
+    mutate(I_cum=cumsum(I)) %>%
+    mutate(I_cum_lag = lag(I_cum, default = 0)) %>%
+    left_join(dfs_output, by = c("AP_o", "claim_type", "DP_rev_o")) %>%
+    mutate(I_cum_hat =  I_cum_lag * df_o,
+           RP_o = max(DP_rev_o)-DP_rev_o + AP_o) %>%
+    inner_join(true_output[,c("AP_o", "DP_rev_o")] %>%  distinct()
+               , by =c("AP_o", "DP_rev_o")) %>%
+    group_by(AP_o,DP_rev_o) %>%
+    reframe(abs_ave2_diag = abs(sum(I_cum_hat)-sum(I_cum)),
+          I=sum(I)) 
+    
+    are_cal_q=sum(score_diagonal$abs_ave2_diag)/sum(score_diagonal$I)
+```
+
+```{r}
+are_cal_q
+```
+
+
+### ARE calendar yearly
+
+```{r}
+resurv.predict <- predict(resurv.predict$ReSurvFit,
+                                  newdata=individual_data2,
+                             grouping_method = "probability")
+    
+    conversion_factor <- individual_data2$conversion_factor
+
+
+  max_dp_i <-1440
+
+
+  true_output <- individual_data2$full.data %>%
+    mutate(
+      DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+      AP_o = ceiling(AP_i*conversion_factor),
+      TR_o= AP_o-1
+    ) %>%
+    filter(DP_rev_o <=TR_o) %>%
+    group_by(claim_type, AP_o, DP_rev_o) %>%
+    mutate(claim_type = as.character(claim_type)) %>%
+    summarize(I=sum(I), .groups = "drop") %>%
+    filter(DP_rev_o>0) #we cant have =0, because corresponds to half a parallelogram.
+
+  dfs_output <- resurv.predict$hazard_frame_output %>%
+    select(AP_o, claim_type, DP_rev_o, df_o) %>%
+    mutate(DP_rev_o = DP_rev_o) %>% 
+    distinct()
+
+  #Cashflow on output scale.Etc quarterly cashflow development
+  score_diagonal_yearly <- individual_data2$full.data  %>%
+    mutate(
+      DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+      AP_o = ceiling(AP_i*conversion_factor)
+    ) %>%
+    group_by(claim_type, AP_o, DP_rev_o) %>%
+    mutate(claim_type = as.character(claim_type)) %>%
+    summarize(I=sum(I), .groups = "drop") %>%
+    group_by(claim_type, AP_o) %>%
+    arrange(desc(DP_rev_o)) %>%
+    mutate(I_cum=cumsum(I)) %>%
+    mutate(I_cum_lag = lag(I_cum, default = 0)) %>%
+    left_join(dfs_output, by = c("AP_o", "claim_type", "DP_rev_o")) %>%
+    mutate(I_cum_hat =  I_cum_lag * df_o,
+           RP_o = max(DP_rev_o)-DP_rev_o + AP_o) %>%
+    inner_join(true_output[,c("AP_o", "DP_rev_o")] %>%  distinct()
+               , by =c("AP_o", "DP_rev_o")) %>%
+    group_by(AP_o,DP_rev_o) %>%
+    reframe(abs_ave2_diag = abs(sum(I_cum_hat)-sum(I_cum)),
+          I=sum(I)) 
+    
+    are_cal_y=sum(score_diagonal_yearly$abs_ave2_diag)/sum(score_diagonal_yearly$I)
+    
+```
+
+```{r}
+are_cal_y
+```
 
 
 
