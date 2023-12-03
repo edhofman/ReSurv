@@ -294,10 +294,10 @@ ReSurv.IndividualData <- function(IndividualData,
                        DP_rev_i=sort(as.integer(unique(IndividualData$training.data$DP_rev_i))))
 
     ### make it relative
-    newdata.bs <- ReSurv:::pkg.env$df.2.fcst.nn.pp(data=individual_data$training.data,
+    newdata.bs <- ReSurv:::pkg.env$df.2.fcst.nn.pp(data=IndividualData$training.data,
                                                    newdata=newdata,
-                                                   continuous_features=individual_data$continuous_features,
-                                                   categorical_features=individual_data$categorical_features)
+                                                   continuous_features=IndividualData$continuous_features,
+                                                   categorical_features=IndividualData$categorical_features)
 
     benchmark_id <- ReSurv:::pkg.env$benchmark_id(X = X_tmp_bsln,
                                                   Y =Y ,
