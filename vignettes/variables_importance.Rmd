@@ -180,7 +180,7 @@ plot(resurv.model.nn.D,nsamples=10000)
 dev.off()
 ```
 
-
+![Mean absolute Shap values for NN on one data set simulated from scenario Alpha.](delta_shap_nn.png)
 
 
 

@@ -236,6 +236,7 @@ IndividualData <- function(data,
               calendar_period_extrapolation=calendar_period_extrapolation,
               years=years,
               accident_period=accident_period,
+              calendar_period=calendar_period,
               input_time_granularity=input_time_granularity,
               output_time_granularity=output_time_granularity)
 

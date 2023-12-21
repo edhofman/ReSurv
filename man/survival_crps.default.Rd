@@ -4,10 +4,12 @@
 \alias{survival_crps.default}
 \title{Survival continuously ranked probability score.}
 \usage{
-\method{survival_crps}{default}(ReSurvFit)
+\method{survival_crps}{default}(ReSurvFit, user_data_set = NULL)
 }
 \arguments{
 \item{ReSurvFit}{ReSurvFit object to use for the score computation.}
+
+\item{user_data_set}{data.frame provided from the user to compute the survival CRPS, optional.}
 }
 \value{
 Survival CRPS.

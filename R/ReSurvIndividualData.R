@@ -237,13 +237,17 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
   # create data frame of occurrencies to weight development factors
-  Om.df <-   pkg.env$create.om.df(training.data=IndividualData$training.data,
-                                  input_time_granularity=IndividualData$input_time_granularity,
-                                  years=IndividualData$years)
+  # Om.df <-   pkg.env$create.om.df(training.data=IndividualData$training.data,
+                                  # input_time_granularity=IndividualData$input_time_granularity,
+                                  # years=IndividualData$years)
+
+
 
   if(hazard_model=="cox"){
 
+
     data=IndividualData$training.data
+
     X=data %>%
       select(c(IndividualData$continuous_features,IndividualData$categorical_features))
 
@@ -256,30 +260,65 @@ ReSurv.IndividualData <- function(IndividualData,
     # tmp <- pkg.env$spline_hp(hparameters,IndividualData)
 
 
-    # data <- IndividualData$training.data
+    ## OLD BASELINE COMPUTATION (BRESLOW)
+    # bs_hazard <- basehaz( model.out$cox, centered=FALSE) %>%
+    #   mutate(hazard = hazard-lag(hazard,default=0))
+    #
+    #
+    # bsln <- data.frame(baseline=bs_hazard$hazard,
+    #                    DP_rev_i=ceiling(bs_hazard$time))  #$hazard
 
-    bs_hazard <- basehaz( model.out$cox, centered=FALSE) %>%
-      mutate(hazard = hazard-lag(hazard,default=0))
+    ## NEW BASELINE COMPUTATION (RESURV)
 
-    # baseline_out <- pkg.env$hazard_baseline_model(data=IndividualData$training.data,
-    #                                               cox=cox.model,
-    #                                               hazard=NULL,
-    #                                               baseline=baseline,
-    #                                               conversion_factor=IndividualData$conversion_factor,
-    #                                               nk=tmp$nk,
-    #                                               nbin=tmp$nbin,
-    #                                               phi=tmp$phi)
+    X_tmp_bsln <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
+                                      select_columns = IndividualData$categorical_features,
+                                      remove_first_dummy=T)
+
+    scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
+
+    Xc_tmp_bsln <- IndividualData$training.data %>%
+      reframe(across(all_of(IndividualData$continuous_features),
+                     scaler))
+
+    # training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
+
+    X_tmp_bsln=cbind(X_tmp_bsln,Xc_tmp_bsln)
+
+    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+                                  model.out = model.out,
+                                  X=X_tmp_bsln,
+                                  Y=Y)
 
 
-    bsln <- data.frame(baseline=bs_hazard$hazard,
-                       DP_rev_i=ceiling(bs_hazard$time))  #$hazard
+    bsln <- data.frame(baseline=bsln,
+                       DP_rev_i=sort(as.integer(unique(IndividualData$training.data$DP_rev_i))))
 
-    hazard_frame <- cbind(newdata, model.out$expg)
+    ### make it relative
+    newdata.bs <- ReSurv:::pkg.env$df.2.fcst.nn.pp(data=IndividualData$training.data,
+                                                   newdata=newdata,
+                                                   continuous_features=IndividualData$continuous_features,
+                                                   categorical_features=IndividualData$categorical_features)
+
+    benchmark_id <- ReSurv:::pkg.env$benchmark_id(X = X_tmp_bsln,
+                                                  Y =Y ,
+                                                  newdata.mx = newdata.bs,
+                                                  remove_first_dummy=T)
+
+
+    pred_relative <- model.out$cox_lp-model.out$cox_lp[benchmark_id]
+
+    ###
+
+    hazard_frame <- cbind(newdata, exp(pred_relative))
     colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
+
+
 
     is_lkh <- pkg.env$evaluate_lkh_cox(X_train=X,
                                     Y_train=Y,
                                     model=model.out)
+
+
     os_lkh <- NULL
 
 
@@ -505,8 +544,6 @@ ReSurv.IndividualData <- function(IndividualData,
   ##################################################################################
 
 
-
-
   hazard_frame <- hazard_frame %>%
     full_join(bsln,
               by="DP_rev_i") %>%
@@ -542,7 +579,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
   #Add development and relevant survival values to the hazard_frame
   hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
-                                                    Om.df=Om.df,
+                                                    # Om.df=Om.df,
                                                     categorical_features = IndividualData$categorical_features,
                                                     continuous_features = IndividualData$continuous_features,
                                                     calendar_period_extrapolation = IndividualData$calendar_period_extrapolation)
@@ -550,7 +587,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
   out=list(model.out=list(data=X,
                           model.out=model.out),
-           Om.df=Om.df,
+           # Om.df=Om.df,
            is_lkh=is_lkh,
            os_lkh=os_lkh,
            hazard_frame = hazard_frame_updated,

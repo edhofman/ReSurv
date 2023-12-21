@@ -7,15 +7,14 @@
 #' @importFrom reshape2 melt
 #' @import survival
 #' @import dtplyr
-#' @import data.table
 #' @import forecast
 #' @import reticulate
 #' @import xgboost
 #' @importFrom rpart rpart.control
 #' @importFrom LTRCtrees LTRCART
+#' @import data.table
 
 pkg.env <- new.env()
-
 
 # Utils individual claims generators
 
@@ -909,27 +908,16 @@ pkg.env$fit_cox_model <- function(data,
   cox <- coxph(formula_ct, data=data, ties="efron")
   cox_lp <- predict(cox,newdata=newdata,'lp',reference='zero')
 
-  # beta_2 <- cox$coef
-  # beta<-c(0,beta_2)
+  cox_training_lp <- predict(cox,newdata=data %>% arrange(DP_rev_i) %>% as.data.frame(),'lp',reference='zero')
 
-
-  # Xb <- as.matrix(X)%*%beta
-
-  # X_ams <- cbind(X_ams, Xb)
-
-  # beta_ams = unique(round(X_ams,10) )[,ncol(X_ams)] #if no round some systems has too high precision.
-
-
-  list(
+  out <- list(
     cox=cox,
     cox_lp=cox_lp,
-    expg = exp(cox_lp)
-    # beta=beta,
-    # beta_2=beta_2,
-    # Xb=Xb,
-    # X_ams=X_ams,
-    # beta_ams=beta_ams
+    expg = exp(cox_lp),
+    train_expg= cox_training_lp#exp(cox_training_lp)
   )
+
+  return(out)
 }
 
 
@@ -1111,7 +1099,7 @@ pkg.env$hazard_f<-function(i,
 # }
 
 pkg.env$hazard_data_frame <- function(hazard,
-                                      Om.df,
+                                      # Om.df,
                                       eta_old=1/2,
                                       categorical_features,
                                       continuous_features,
@@ -1122,9 +1110,9 @@ pkg.env$hazard_data_frame <- function(hazard,
   "
   #Calculate input development factors and corresponding survival probabilities
   hazard_frame_tmp <- hazard %>%
-    left_join(Om.df, "DP_rev_i") %>%
-    #mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>% #Follows from the assumption that claims are distributed evenly in the input period
-    mutate(dev_f_i = (2*Om+(Om+1)*hazard)/(2*Om-(Om-1)*hazard) ) %>%
+    # left_join(Om.df, "DP_rev_i") %>%
+    mutate(dev_f_i = (1+(1-eta_old)*hazard)/(1-eta_old*hazard) ) %>% #Follows from the assumption that claims are distributed evenly in the input period
+    # mutate(dev_f_i = (2*Om+(Om+1)*hazard)/(2*Om-(Om-1)*hazard) ) %>%
     replace_na(list(dev_f_i =1)) %>%
     mutate(dev_f_i = ifelse(dev_f_i<0,1,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
     group_by(pick(all_of(categorical_features), AP_i)) %>%
@@ -1146,7 +1134,8 @@ pkg.env$hazard_data_frame <- function(hazard,
            S_i_lead = coalesce(S_i_lead,1),
            S_i_lag = coalesce(S_i_lag, 1),
            cum_dev_f_i = coalesce(cum_dev_f_i,1))
-  return(hazard_frame)}
+  return(hazard_frame)
+  }
 
 
 #Need special handling if we have continuous variables
@@ -2570,7 +2559,7 @@ pkg.env$baseline.efron <- function(preds, dtrain){
 
   risk_sets <- attr(dtrain, 'risk_sets')
   event_sets <- attr(dtrain, 'event_sets')
-  efron_c<-attr(dtrain, 'efron_c')
+  # efron_c<-attr(dtrain, 'efron_c')
   tieid<- attr(dtrain, 'tieid')
 
   exp_p_sum <- sapply(risk_sets,FUN=exp_sum_computer, ypred=preds)
@@ -2579,7 +2568,9 @@ pkg.env$baseline.efron <- function(preds, dtrain){
   exp_p_sum <- rep(sapply(risk_sets,FUN=exp_sum_computer, ypred=preds), tieid)
   exp_p_tie <-  rep(sapply(event_sets,FUN=exp_sum_computer, ypred=preds), tieid)
 
-  alpha_i <- 1/(exp_p_sum-efron_c*exp_p_tie)
+  # alpha_i <- 1/(exp_p_sum-efron_c*exp_p_tie)
+
+  alpha_i <- 1/(exp_p_sum-.5*exp_p_tie)
 
   baseline <- sapply(event_sets, FUN = function(x,values){sum(values[x]) }, values=alpha_i)
 
@@ -2593,8 +2584,15 @@ pkg.env$baseline.calc <- function(hazard_model,
                                   Y,
                                   training_df = NULL){
 
+
   #for baseline need full training data
   datads_pp <- pkg.env$xgboost_pp(X,Y, training_test_split = 1)
+
+  if(hazard_model=="cox"){
+
+    predict_bsln <- model.out$train_expg
+
+  }
 
   if(hazard_model=="deepsurv"){
     datads_pp_nn = pkg.env$deep_surv_pp(X=X,
@@ -2616,8 +2614,10 @@ pkg.env$baseline.calc <- function(hazard_model,
                                   as.data.frame()))
 
   }
-  predict_bsln <- predict_bsln - predict_bsln[1] #make relative to intial value, same approach as cox
-  bsln <- pkg.env$baseline.efron(predict_bsln, datads_pp$ds_train_m)
+
+  predict_bsln <- predict_bsln - predict_bsln[1] #make relative to initial value, same approach as cox
+  bsln <- pkg.env$baseline.efron(predict_bsln,
+                                 datads_pp$ds_train_m)
 
   bsln
 
@@ -3283,7 +3283,6 @@ adjust.predictions <- function(ResurvFit,
                                hazard_model,
                                idata){
 
-  browser()
   formula_ct <- idata$string_formula_i
 
   newdata <- create.df.2.fcst(IndividualData=idata,
@@ -3316,7 +3315,7 @@ adjust.predictions <- function(ResurvFit,
 
     bsln <- data.frame(baseline=bs_hazard$hazard,
                        DP_rev_i=ceiling(bs_hazard$time))  #$hazard
-    # browser()
+
     hazard_frame <- cbind(newdata, expg)
     colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
 
@@ -3421,15 +3420,31 @@ adjust.predictions <- function(ResurvFit,
 
 # survival crps ----
 
+# pkg.env$survival_information<-function(x,
+#                                group,
+#                                hazard_list){
+#
+#   tmp <-hazard_list[[group]]
+#   return(tmp[,.(crps=sum((x.vals*cdf2_i)[DP_rev_i<=x])+sum((x.vals*S2_i)[DP_rev_i>x]))]$crps)
+#
+# }
+
 survival_information<-function(x,
                                group,
                                hazard_list){
 
   tmp <-hazard_list[[group]]
-  return(tmp[,.(crps=sum((x.vals*cdf2_i)[DP_rev_i<=x])+sum((x.vals*S2_i)[DP_rev_i>x]))]$crps)
+
+  x.vals = tmp$x.vals
+  cdf2_i = tmp$cdf2_i
+  DP_rev_i = tmp$DP_rev_i
+  S2_i = tmp$S2_i
+
+  crps=sum((x.vals*cdf2_i)[DP_rev_i<=x])+sum((x.vals*S2_i)[DP_rev_i>x])
+
+  return(crps)
 
 }
-
 
 
 
