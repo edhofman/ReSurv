@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10418823.svg)](https://doi.org/10.5281/zenodo.10418823)
+
 # ReSurv
 
 `ReSurv` is an `R` software for predicting IBNR claims. The software includes tools for synthetic **data generation**, **data pre-processing**, **hyperparameters tuning**, **model estimation** and **prediction**.
