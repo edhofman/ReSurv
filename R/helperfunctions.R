@@ -142,6 +142,35 @@ notidel_param_1 <- function(claim_size,
 
 ## Data generator ----
 
+pkg.env$check_scenario <- function(scenario){
+
+  available_scenarios <- c(0,1,2,3,4)
+  available_scenario_char <- c('alpha','beta','gamma','delta','epsilon')
+
+  if(is.numeric(scenario)){
+
+    tmp <- scenario %in% available_scenarios
+
+    if(!tmp){stop("Scenario must be one of 'alpha','beta','gamma','delta','epsilon'.")}
+  }
+
+
+  if(is.character(scenario)){
+
+    tmp <- scenario %in% available_scenario_char
+
+    if(!tmp){stop("Scenario must be one of 'alpha','beta','gamma','delta','epsilon'.")}
+
+    input.pos <- which(scenario==available_scenario_char)
+
+    scenario <- available_scenarios[input.pos]
+
+  }
+
+  return(scenario)
+
+}
+
 pkg.env$scenario0_simulator <- function(ref_claim,
                                         time_unit,
                                         years,

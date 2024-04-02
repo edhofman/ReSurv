@@ -7,15 +7,26 @@
 #' @param ref_claim \code{integer}, reference claim size.
 #' @param time_unit \code{numeric}, output time unit.
 #' @param years \code{integer}, number of years to be simulated.
-#' @param yearly_exposure \code{integer}, volume underwritten each year.
-#' @param yearly_frequency \code{numeric}, yearly frequency.
-#' @param scenario \code{numeric}, one of the scenarios shown in the accompanying paper.
+#' @param period_exposure \code{integer}, volume (number of policies) underwritten each period.
+#' @param period_frequency \code{numeric}, expected frequency in each period.
+#' @param scenario \code{character} or \code{numeric}, one of the scenarios described in the accompanying manuscript. Possible choices are
+#'                  'alpha' (0), 'beta' (1), 'gamma'(2), 'delta'(3),'epsilon'(4). Our simulated data are constituted of a mix of short tail claims (\code{claim_type 0}) and claims with longer resolution (\code{claim_type 1}).
+#'                  We chose the parameter of the simulator to resemble a mix of property damage (\code{claim_type 0}) and bodily injuries (\code{claim_type 1}). each scenario has distinctive characteristics.
+#'                  Scenario Alpha is a mix of \code{claim_type 0} and  \code{claim_type 1} with same number of claims volume at each accident period.
+#'                  Differently from scenario Alpha, in scenario Beta the volumes of \code{claim_type 1} are decreasing in the most recent accident periods.
+#'                  In scenario Gamma we add an interaction between \code{claim_type 1} and accident period: in a real world setting this can be motivated by a change in consumer behavior or company policies resulted in different reporting patterns over time.
+#'                  In scenario Delta, we introduce a seasonality effect dependent on the accident period for \code{claim_type 0} and \code{claim_type 1}.
+#'                  In the real word, scenario Delta resembles seasonal changes in the workforce composition. Scenario Epsilon does not satisfy the proportionality assumption.
 #'
 #' @import SynthETIC
 #'
 #' @examples
-#' ## Not run
-#' input_data <- data_generator(random_seed = 1964)
+#' ## Generate four years of daily data for scenario Alpha.
+#' input_data <- data_generator(random_seed = 7,
+#'                               scenario='alpha',
+#'                               time_unit = 1/360,
+#'                               years = 4,
+#'                               period_exposure = 200)
 #'
 #'
 #'
@@ -34,24 +45,28 @@
 #' }
 #'
 #' @references
-#' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
+#' Avanzi, B., Taylor, G., Wang, M., & Wong, B. (2021). SynthETIC: an individual insurance claim simulator with feature control. Insurance: Mathematics and Economics, 100, 296-308.
+#'
+#' Hiabu, M., Hofman, E., & Pittarello, G. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 #'
 #' @export
 data_generator <- function(ref_claim = 200000,
                            time_unit = 1/360,
                            years = 4,
                            random_seed=1964,
-                           yearly_exposure= 200,
-                           yearly_frequency=0.2,
+                           period_exposure= 200,
+                           period_frequency=0.2,
                            scenario=1){
 
   set.seed(random_seed)
 
+  scenario <- pkg.env$check_scenario(scenario)
+
   parameters <- list(ref_claim=ref_claim,
                      time_unit=time_unit,
                      years=years,
-                     yearly_exposure=yearly_exposure,
-                     yearly_frequency=yearly_frequency)
+                     yearly_exposure=period_exposure,
+                     yearly_frequency=period_frequency)
 
 
 
