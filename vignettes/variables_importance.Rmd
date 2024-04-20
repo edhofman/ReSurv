@@ -1,8 +1,12 @@
 ---
 title: "Exploring the variables importance"
 author: "Gabriele Pittarello"
-date: "2023-07-19"
-output: html_document
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Exploring the variables importance}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
 
@@ -11,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-```{r setup, include=FALSE}
+```{r instancepackage, include=FALSE}
 library(ReSurv)
 ```
 
@@ -156,31 +160,27 @@ png(filename = "~/GitHub/ReSurv/vignettes/alpha_shap_xgb.png", width=600, height
 plot(resurv.model.xgb.A)
 dev.off()
 ```
-![Mean absolute Shap values for XGB on one data set simulated from scenario Alpha.](alpha_shap_xgb.png)
 
 ```{r eval=FALSE, include=TRUE}
 png(filename = "~/GitHub/ReSurv/vignettes/delta_shap_xgb.png", width=600, height=480, res=72)
 plot(resurv.model.xgb.D)
 dev.off()
 ```
-![Mean absolute Shap values for XGB on one data set simulated from scenario Delta.](delta_shap_xgb.png)
 
 ## Shap values (NN)
 
-```{r}
+```{r eval=FALSE, include=TRUE}
 png(filename = "~/GitHub/ReSurv/vignettes/alpha_shap_nn.png", width=600, height=480, res=72)
 plot(resurv.model.nn.A,nsamples=10000)
 dev.off()
 ```
-![Mean absolute Shap values for NN on one data set simulated from scenario Alpha.](alpha_shap_nn.png)
 
-```{r}
+```{r eval=FALSE, include=TRUE}
 png(filename = "~/GitHub/ReSurv/vignettes/delta_shap_nn.png", width=600, height=480, res=72)
 plot(resurv.model.nn.D,nsamples=10000)
 dev.off()
 ```
 
-![Mean absolute Shap values for NN on one data set simulated from scenario Alpha.](delta_shap_nn.png)
 
 
 

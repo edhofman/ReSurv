@@ -6,6 +6,7 @@
 #'
 #'
 #' @param IndividualData \code{IndividualData} object to use for the \code{ReSurv} fit cross-validation.
+#' @param model \code{character}, machine learning for cross validation.
 #' @param hparameters_grid \code{list}, grid of the hyperparameters to cross-validate.
 #' @param folds \code{integer}, number of folds (i.e. K).
 #' @param random_seed \code{integer}, random seed for making the code reproducible.
@@ -17,11 +18,53 @@
 #' @param num_workers \code{numeric}, number of workers for the \code{deepsurv} approach, multi-process data loading with the specified number of loader worker processes.
 #' @param verbose \code{logical}, whether messages from the machine learning models must be printed.
 #' @param verbose.cv \code{logical}, whether messages from cross-validation must be printed.
+#' @param nrounds \code{integer}, specific to \code{xgboost}, max number of boosting iterations.
+#' @param ncores \code{integer}, specific to \code{deepsurv}, max number of cores used.
+#'
 #' @return Best \code{ReSurv} model fit. The output is different depending on the machine learning approach that is required for cross-validation.
 #'
 #' @import reticulate
 #' @import tidyverse
 #' @import xgboost
+#'
+#' @examples
+#' ## Not run
+#' input_data <- data_generator(random_seed = 1964)
+#'
+#' individual_data <- IndividualData(input_data,
+#'                                   id="claim_number",
+#'                                   continuous_features=NULL,
+#'                                   categorical_features="claim_type",
+#'                                   accident_period="AM",
+#'                                   calendar_period="RM",
+#'                                   input_time_granularity = "months",
+#'                                   output_time_granularity = "quarters",
+#'                                   years=4,
+#'                                   continuous_features_spline=NULL,
+#'                                   calendar_period_extrapolation=F)
+#'
+#' resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
+#'                               model="xgboost",
+#'                               hparameters_grid=list(booster="gbtree",
+#'                               eta=c(.001,.01,.2,.3),
+#'                               max_depth=c(3,6,8),
+#'                               subsample=c(1),
+#'                               alpha=c(0,.2,1),
+#'                               lambda=c(0,.2,1),
+#'                                min_child_weight=c(.5,1)),
+#'                                print_every_n = 1L,
+#'                                nrounds=500,
+#'                                verbose=F,
+#'                                verbose.cv=T,
+#'                                early_stopping_rounds = 100,
+#'                                folds=5,
+#'                                parallel=T,
+#'                                ncores=2,
+#'                                random_seed=1)
+#'
+#'
+#' @references
+#' Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 #'
 #' @export
 ReSurvCV <- function(IndividualData,
@@ -48,11 +91,26 @@ ReSurvCV <- function(IndividualData,
 #'
 #' This function computes a K fold cross-validation of a pre-specified ReSurv model for a given grid of parameters.
 #'
-#' @param IndividualData IndividualData object to use for the ReSurv fit cross-validation.
-#' @param hparameters_grid grid of the hyperparameters to cross-validate.
-#' @param folds number of folds
-#'
+#' @param IndividualData \code{IndividualData} object to use for the \code{ReSurv} fit cross-validation.
+#' @param model \code{character}, machine learning for cross validation.
+#' @param hparameters_grid \code{list}, grid of the hyperparameters to cross-validate.
+#' @param folds \code{integer}, number of folds (i.e. K).
+#' @param random_seed \code{integer}, random seed for making the code reproducible.
+#' @param continuous_features_scaling_method \code{character}, method for scaling continuous features.
+#' @param print_every_n \code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.
+#' @param early_stopping_rounds \code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.
+#' @param epochs \code{integer}, specific to the \code{deepsurv} approach, epochs to be checked.
+#' @param parallel \code{logical}, specific to the \code{deepsurv} approach, whether to use parallel computing.
+#' @param num_workers \code{numeric}, number of workers for the \code{deepsurv} approach, multi-process data loading with the specified number of loader worker processes.
+#' @param verbose \code{logical}, whether messages from the machine learning models must be printed.
+#' @param verbose.cv \code{logical}, whether messages from cross-validation must be printed.
+#' @param nrounds \code{integer}, specific to \code{xgboost}, max number of boosting iterations.
+#' @param ncores \code{integer}, specific to \code{deepsurv}, max number of cores used.
+
 #' @return Best ReSurv model fit.
+#'
+#' @references
+#' Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 #'
 #' @export
 ReSurvCV.default <- function(IndividualData,
@@ -79,10 +137,21 @@ ReSurvCV.default <- function(IndividualData,
 #'
 #' This function computes a K fold cross-validation of a pre-specified ReSurv model for a given grid of parameters.
 #'
-#' @param IndividualData IndividualData object to use for the ReSurv fit cross-validation.
-#' @param hparameters_grid grid of the hyperparameters to cross-validate.
-#' @param folds number of folds.
-#' @param random_seed random seed to make the results replicable.
+#' @param IndividualData \code{IndividualData} object to use for the \code{ReSurv} fit cross-validation.
+#' @param model \code{character}, machine learning for cross validation.
+#' @param hparameters_grid \code{list}, grid of the hyperparameters to cross-validate.
+#' @param folds \code{integer}, number of folds (i.e. K).
+#' @param random_seed \code{integer}, random seed for making the code reproducible.
+#' @param continuous_features_scaling_method \code{character}, method for scaling continuous features.
+#' @param print_every_n \code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.
+#' @param early_stopping_rounds \code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.
+#' @param epochs \code{integer}, specific to the \code{deepsurv} approach, epochs to be checked.
+#' @param parallel \code{logical}, specific to the \code{deepsurv} approach, whether to use parallel computing.
+#' @param num_workers \code{numeric}, number of workers for the \code{deepsurv} approach, multi-process data loading with the specified number of loader worker processes.
+#' @param verbose \code{logical}, whether messages from the machine learning models must be printed.
+#' @param verbose.cv \code{logical}, whether messages from cross-validation must be printed.
+#' @param nrounds \code{integer}, specific to \code{xgboost}, max number of boosting iterations.
+#' @param ncores \code{integer}, specific to \code{deepsurv}, max number of cores used.
 #'
 #' @return Best ReSurv model fit.
 #'

@@ -1,9 +1,13 @@
 ---
 title: "Simulate individual data"
 author: "Gabriele Pittarello"
-date: "2023-04-20"
-output: html_document
-bibliography: references.bib  
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Simulate individual data}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: '`r system.file("references.bib", package="ReSurv")`'
 ---
 
 ```{r setup, include=FALSE}
@@ -73,7 +77,6 @@ input_data0 %>%
 dev.off()
 ```
 
-![Scenario Alpha, empirical distribution of the simulated notification delay](scenario0ecdf.png)
 
 # Scenario Beta
 
@@ -114,7 +117,6 @@ input_data1 %>%
   theme_bw()
 dev.off()
 ```
-![Scenario Beta, empirical distribution of the simulated notification delay](scenario1ecdf.png)
 
 # Scenario Gamma
 
@@ -156,7 +158,6 @@ input_data2 %>%
 dev.off()
 ```
 
-![Scenario Delta, empirical distribution of the simulated notification delay](scenario2ecdf.png)
 
 # Scenario Delta
 
@@ -197,7 +198,6 @@ input_data3 %>%
   theme_bw()
 dev.off()
 ```
-![Scenario Gamma, empirical distribution of the simulated notification delay](scenario3ecdf.png)
 
 # Scenario Epsilon
 
@@ -240,7 +240,6 @@ input_data4 %>%
 
 dev.off()
 ```
-![Scenario Epsilon, empirical distribution of the simulated notification delay](scenario4ecdf.png)
 
 # Bibliography
 

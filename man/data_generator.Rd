@@ -21,6 +21,8 @@ data_generator(
 
 \item{years}{\code{integer}, number of years to be simulated.}
 
+\item{random_seed}{\code{integer}, random seed for replicable code.}
+
 \item{period_exposure}{\code{integer}, volume (number of policies) underwritten each period.}
 
 \item{period_frequency}{\code{numeric}, expected frequency in each period.}

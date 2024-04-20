@@ -31,9 +31,9 @@
 #'
 #' @param years \code{numeric}, number of development years in the study.
 #' @param continuous_features_spline \code{logical}, weather a spline for smoothing continuous features should be added.
-#' @param degree_cf \code{numeric}, degrees of the spline for smoothing continuous features.
+#' @param degrees_cf \code{numeric}, degrees of the spline for smoothing continuous features.
 #' @param degrees_of_freedom_cf \code{numeric}, degrees of freedom of the splines for smoothing continuous features.
-#' @param degree_cp \code{numeric}, degrees of the spline for smoothing the calendar period effect.
+#' @param degrees_cp \code{numeric}, degrees of the spline for smoothing the calendar period effect.
 #' @param degrees_of_freedom_cp \code{numeric}, degrees of freedom of the splines for smoothing the calendar period effect.
 #'
 #' @importFrom dplyr mutate
@@ -78,24 +78,26 @@
 #'}
 #'
 #' @examples
-#' ## Not run
-#' input_data <- data_generator(random_seed = 1964)
 #'
-#' individual_data <- IndividualData(input_data,
-#'                                   id="claim_number",
-#'                                   continuous_features=NULL,
-#'                                   categorical_features="claim_type",
-#'                                   accident_period="AM",
-#'                                   calendar_period="RM",
-#'                                   input_time_granularity = "months",
+#' input_data0 <- data_generator(random_seed = 1964,
+#'                               scenario=0,
+#'                               time_unit = 1/360,
+#'                               years = 4,
+#'                               period_exposure = 5)
+#'
+#' individual_data <- IndividualData(data = input_data0,
+#'                                   id=NULL,
+#'                                   categorical_features = c("claim_type"),
+#'                                   continuous_features = "AP",
+#'                                   accident_period="AP",
+#'                                   calendar_period="RP",
+#'                                   input_time_granularity = "days",
 #'                                   output_time_granularity = "quarters",
-#'                                   years=4,
-#'                                   continuous_features_spline=NULL,
-#'                                   calendar_period_extrapolation=F)
-#'#'
+#'                                   years=4)
+#'
 #'
 #' @references
-#' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
+#' Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 #'
 #' @export
 IndividualData <- function(data,

@@ -61,13 +61,13 @@ Default is `FALSE`.}
 
 \item{continuous_features_spline}{\code{logical}, weather a spline for smoothing continuous features should be added.}
 
+\item{degrees_cf}{\code{numeric}, degrees of the spline for smoothing continuous features.}
+
 \item{degrees_of_freedom_cf}{\code{numeric}, degrees of freedom of the splines for smoothing continuous features.}
 
+\item{degrees_cp}{\code{numeric}, degrees of the spline for smoothing the calendar period effect.}
+
 \item{degrees_of_freedom_cp}{\code{numeric}, degrees of freedom of the splines for smoothing the calendar period effect.}
-
-\item{degree_cf}{\code{numeric}, degrees of the spline for smoothing continuous features.}
-
-\item{degree_cp}{\code{numeric}, degrees of the spline for smoothing the calendar period effect.}
 }
 \value{
 \code{IndividualData} object. A list containing:
@@ -115,9 +115,9 @@ individual_data <- IndividualData(input_data,
                                   years=4,
                                   continuous_features_spline=NULL,
                                   calendar_period_extrapolation=F)
-#'
+
 
 }
 \references{
-Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
+Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 }

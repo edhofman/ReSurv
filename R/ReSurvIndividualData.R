@@ -36,6 +36,13 @@
 #' @param random_seed \code{integer}, random seed set for reproducibility
 #' @param hparameters \code{list}, hyperparameters for the machine learning models. It will be disregarded for the cox approach.
 #' @param percentage_data_training \code{numeric}, percentage of data used for training on the upper triangle.
+#' @param grouping_method \code{character}, use probability or exposure approach to group from input to output development factors. Choice between:
+#' \itemize{
+#' \item{\code{"exposure"}}
+#' \item{\code{"probability"}}
+#' }
+#' Default is \code{"exposure"}.
+#' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #'
 #'
 #' @return ReSurv fit.
@@ -48,7 +55,7 @@
 #' @import data.table
 #'
 #' @references
-#' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
+#' Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 #'
 #' Therneau, T. M., & Lumley, T. (2015). Package ‘survival’. R Top Doc, 128(10), 28-33.
 #'
@@ -62,9 +69,11 @@ ReSurv <- function(IndividualData,
                    tie='efron',
                    baseline="spline",
                    continuous_features_scaling_method="minmax",
-                   random_seed=1964,
+                   random_seed=1,
                    hparameters=list(),
-                   percentage_data_training=.8){
+                   percentage_data_training=.8,
+                   grouping_method = "exposure",
+                   check_value = 1.85){
 
   UseMethod("ReSurv")
 

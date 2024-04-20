@@ -23,13 +23,35 @@
 )
 }
 \arguments{
-\item{IndividualData}{IndividualData object to use for the ReSurv fit cross-validation.}
+\item{IndividualData}{\code{IndividualData} object to use for the \code{ReSurv} fit cross-validation.}
 
-\item{hparameters_grid}{grid of the hyperparameters to cross-validate.}
+\item{model}{\code{character}, machine learning for cross validation.}
 
-\item{folds}{number of folds.}
+\item{hparameters_grid}{\code{list}, grid of the hyperparameters to cross-validate.}
 
-\item{random_seed}{random seed to make the results replicable.}
+\item{folds}{\code{integer}, number of folds (i.e. K).}
+
+\item{random_seed}{\code{integer}, random seed for making the code reproducible.}
+
+\item{continuous_features_scaling_method}{\code{character}, method for scaling continuous features.}
+
+\item{print_every_n}{\code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.}
+
+\item{nrounds}{\code{integer}, specific to \code{xgboost}, max number of boosting iterations.}
+
+\item{epochs}{\code{integer}, specific to the \code{deepsurv} approach, epochs to be checked.}
+
+\item{num_workers}{\code{numeric}, number of workers for the \code{deepsurv} approach, multi-process data loading with the specified number of loader worker processes.}
+
+\item{parallel}{\code{logical}, specific to the \code{deepsurv} approach, whether to use parallel computing.}
+
+\item{ncores}{\code{integer}, specific to \code{deepsurv}, max number of cores used.}
+
+\item{verbose.cv}{\code{logical}, whether messages from cross-validation must be printed.}
+
+\item{verbose}{\code{logical}, whether messages from the machine learning models must be printed.}
+
+\item{early_stopping_rounds}{\code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.}
 }
 \value{
 Best ReSurv model fit.

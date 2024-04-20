@@ -1,8 +1,12 @@
 ---
 title: "A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving"
 author: "Gabriele Pittarello, Emil Hofman"
-date: "2023-07-19"
-output: html_document
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
 ---
 
 # Introduction
@@ -153,8 +157,7 @@ CL %>%
 ticks.at <- seq(1,16,by=2)
 labels.as <- as.character(ticks.at)
 ```
-![Scenario Delta, Chain Ladder quarterly development factors.](CLdfoquarters.png)
-
+`
 ## Figure 1f
 
 ```{r eval=FALSE, echo=TRUE}
@@ -181,8 +184,6 @@ dtb_2_plot_Q %>%
 
 ```
 
-![Scenario Delta, XGB quarterly development factors AQ 15 Claim Type 1.](XGBdfoquarters2a.png)
-
 
 ## Figure 1g
 
@@ -208,8 +209,6 @@ dtb_2_plot_Q %>%
   theme(plot.title = element_text(size=20))
 
 ```
-
-![Scenario Delta, XGB quarterly development factors AQ 15 Claim Type 0.](XGBdfoquarters2b.png)
 
 
 ## Figure 1h
@@ -241,8 +240,6 @@ ggsave("C:\\Users\\gpitt\\Pictures\\ReSurv\\XGBdfoquarters2c.eps",
 
 
 ```
-
-![Scenario Delta, XGB quarterly development factors AQ 5 Claim Type 1.](XGBdfoquarters2c.png)
 
 ## Figure 1a
 
@@ -285,8 +282,6 @@ CL_months %>%
 
 ```
 
-![Scenario Delta, CL monthly development factors.](CLdfomonths.png)
-
 
 ## Figure 1c
 ```{r eval=FALSE, echo=TRUE}
@@ -309,7 +304,6 @@ dtb_2_plot_M %>%
   theme(plot.title = element_text(size=20))
 ```
 
-![Scenario Delta, XGB monthly development factors AM 7 and Claim Type 1.](XGBdfomonths1a.png)
 
 ## Figure 1d
 ```{r eval=FALSE, echo=TRUE}
@@ -333,7 +327,6 @@ dtb_2_plot_M %>%
 
 ```
 
-![Scenario Delta, XGB monthly development factors AM 9 and Claim Type 0.](XGBdfomonths1b.png)
 
 ## Figure 1e
 
@@ -360,8 +353,6 @@ dtb_2_plot_M %>%
 
 
 ```
-
-![Scenario Delta, XGB monthly development factors AM 36 and Claim Type 0.](XGBdfomonths1c.png)
 
 
 
@@ -536,7 +527,6 @@ ggplot(data=dt,aes(x=DP_rev_i,y=S_i, color=model_label))+
 
 
 ```
-![Scenario Alpha, fit of the survival function for different models.](survival_fn_alpha.png)
 
 
 ## Figure 5
@@ -721,7 +711,6 @@ ggplot(data=dt,aes(x=DP_rev_i,y=S_i, color=model_label))+
         axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
 ```
-![Scenario Delta, fit of the survival function for different models.](survival_fn_delta.png)
 
 # Fitting and scoring
 

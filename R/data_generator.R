@@ -7,6 +7,7 @@
 #' @param ref_claim \code{integer}, reference claim size.
 #' @param time_unit \code{numeric}, output time unit.
 #' @param years \code{integer}, number of years to be simulated.
+#' @param random_seed \code{integer}, random seed for replicable code.
 #' @param period_exposure \code{integer}, volume (number of policies) underwritten each period.
 #' @param period_frequency \code{numeric}, expected frequency in each period.
 #' @param scenario \code{character} or \code{numeric}, one of the scenarios described in the accompanying manuscript. Possible choices are
