@@ -1,16 +1,23 @@
 ---
 title: "Hyperparameters tuning"
 author: "Gabriele Pittarello"
-date: "2023-06-09"
-output: html_document
-bibliography: references.bib  
+date: "`r Sys.Date()`"
+bibliography: '`r system.file("references.bib", package="ReSurv")`'
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Hyperparameters tuning}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
-library(ParBayesianOptimization)
 library(ReSurv)
+library(reticulate)
+use_virtualenv('pyresurv')
+
 ```
 
 # Introduction 
@@ -23,13 +30,13 @@ input_data0 <- data_generator(random_seed = 1964,
                               scenario=0,
                               time_unit = 1/360,
                               years = 4,
-                              yearly_exposure = 200)
+                              period_exposure = 200)
 ```
 
 The counts data are then pre-processed using the `IndividualData` function.
 
 ```{r eval=FALSE, include=TRUE}
-individual_data <- IndividualData(data = input_data,
+individual_data <- IndividualData(data = input_data0,
                                   id=NULL,
                                   categorical_features = c("claim_type"),
                                   continuous_features = "AP",
@@ -66,7 +73,7 @@ In the following part of this vignette, we will discuss the steps required to op
 
 ## Notes on K-Fold cross validation
 
-In `ReSurv`, we have our own implementation of a standard K-Fold cross-validation (@hastie09), namely the `ReSurvCV` method of an `IndividualData` object. We show an illustrative example for neural networks below. Even if this routine can be used alone for choosing the optimal parameters, we suggest to use it within the bayesian approach of @snoek12. An example is provided in the following chunk for XGB.
+In `ReSurv`, we have our own implementation of a standard K-Fold cross-validation (@hastie09), namely the `ReSurvCV` method of an `IndividualData` object. We show an illustrative example for XGB below. Even if this routine can be used alone for choosing the optimal parameters, we suggest to use it within the bayesian approach of @snoek12. An example is provided in the following chunk for NN.
 
 ```{r eval=FALSE, include=TRUE}
 
@@ -112,7 +119,14 @@ bounds <- list(num_layers = c(2L,10L),
 ```
 
 
-Secondly, we need to specify an objective function to be optimized with the bayesian approach. The score metric we inspect is the negative (partial) likelihood. The likelihood is returned with negative sign as @ParBayesianOptimization is maximizing the objective function.
+Secondly, we need to specify an objective function to be optimized with the Bayesian approach. 
+The `ParBayesianOptimization` package can be loaded as
+
+```{r eval=FALSE, include=TRUE}
+library(ParBayesianOptimization)
+```
+
+The score metric we inspect is the negative (partial) likelihood. The likelihood is returned with negative sign as @ParBayesianOptimization is maximizing the objective function.
 
 ```{r eval=FALSE, include=TRUE}
 
@@ -123,7 +137,7 @@ obj_func <- function(num_layers,
                      lr, 
                      xi, 
                      eps) {
-  
+
   optim = switch(optim, 
                  "Adam", 
                  "SGD")

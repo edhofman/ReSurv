@@ -25,6 +25,8 @@ ReSurvCV(
 \arguments{
 \item{IndividualData}{\code{IndividualData} object to use for the \code{ReSurv} fit cross-validation.}
 
+\item{model}{\code{character}, machine learning for cross validation.}
+
 \item{hparameters_grid}{\code{list}, grid of the hyperparameters to cross-validate.}
 
 \item{folds}{\code{integer}, number of folds (i.e. K).}
@@ -35,11 +37,15 @@ ReSurvCV(
 
 \item{print_every_n}{\code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.}
 
+\item{nrounds}{\code{integer}, specific to \code{xgboost}, max number of boosting iterations.}
+
 \item{early_stopping_rounds}{\code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.}
 
 \item{epochs}{\code{integer}, specific to the \code{deepsurv} approach, epochs to be checked.}
 
 \item{parallel}{\code{logical}, specific to the \code{deepsurv} approach, whether to use parallel computing.}
+
+\item{ncores}{\code{integer}, specific to \code{deepsurv}, max number of cores used.}
 
 \item{num_workers}{\code{numeric}, number of workers for the \code{deepsurv} approach, multi-process data loading with the specified number of loader worker processes.}
 
@@ -54,4 +60,44 @@ Best \code{ReSurv} model fit. The output is different depending on the machine l
 This function computes a K fold cross-validation of a pre-specified machine learning model supported from the \code{ReSurv} package for a given grid of hyperparameters.
 The hyperparameters to be tested are provided in a list, namely \code{hparameters_grid}.
 Conversely, the parameters for the models run are provided separately as arguments and they are specific for each machine learning model support from.
+}
+\examples{
+## Not run
+input_data <- data_generator(random_seed = 1964)
+
+individual_data <- IndividualData(input_data,
+                                  id="claim_number",
+                                  continuous_features=NULL,
+                                  categorical_features="claim_type",
+                                  accident_period="AM",
+                                  calendar_period="RM",
+                                  input_time_granularity = "months",
+                                  output_time_granularity = "quarters",
+                                  years=4,
+                                  continuous_features_spline=NULL,
+                                  calendar_period_extrapolation=F)
+
+resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
+                              model="xgboost",
+                              hparameters_grid=list(booster="gbtree",
+                              eta=c(.001,.01,.2,.3),
+                              max_depth=c(3,6,8),
+                              subsample=c(1),
+                              alpha=c(0,.2,1),
+                              lambda=c(0,.2,1),
+                               min_child_weight=c(.5,1)),
+                               print_every_n = 1L,
+                               nrounds=500,
+                               verbose=F,
+                               verbose.cv=T,
+                               early_stopping_rounds = 100,
+                               folds=5,
+                               parallel=T,
+                               ncores=2,
+                               random_seed=1)
+
+
+}
+\references{
+Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 }

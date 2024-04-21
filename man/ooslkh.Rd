@@ -8,9 +8,11 @@ ooslkh(object, ...)
 }
 \arguments{
 \item{object}{\code{ReSurvFit} object.}
+
+\item{...}{Other arguments to pass to ooslkh.}
 }
 \value{
-Out of the sample likelihood
+\code{numeric}, out of the sample likelihood.
 }
 \description{
 When the lower triangle data are available, this method computes the likelihood on the lower triangle.

@@ -1,7 +1,7 @@
 Package: ReSurv
 Type: Package
 Title: Machine learning based approach for individual claims reserving
-Version: 0.0.1
+Version: 0.0.2
 Authors@R:
     c(person(given = "Emil",
              family = "Hofman",
@@ -25,26 +25,28 @@ URL: https://github.com/gpitt71/ReSurv
 BugReports: https://github.com/gpitt71/ReSurv/issues
 License: GPL (>= 2)
 Depends: tidyverse
-Imports: stats,
-         dplyr,
-         dtplyr,
-         fastDummies,
-         forecast,
-         data.table,
-         reshape,
-         purrr,
-         survival,
-         LTRCtrees,
-         reshape2,
-         bshazard,
-         SynthETIC,
-         rpart
+Imports: 
+  stats,
+  dplyr,
+  dtplyr,
+  fastDummies,
+  forecast,
+  data.table,
+  reshape,
+  purrr,
+  survival,
+  LTRCtrees,
+  reshape2,
+  bshazard,
+  SynthETIC,
+  rpart,
+  reticulate, 
+  xgboost,
+  SHAPforxgboost
 Encoding: UTF-8
 LazyData: true
 Suggests: 
-    knitr,
-    rmarkdown,
-    reticulate,
-    xgboost
+  knitr,
+  rmarkdown
 VignetteBuilder: knitr, rmarkdown
 RoxygenNote: 7.2.3
