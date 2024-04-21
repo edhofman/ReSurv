@@ -2539,7 +2539,7 @@ pkg.env$fit_xgboost <- function(datads_pp,
 
   out <- xgboost::xgb.train(params = hparameters$params,
                             data =datads_pp$ds_train_m,
-                            obj=cox_loss_objective2,
+                            obj=cox_loss_objective,
                             nrounds = hparameters$nrounds,
                             feval= cox_evaluation_metrix,
                             watchlist = list(train=datads_pp$ds_train_m,

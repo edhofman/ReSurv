@@ -1,46 +1,44 @@
-# find for each contribution the individuals
+# find for each contribution the individuals at risk
 # in the tie
 risks_in_the_tie <- function(starts_i,
                              stops,
                              stops_i){
-  # start_time <- Sys.time()
+
   nstops <- length(stops)
   risksets <- vector(mode="list", length=nstops)
 
   for(i in 1:nstops){
-    # start <- starts[i]
+
     stop <- stops[i]
 
-    ivec<- ( (starts_i < stop) & (stops_i >= stop))  # should delta be here?
+    ivec<- ( (starts_i < stop) & (stops_i >= stop))
 
     risksets[i] <- list(which(ivec))
 
   }
 
-  # end_time <- Sys.time()
-  # print(end_time-start_time)
+
   return(risksets)
 }
 
+#find for each contribution the events in the tie
 events_in_the_tie <- function(starts_i,
                               stops,
                               stops_i){
-  # start_time <- Sys.time()
+
   nstops <- length(stops)
   eventsset<- vector(mode="list", length=nstops)
 
   for(i in 1:nstops){
-    # start <- starts[i]
+
     stop <- stops[i]
 
-    ivec<- ( stops_i == stop) # should delta be here?
+    ivec<- ( stops_i == stop)
 
     eventsset[i] <- list(which(ivec))
 
   }
 
-  # end_time <- Sys.time()
-  # print(end_time-start_time)
   return(eventsset)
 }
 
@@ -51,33 +49,6 @@ exp_sum_computer <- function(x,ypred){
 }
 
 
-
-###
-# cox_loss_objective <- function(preds,dtrain){
-#
-#   risk_sets <- attr(dtrain, 'risk_sets')
-#   event_sets <- attr(dtrain, 'event_sets')
-#   efron_c<- attr(dtrain, 'efron_c')
-#   tieid<- attr(dtrain, 'tieid')
-#
-#
-#   exp_p_sum <- rep(sapply(risk_sets,FUN=exp_sum_computer, ypred=preds),tieid)
-#   exp_p_tie <- rep(sapply(event_sets,FUN=exp_sum_computer, ypred=preds),tieid)
-#
-#   exp_p <- exp(preds)
-#
-#   r_k <- exp_p_sum-efron_c*exp_p_tie
-#   num <- (1- efron_c)*exp_p
-#
-#   ratio_k = num/r_k
-#
-#   #we consider the nll
-#   grad <- ratio_k-1
-#
-#   hess <- ratio_k -((ratio_k )^2)
-#   return(list(grad=grad,hess=hess))
-# }
-###
 cox_evaluation_metrix <- function(preds,
                                   dtrain){
 
@@ -101,39 +72,6 @@ cox_evaluation_metrix <- function(preds,
 ##
 
 cox_loss_objective <- function(preds,dtrain){
-
-  risk_sets <- attr(dtrain, 'risk_sets')
-  event_sets <- attr(dtrain, 'event_sets')
-  efron_c<-attr(dtrain, 'efron_c')
-  tieid<- attr(dtrain, 'tieid')
-
-  exp_p_sum <- rep(cumsum(sapply(risk_sets,FUN=exp_sum_computer, ypred=preds)), tieid)
-  exp_p_tie <-  rep(cumsum(sapply(event_sets,FUN=exp_sum_computer, ypred=preds)), tieid)
-
-  alpha_i <- 1/(exp_p_sum-efron_c*exp_p_tie)
-  beta_i <- efron_c/(exp_p_sum-efron_c*exp_p_tie)
-
-  gamma_i <- (1/(exp_p_sum-efron_c*exp_p_tie))^2
-  omega_i <- (1-(1-efron_c)^2)/((exp_p_sum-efron_c*exp_p_tie)^2)
-
-  exp_p <- exp(preds)
-
-  #r_k <- exp_p_sum-efron_c*exp_p_tie
-  # num <- (1- efron_c)*exp_p
-
-  # ratio_k = num/r_k
-  # ratio_k2 = (num*num)/s_k
-
-  #we consider the nll
-  grad <- exp_p*(alpha_i-beta_i)-1
-
-  hess <- grad+1-(exp_p^2)*(gamma_i-omega_i)
-  return(list(grad=grad,hess=hess))
-}
-
-##
-
-cox_loss_objective2 <- function(preds,dtrain){
 
   Ti <- attr(dtrain, 'truncation')
   Ei <- attr(dtrain, 'claim_arrival')
@@ -164,8 +102,6 @@ cox_loss_objective2 <- function(preds,dtrain){
   tmp_beta_i=tmp1[, .(beta_i = sum(efron_c/(risks_s-efron_c*events_s))), by = ties]$beta_i
   beta_i = vector("numeric",length = max(Ei))
   beta_i[unique(Ei)] = tmp_beta_i
-  # alpha_i <- 1/(exp_p_sum-efron_c*exp_p_tie)
-  # beta_i <- efron_c/(tmp1$risks_s-efron_c*tmp1$events_s)
 
   tmp_gamma_i=tmp1[, .(gamma_i = sum(1/(risks_s-efron_c*events_s)^2)), by = ties]$gamma_i
   gamma_i = vector("numeric",length = max(Ei))
@@ -174,12 +110,8 @@ cox_loss_objective2 <- function(preds,dtrain){
   tmp_omega_i=tmp1[, .(omega_i = sum((1-(1-efron_c)^2)/(risks_s-efron_c*events_s)^2)), by = ties]$omega_i
   omega_i = vector("numeric",length = max(Ei))
   omega_i[unique(Ei)] = tmp_omega_i
-  # gamma_i <- (1/(tmp1$risks_s-efron_c*tmp1$events_s))^2
-  # omega_i <- (1-(1-efron_c)^2)/((tmp1$risks_s-efron_c*tmp1$events_s)^2)
 
 
-  # beta_i=rep(beta_i,tieid)
-  # omega_i=rep(omega_i,tieid)
 
   exp_p <- exp(preds)
   n <- length(exp_p)
