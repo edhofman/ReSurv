@@ -110,7 +110,7 @@ predict.ReSurvFit <- function(object,
     #If we exeed the check value, we calculate on ouput granularity, predict on output granularity, and distribute evenly in the relevant input-periods.
     #From here we do simple chain-ladder to calculate new development factor.
     if(#check_input_hazard
-      FALSE
+      FALSE # I guess we  can remove this part if not used?
     ){
       development_factor_o <- pkg.env$i_to_o_development_factor(
         hazard_data_frame=hazard_frame_grouped$hazard_group,
