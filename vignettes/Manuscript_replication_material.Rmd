@@ -65,7 +65,7 @@ hparameters = list(params=list(booster="gbtree",
 ```{r eval=FALSE, echo=TRUE}
 
 resurv.fit <- ReSurv(individual_data,
-                     hazard_model = "xgboost",
+                     hazard_model = "XGB",
                      hparameters = hparameters)
 
 
@@ -358,7 +358,7 @@ dtb_2_plot_M %>%
 
 # Table 2
 
-The models likelihood can be extracted using the following commands. Table 2 shows the average negative log-likelihood for each scenario over the different simulations, here we show the results for xgboost, scenario Delta and simulation number 7.
+The models likelihood can be extracted using the following commands. Table 2 shows the average negative log-likelihood for each scenario over the different simulations, here we show the results for XGB, scenario Delta and simulation number 7.
 
 ```{r eval=FALSE, echo=TRUE}
 resurv.fit$is_lkh
@@ -474,14 +474,14 @@ hparameters.nn.01 = list(num_layers=2,
 
 ```{r eval=FALSE, echo=TRUE}
 resurv.fit.cox.01 <- ReSurv(individual_data,
-                             hazard_model = "cox")
+                             hazard_model = "COX")
 
 resurv.fit.nn.01 <- ReSurv(individual_data,
-                             hazard_model = "deepsurv",
+                             hazard_model = "NN",
                              hparameters = hparameters.nn.01)
 
 resurv.fit.xgb.01 <- ReSurv(individual_data,
-                             hazard_model = "xgboost",
+                             hazard_model = "XGB",
                              hparameters = hparameters.xgb.01)
 
 ```
@@ -657,14 +657,14 @@ hparameters.nn.31 = list(num_layers=2,
 ```{r eval=FALSE, echo=TRUE}
 
 resurv.fit.cox.31 <- ReSurv(individual_data,
-                             hazard_model = "cox")
+                             hazard_model = "COX")
 
 resurv.fit.nn.31 <- ReSurv(individual_data,
-                             hazard_model = "deepsurv",
+                             hazard_model = "NN",
                              hparameters = hparameters.nn.31)
 
 resurv.fit.xgb.31 <- ReSurv(individual_data,
-                             hazard_model = "xgboost",
+                             hazard_model = "XGB",
                              hparameters = hparameters.xgb.31)
 
 ```
@@ -748,7 +748,7 @@ individual_data <- IndividualData(input_data,
 start<-Sys.time()
 
 resurv.fit <- ReSurv(individual_data,
-                       hazard_model = "cox")
+                       hazard_model = "COX")
 
 resurv.fit.predict <- predict(resurv.fit,
                                 grouping_method = "probability")

@@ -17,7 +17,7 @@ plot.ReSurvFit <- function(object,
   hazard_model <- object$hazard_model
   output.fit <- object$model.out
 
-  if(hazard_model=="xgboost"){
+  if(hazard_model=="XGB"){
 
     #we need the following
     shap_values <- shap.values(xgb_model = output.fit$model.out,
@@ -28,7 +28,7 @@ plot.ReSurvFit <- function(object,
 
   }
 
-  if(hazard_model=="deepsurv"){
+  if(hazard_model=="NN"){
 
     shap <- reticulate::import("shap")
 

@@ -2017,7 +2017,7 @@ create.df.2.fcst <- function(IndividualData,
   # Time difference of 0.6656282 secs
 
 
-  if(IndividualData$calendar_period_extrapolation & (hazard_model=='cox')){
+  if(IndividualData$calendar_period_extrapolation & (hazard_model=='COX')){
     tmp$RP_i <- tmp$AP_i+tmp$DP_rev_i-1
   }else{
     if(IndividualData$calendar_period_extrapolation){
@@ -2158,13 +2158,13 @@ pkg.env$baseline.calc <- function(hazard_model,
   #for baseline need full training data
   datads_pp <- pkg.env$xgboost_pp(X,Y, training_test_split = 1)
 
-  if(hazard_model=="cox"){
+  if(hazard_model=="COX"){
 
     predict_bsln <- model.out$train_expg
 
   }
 
-  if(hazard_model=="deepsurv"){
+  if(hazard_model=="NN"){
     datads_pp_nn = pkg.env$deep_surv_pp(X=X,
                                         Y=Y,
                                         training_test_split = 1)
@@ -2173,7 +2173,7 @@ pkg.env$baseline.calc <- function(hazard_model,
 
   }
 
-  if(hazard_model == "xgboost"){
+  if(hazard_model == "XGB"){
     predict_bsln <- predict(model.out,datads_pp$ds_train_m)
   }
 
@@ -2726,8 +2726,8 @@ pkg.env$evaluate_lkh_nn <-function(X_train,
     mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
 
 
-  # if(hazard_model %in% c("cox","LTRCtrees")){ds_train_m <- X_train}
-  # if(hazard_model == "xgboost"){
+  # if(hazard_model %in% c("COX","LTRCtrees")){ds_train_m <- X_train}
+  # if(hazard_model == "XGB"){
 
 
   attr(ds_train_m, 'truncation') <- tmp_train$TR_i
@@ -2751,7 +2751,7 @@ pkg.env$evaluate_lkh_nn <-function(X_train,
 
 
 
-  # if(hazard_model == "cox"){
+  # if(hazard_model == "COX"){
   #   preds_tr <- predict(model$cox,ds_train_m)
   # }
 
@@ -2797,8 +2797,8 @@ pkg.env$evaluate_lkh_xgb <-function(X_train,
     mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
 
 
-  # if(hazard_model %in% c("cox","LTRCtrees")){ds_train_m <- X_train}
-  # if(hazard_model == "xgboost"){
+  # if(hazard_model %in% c("COX","LTRCtrees")){ds_train_m <- X_train}
+  # if(hazard_model == "XGB"){
   ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X_train))),
                                       label=tmp_train$I)
 
@@ -2823,11 +2823,11 @@ pkg.env$evaluate_lkh_xgb <-function(X_train,
 
 
 
-  # if(hazard_model == "cox"){
+  # if(hazard_model == "COX"){
   #   preds_tr <- predict(model$cox,ds_train_m)
   # }
 
-  # if(hazard_model == "xgboost"){
+  # if(hazard_model == "XGB"){
   preds_tr <- predict(model,ds_train_m)
   preds_tr <- preds_tr - preds_tr[1]
   # }
@@ -2869,7 +2869,7 @@ pkg.env$evaluate_lkh_LTRCtrees <-function(X_train,
 
 
   ds_train_m <- X_train
-  # if(hazard_model == "xgboost"){
+  # if(hazard_model == "XGB"){
   #   ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X_train))),
   #                                       label=tmp_train$I)}
 
@@ -2893,11 +2893,11 @@ pkg.env$evaluate_lkh_LTRCtrees <-function(X_train,
                                      attr(ds_train_m, 'tieid'))
 
 
-  # if(hazard_model == "cox"){
+  # if(hazard_model == "COX"){
   #   preds_tr <- predict(model$cox,ds_train_m)
   # }
   #
-  # if(hazard_model == "xgboost"){
+  # if(hazard_model == "XGB"){
   #   preds_tr <- predict(model,ds_train_m)
   #   preds_tr <- preds_tr - preds_tr[1]
   # }
@@ -2936,7 +2936,7 @@ pkg.env$evaluate_lkh_cox <-function(X_train,
 
 
   ds_train_m <- X_train
-  # if(hazard_model == "xgboost"){
+  # if(hazard_model == "XGB"){
   #   ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X_train))),
   #                                       label=tmp_train$I)}
 
@@ -2985,7 +2985,7 @@ adjust.predictions <- function(ResurvFit,
   Om.df <-   ResurvFit$Om.df
 
 
-  if(hazard_model=="cox"){
+  if(hazard_model=="COX"){
 
     data=idata$training.data
     X=data %>%
@@ -3014,7 +3014,7 @@ adjust.predictions <- function(ResurvFit,
 
   }
 
-  if(hazard_model=="deepsurv"){
+  if(hazard_model=="NN"){
 
     X <- pkg.env$model.matrix.creator(data= idata$training.data,
                                       select_columns = idata$categorical_features)

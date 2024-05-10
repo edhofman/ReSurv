@@ -16,7 +16,7 @@
 #'
 #' Currently, the implementation allows to optimize the partial likelihood (concerning the proportional effects) using one of the following statistical learning approaches:
 #' \itemize{
-#' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{Cox}}
+#' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{COX}}
 #' \item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
 #' \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
 #' \item{\href{https://cran.r-project.org/web/packages/LTRCtrees/LTRCtrees.pdf}{Left-truncated Right-Censored Trees}}
@@ -26,9 +26,9 @@
 #' @param IndividualData IndividualData object to use for the \code{ReSurv} fit.
 #' @param hazard_model \code{character}, hazard model supported from our package, must be provided as a string. The model can be chosen from:
 #' \itemize{
-#' \item{\code{"cox"}: Standard Cox model for the hazard.}
-#' \item{\code{"deep_surv"}: Deep Survival Neural Network.}
-#' \item{\code{"xgboost"}: eXtreme Gradient Boosting.}
+#' \item{\code{"COX"}: Standard Cox model for the hazard.}
+#' \item{\code{"NN"}: Deep Survival Neural Network.}
+#' \item{\code{"XGB"}: eXtreme Gradient Boosting.}
 #' }
 #' @param tie ties handling, default is the Efron approach.
 #' @param baseline handling the baseline hazard. Default is a spline.
@@ -65,7 +65,7 @@
 #'
 #' @export
 ReSurv <- function(IndividualData,
-                   hazard_model="cox",
+                   hazard_model="COX",
                    tie='efron',
                    baseline="spline",
                    continuous_features_scaling_method="minmax",
@@ -96,7 +96,7 @@ ReSurv <- function(IndividualData,
 #'
 #' Currently, the implementation allows to optimize the partial likelihood (concerning the proportional effects) using one of the following statistical learning approaches:
 #' \itemize{
-#' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{Cox}}
+#' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{COX}}
 #' \item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
 #' \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
 #' \item{\href{https://cran.r-project.org/web/packages/LTRCtrees/LTRCtrees.pdf}{Left-truncated Right-Censored Trees}}
@@ -106,9 +106,9 @@ ReSurv <- function(IndividualData,
 #' @param IndividualData IndividualData object to use for the \code{ReSurv} fit.
 #' @param hazard_model \code{character}, hazard model supported from our package, must be provided as a string. The model can be chosen from:
 #' \itemize{
-#' \item{\code{"cox"}: Standard Cox model for the hazard.}
-#' \item{\code{"deep_surv"}: Deep Survival Neural Network.}
-#' \item{\code{"xgboost"}: eXtreme Gradient Boosting.}
+#' \item{\code{"COX"}: Standard Cox model for the hazard.}
+#' \item{\code{"NN"}: Deep Survival Neural Network.}
+#' \item{\code{"XGB"}: eXtreme Gradient Boosting.}
 #' }
 #' @param tie ties handling, default is the Efron approach.
 #' @param baseline handling the baseline hazard. Default is a spline.
@@ -144,7 +144,7 @@ ReSurv <- function(IndividualData,
 #'
 #' @export
 ReSurv.default <- function(IndividualData,
-                           hazard_model="cox",
+                           hazard_model="COX",
                            tie='efron',
                            baseline="spline",
                            continuous_features_scaling_method="minmax",
@@ -178,7 +178,7 @@ ReSurv.default <- function(IndividualData,
 #'
 #' Currently, the implementation allows to optimize the partial likelihood (concerning the proportional effects) using one of the following statistical learning approaches:
 #' \itemize{
-#' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{Cox}}
+#' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{COX}}
 #' \item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
 #' \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
 #' \item{\href{https://cran.r-project.org/web/packages/LTRCtrees/LTRCtrees.pdf}{Left-truncated Right-Censored Trees}}
@@ -188,9 +188,9 @@ ReSurv.default <- function(IndividualData,
 #' @param IndividualData IndividualData object to use for the \code{ReSurv} fit.
 #' @param hazard_model \code{character}, hazard model supported from our package, must be provided as a string. The model can be chosen from:
 #' \itemize{
-#' \item{\code{"cox"}: Standard Cox model for the hazard.}
-#' \item{\code{"deep_surv"}: Deep Survival Neural Network.}
-#' \item{\code{"xgboost"}: eXtreme Gradient Boosting.}
+#' \item{\code{"COX"}: Standard Cox model for the hazard.}
+#' \item{\code{"NN"}: Deep Survival Neural Network.}
+#' \item{\code{"XGB"}: eXtreme Gradient Boosting.}
 #' }
 #' @param tie ties handling, default is the Efron approach.
 #' @param baseline handling the baseline hazard. Default is a spline.
@@ -225,7 +225,7 @@ ReSurv.default <- function(IndividualData,
 #'
 #' @export
 ReSurv.IndividualData <- function(IndividualData,
-                                  hazard_model="cox",
+                                  hazard_model="COX",
                                   tie='efron',
                                   baseline="spline",
                                   continuous_features_scaling_method="minmax",
@@ -252,7 +252,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
 
-  if(hazard_model=="cox"){
+  if(hazard_model=="COX"){
 
 
     data=IndividualData$training.data
@@ -333,7 +333,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
   }
 
-  if(hazard_model=="deepsurv"){
+  if(hazard_model=="NN"){
 
     X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
                                       select_columns = IndividualData$categorical_features)
@@ -419,7 +419,7 @@ ReSurv.IndividualData <- function(IndividualData,
 
   }
 
-  if(hazard_model == "xgboost"){
+  if(hazard_model == "XGB"){
 
     X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
                                       select_columns = IndividualData$categorical_features,
