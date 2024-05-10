@@ -100,24 +100,6 @@ In the \code{ReSurv} notation:
 \description{
 This function pre-processes the data for the application of a \code{ReSurv} model.
 }
-\examples{
-## Not run
-input_data <- data_generator(random_seed = 1964)
-
-individual_data <- IndividualData(input_data,
-                                  id="claim_number",
-                                  continuous_features=NULL,
-                                  categorical_features="claim_type",
-                                  accident_period="AM",
-                                  calendar_period="RM",
-                                  input_time_granularity = "months",
-                                  output_time_granularity = "quarters",
-                                  years=4,
-                                  continuous_features_spline=NULL,
-                                  calendar_period_extrapolation=F)
-
-
-}
 \references{
 Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 }

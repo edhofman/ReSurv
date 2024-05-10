@@ -77,23 +77,6 @@
 #'\item{\code{I}: event indicator, under this framework is equal to one for each entry. }
 #'}
 #'
-#' @examples
-#'
-#' input_data0 <- data_generator(random_seed = 1964,
-#'                               scenario=0,
-#'                               time_unit = 1/360,
-#'                               years = 4,
-#'                               period_exposure = 5)
-#'
-#' individual_data <- IndividualData(data = input_data0,
-#'                                   id=NULL,
-#'                                   categorical_features = c("claim_type"),
-#'                                   continuous_features = "AP",
-#'                                   accident_period="AP",
-#'                                   calendar_period="RP",
-#'                                   input_time_granularity = "days",
-#'                                   output_time_granularity = "quarters",
-#'                                   years=4)
 #'
 #'
 #' @references
@@ -120,12 +103,22 @@ IndividualData <- function(data,
 
   # Work on a copy of the input data
   tmp <- as.data.frame(data)
+  # browser()
 
   # Accident periods encoding
-  tmp.ap <- pkg.env$encode.variables(tmp[,accident_period])
+  x.ap <- pkg.env$check.dates.consistency(tmp[,accident_period],
+                                          input_time_granularity=input_time_granularity,
+                                          ap1=min(tmp[,accident_period]))
+  tmp.ap <- pkg.env$encode.variables(x.ap)
+
   # Calendar periods encoding
-  tmp.cp <- pkg.env$encode.variables.cp(tmp[,calendar_period], ap1=min(tmp[,accident_period]))
+  x.cp <- pkg.env$check.dates.consistency(tmp[,calendar_period],
+                                          input_time_granularity=input_time_granularity,
+                                          ap1=min(tmp[,accident_period]))
+  tmp.cp <- pkg.env$encode.variables.cp(x.cp,
+                                        ap1=min(x.ap))
   # Development periods encoding
+  # browser()
   tmp.dp <- tmp.cp-tmp.ap+1
 
   # Check the ap among features

@@ -26,6 +26,7 @@ License: GPL (>= 2)
 Depends: tidyverse
 Imports: 
   stats,
+  lubridate,
   dplyr,
   dtplyr,
   fastDummies,

@@ -759,6 +759,45 @@ pkg.env$check.newdata <- function(newdata,
 
 ## Encoding and formula ----
 
+pkg.env$check.dates.consistency <- function(x,
+                                            input_time_granularity,
+                                            ap1){
+"
+This function checks weather the accident date and the reporting date are of 'Date' class.
+In case they are, it transforms them into numeric.
+"
+
+  if(class(x)=="Date"){
+
+    if(input_time_granularity %in% c('quarters','semesters')){
+      time_unit_string <- c('quarters', 'semesters', 'years')
+      # BE CAREFUL: different from other codes, here we will bring everything to months and divide by six or four. Simpler.
+      time_unit_numeric <- c(1/4, 1/6)
+      input.pos <- which(time_unit_string%in%intersect(input_time_granularity,time_unit_string))
+      divide.by <- time_unit_numeric[input.pos]
+      diff.operator <- 'months'
+
+    }else{
+
+      divide.by <- 1
+      diff.operator <- input_time_granularity
+
+    }
+
+    out <- floor(time_length(x-ap1,diff.operator)*divide.by)
+
+    return(out)
+
+  }else{
+
+    return(x)
+
+  }
+
+
+}
+
+
 pkg.env$encode.variables <- function(x){
   "
   This function encodes the periods.
