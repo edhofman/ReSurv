@@ -1529,8 +1529,7 @@ pkg.env$retrieve_df_i <- function(hazard_data_frame,
       distinct() %>%
       reshape2::dcast(DP_rev_i ~group_i, value.var="dev_f_i") %>%
       select(-DP_rev_i)
-  }
-  else{
+  }else{
     df_i <- hazard_data_frame %>%
       select(group_i, DP_rev_i, df_i_adjusted) %>%
       distinct() %>%
@@ -1541,8 +1540,7 @@ pkg.env$retrieve_df_i <- function(hazard_data_frame,
   #We only have 5 columns in the case of AP being included as covariate
   if(ncol(groups) == 5){
     colnames(df_i) <- c(paste0("AP_i_",groups$AP_i,",", groups$covariate ))
-  }
-  else{
+  }else{
     colnames(df_i) <- c(groups$covariate )
   }
   #
