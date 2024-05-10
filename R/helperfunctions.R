@@ -1315,7 +1315,7 @@ pkg.env$latest_observed_values_i <- function(data_reserve,
   max_DP_i <- data_reserve %>% group_by(AP_i) %>%
     summarise(DP_max_rev =min(max(DP_rev_i)-DP_i)+1 ) %>%
     distinct()
-
+  # browser()
   data_reserve2 <- data_reserve %>%
     select(AP_i, AP_o, DP_rev_i, DP_i, all_of(categorical_features), all_of(continuous_features), I) %>%
     mutate(AP_i = as.numeric(AP_i)) %>%

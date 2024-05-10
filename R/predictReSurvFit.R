@@ -40,7 +40,7 @@ predict.ReSurvFit <- function(object,
     }
 
   hazard_frame <-object$hazard_frame
-
+  # browser()
   hazard_frame_grouped <- pkg.env$covariate_mapping(
     hazard_frame = hazard_frame,
     categorical_features = idata$categorical_features,
@@ -49,6 +49,7 @@ predict.ReSurvFit <- function(object,
     calendar_period_extrapolation = idata$calendar_period_extrapolation
   )
 
+  # browser()
   missing.obsevations <- pkg.env$fill_data_frame(data=idata$full.data,
                                                  continuous_features=idata$continuous_features,
                                                  categorical_features=idata$categorical_features,
@@ -88,7 +89,7 @@ predict.ReSurvFit <- function(object,
     df_i = df_i,
     groups = hazard_frame_grouped$groups)
 
-
+  # browser()
   if(idata$conversion_factor != 1){
 
     development_periods <- distinct(select(data.frame(idata$training), AP_i, AP_o))
