@@ -1,5 +1,5 @@
 cv_deep_surv <- function(hp,
-                         IndividualData,
+                         IndividualDataPP,
                          continuous_features_scaling_method,
                          folds,
                          kfolds,
@@ -20,17 +20,17 @@ cv_deep_surv <- function(hp,
   tmp.test.lkh <- vector("numeric",
                          length=folds)
 
-  X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                                    select_columns = IndividualData$categorical_features)
+  X <- pkg.env$model.matrix.creator(data= IndividualDataPP$training.data,
+                                    select_columns = IndividualDataPP$categorical_features)
 
   scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
 
-  Xc <- IndividualData$training.data %>%
-    summarize(across(all_of(IndividualData$continuous_features),
+  Xc <- IndividualDataPP$training.data %>%
+    summarize(across(all_of(IndividualDataPP$continuous_features),
                      scaler))
   X=cbind(X,Xc)
 
-  Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
+  Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
   for(i in c(1:folds)){
 
     datads_pp = pkg.env$deep_surv_pp(X=X,
@@ -58,12 +58,13 @@ cv_deep_surv <- function(hp,
   }
 
   time <- as.numeric(difftime(Sys.time(), start, units='mins'))
+
   c(mean(tmp.train.lkh),mean(tmp.test.lkh),time)
 
 }
 
 cv_xgboost <- function( hp,
-                        IndividualData,
+                        IndividualDataPP,
                         folds,
                         kfolds,
                         print_every_n ,
@@ -85,19 +86,19 @@ cv_xgboost <- function( hp,
 
     for(i in c(1:folds)){
 
-      X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                                        select_columns = IndividualData$categorical_features,
+      X <- pkg.env$model.matrix.creator(data= IndividualDataPP$training.data,
+                                        select_columns = IndividualDataPP$categorical_features,
                                         remove_first_dummy=T)
 
       scaler <- pkg.env$scaler(continuous_features_scaling_method = "minmax")
 
-      Xc <- IndividualData$training.data %>%
-        summarize(across(all_of(IndividualData$continuous_features),
+      Xc <- IndividualDataPP$training.data %>%
+        summarize(across(all_of(IndividualDataPP$continuous_features),
                          scaler))
 
       X=cbind(X,Xc)
 
-      Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
+      Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
 
       datads_pp =  pkg.env$xgboost_pp(X,
                                       Y,
@@ -115,5 +116,6 @@ cv_xgboost <- function( hp,
 
     }
     time <- as.numeric(difftime(Sys.time(), start, units='mins'))
+
     c(mean(tmp.train.lkh),mean(tmp.test.lkh),time)
 }

@@ -5,7 +5,7 @@
 \title{K fold cross-validation of a \code{ReSurv} model.}
 \usage{
 ReSurvCV(
-  IndividualData,
+  IndividualDataPP,
   model,
   hparameters_grid,
   folds,
@@ -23,7 +23,7 @@ ReSurvCV(
 )
 }
 \arguments{
-\item{IndividualData}{\code{IndividualData} object to use for the \code{ReSurv} fit cross-validation.}
+\item{IndividualDataPP}{\code{IndividualDataPP} object to use for the \code{ReSurv} fit cross-validation.}
 
 \item{model}{\code{character}, machine learning for cross validation.}
 
@@ -54,7 +54,13 @@ ReSurvCV(
 \item{verbose}{\code{logical}, whether messages from the machine learning models must be printed.}
 }
 \value{
-Best \code{ReSurv} model fit. The output is different depending on the machine learning approach that is required for cross-validation.
+Best \code{ReSurv} model fit. The output is different depending on the machine learning approach that is required for cross-validation. A list containing:
+ \itemize{
+\item{\code{out.cv}: \code{data.frame}, total output of the cross-validation (all the input parameters combinations). }
+\item{\code{out.cv.best.oos}:  \code{data.frame}, combination with the best out of sample likelihood. }
+}
+
+For XGB the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{booster}, \code{eta}, \code{max_depth}, \code{subsample}, \code{alpha}, \code{lambda}, \code{min_child_weight}. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}. For NN the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{num_layers}, \code{optim}, \code{activation}, \code{lr}, \code{xi}, \code{eps}, \code{tie}, \code{batch_size}, \code{early_stopping}, \code{patience}, \code{node} train.lkh test.lkh. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}.
 }
 \description{
 This function computes a K fold cross-validation of a pre-specified machine learning model supported from the \code{ReSurv} package for a given grid of hyperparameters.
@@ -65,7 +71,7 @@ Conversely, the parameters for the models run are provided separately as argumen
 ## Not run
 input_data <- data_generator(random_seed = 1964)
 
-individual_data <- IndividualData(input_data,
+individual_data <- IndividualDataPP(input_data,
                                   id="claim_number",
                                   continuous_features=NULL,
                                   categorical_features="claim_type",
@@ -77,7 +83,7 @@ individual_data <- IndividualData(input_data,
                                   continuous_features_spline=NULL,
                                   calendar_period_extrapolation=F)
 
-resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
+resurv.cv.xgboost <- ReSurvCV(IndividualDataPP=individual_data,
                               model="XGB",
                               hparameters_grid=list(booster="gbtree",
                               eta=c(.001,.01,.2,.3),

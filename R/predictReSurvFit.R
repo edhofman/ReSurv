@@ -3,7 +3,7 @@
 #' This function predicts the results from the ReSurv fits.
 #'
 #' @param object \code{ResurvFit} object specifying start time, end time and status.
-#' @param newdata \code{IndividualData} object that contains new data to predict.
+#' @param newdata \code{IndividualDataPP} object that contains new data to predict.
 #' @param grouping_method \code{character}, use probability or exposure approach to group from input to output development factors. Choice between:
 #' \itemize{
 #' \item{\code{"exposure"}}
@@ -12,7 +12,7 @@
 #' Default is \code{"exposure"}.
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #'
-#' @return predictions
+#' @return predictions for the \texttt{ReSurvFit} model.
 #'
 #' @export
 #' @method predict ReSurvFit
@@ -24,7 +24,7 @@ predict.ReSurvFit <- function(object,
 
   if(!is.null(newdata)){
     pkg.env$check.newdata(newdata=newdata,
-                          pastdata=object$IndividualData)
+                          pastdata=object$IndividualDataPP)
 
     idata <- newdata
     # hazard_frame <- adjust.predictions(ResurvFit=object,
@@ -34,7 +34,7 @@ predict.ReSurvFit <- function(object,
 
   }else{
 
-    idata <- object$IndividualData
+    idata <- object$IndividualDataPP
 
 
     }
@@ -177,8 +177,8 @@ predict.ReSurvFit <- function(object,
     expected_o <-pkg.env$predict_o(expected_i = expected_i,
                                    groups = hazard_frame_grouped$groups,
                                    conversion_factor = idata$conversion_factor,
-                                   years = object$IndividualData$years,
-                                   input_time_granularity = object$IndividualData$input_time_granularity)
+                                   years = object$IndividualDataPP$years,
+                                   input_time_granularity = object$IndividualDataPP$input_time_granularity)
 
 
 
@@ -192,8 +192,8 @@ predict.ReSurvFit <- function(object,
       conversion_factor = idata$conversion_factor,
       grouping_method = grouping_method,
       min_DP_rev_i = min(hazard_frame_grouped$hazard_group$DP_rev_i),
-      years = object$IndividualData$years,
-      input_time_granularity = object$IndividualData$input_time_granularity
+      years = object$IndividualDataPP$years,
+      input_time_granularity = object$IndividualDataPP$input_time_granularity
     )
 
 

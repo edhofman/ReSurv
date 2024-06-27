@@ -738,9 +738,9 @@ pkg.env$check.newdata <- function(newdata,
   }
 
 
-  if(class(newdata) != "IndividualData"){
+  if(class(newdata) != "IndividualDataPP"){
 
-    stop('newdata must be an IndividualData object.')
+    stop('newdata must be an IndividualDataPP object.')
 
   }
 
@@ -1995,7 +1995,7 @@ pkg.env$update_hazard_frame <- function(
 
 ## hyperparameters and prepare data for fitting ----
 
-pkg.env$spline_hp <- function(hparameters,IndividualData){
+pkg.env$spline_hp <- function(hparameters,IndividualDataPP){
   "
   Returns spline hyperparameters in case they are not provided from the user.
 
@@ -2003,7 +2003,7 @@ pkg.env$spline_hp <- function(hparameters,IndividualData){
   if(length(hparameters)>0){
     tmp <- list()
 
-    tmp$nk <- ifelse(is.null(hparameters$nk),nrow(IndividualData$training.data)/4,hparameters$nk)
+    tmp$nk <- ifelse(is.null(hparameters$nk),nrow(IndividualDataPP$training.data)/4,hparameters$nk)
 
     tmp$nbin <- ifelse(is.null(hparameters$nbin),NULL,hparameters$nbin)
 
@@ -2014,22 +2014,22 @@ pkg.env$spline_hp <- function(hparameters,IndividualData){
 }
 
 
-create.df.2.fcst <- function(IndividualData,
+create.df.2.fcst <- function(IndividualDataPP,
                              hazard_model){
 
-  l1 <- lapply(IndividualData$training.data %>% select(IndividualData$categorical_features), levels)
-  l2 <- lapply(IndividualData$training.data %>% select(IndividualData$continuous_features), unique)
+  l1 <- lapply(IndividualDataPP$training.data %>% select(IndividualDataPP$categorical_features), levels)
+  l2 <- lapply(IndividualDataPP$training.data %>% select(IndividualDataPP$continuous_features), unique)
   l3 <- list()
   l4 <- list()
   l5 <- list()
 
-  if(!('AP_i'%in%c(IndividualData$categorical_features,IndividualData$continuous_features))){
-    l3$AP_i <- unique(IndividualData$full.data[,'AP_i'])
+  if(!('AP_i'%in%c(IndividualDataPP$categorical_features,IndividualDataPP$continuous_features))){
+    l3$AP_i <- unique(IndividualDataPP$full.data[,'AP_i'])
   }else{
     l3 <- NULL
   }
 
-  l4$DP_rev_i <- min(IndividualData$training.data[,'DP_rev_i']):max(IndividualData$training.data[,'DP_rev_i'])
+  l4$DP_rev_i <- min(IndividualDataPP$training.data[,'DP_rev_i']):max(IndividualDataPP$training.data[,'DP_rev_i'])
 
   # s1 <- Sys.time()
   # tmp = cross_df(c(l1,l2,l3,l4)) %>%
@@ -2054,10 +2054,10 @@ create.df.2.fcst <- function(IndividualData,
   # Time difference of 0.6656282 secs
 
 
-  if(IndividualData$calendar_period_extrapolation & (hazard_model=='COX')){
+  if(IndividualDataPP$calendar_period_extrapolation & (hazard_model=='COX')){
     tmp$RP_i <- tmp$AP_i+tmp$DP_rev_i-1
   }else{
-    if(IndividualData$calendar_period_extrapolation){
+    if(IndividualDataPP$calendar_period_extrapolation){
       warning("The calendar year component extrapolation is disregarded.
              The current implementation supports this feature only for the Cox model")}
 
@@ -2492,7 +2492,7 @@ pkg.env$fit_xgboost <- function(datads_pp,
 
 # Cross-validation
 
-pkg.env$xgboost_cv <- function(IndividualData,
+pkg.env$xgboost_cv <- function(IndividualDataPP,
                                folds,
                                kfolds,
                                print_every_n = 1L,
@@ -2522,7 +2522,7 @@ pkg.env$xgboost_cv <- function(IndividualData,
       set.seed(random_seed)} )
 
     out[,c("train.lkh","test.lkh", "time")] <- t(parSapply(cl, 1:dim(hparameters.f)[1],  FUN =cv_xgboost,
-                                                           IndividualData=IndividualData,
+                                                           IndividualDataPP=IndividualDataPP,
                                                            folds=folds,
                                                            kfolds=kfolds,
                                                            print_every_n=print_every_n,
@@ -2543,7 +2543,7 @@ pkg.env$xgboost_cv <- function(IndividualData,
 
 
       out[hp,c("train.lkh","test.lkh", "time")] <- cv_xgboost(hp,
-                                                              IndividualData,
+                                                              IndividualDataPP,
                                                               folds,
                                                               kfolds,
                                                               print_every_n,
@@ -2558,7 +2558,7 @@ pkg.env$xgboost_cv <- function(IndividualData,
 }
 
 
-pkg.env$ltrcart_cv <- function(IndividualData,
+pkg.env$ltrcart_cv <- function(IndividualDataPP,
                                folds,
                                formula_ct,
                                hparameters.f,
@@ -2577,19 +2577,19 @@ pkg.env$ltrcart_cv <- function(IndividualData,
 
     control.pars <- do.call(rpart.control, as.list.data.frame(hparameters.f[hp,]))
 
-    LTRCART.fit <- LTRCART(formula_ct, data=IndividualData$training.data, control=control.pars)
+    LTRCART.fit <- LTRCART(formula_ct, data=IndividualDataPP$training.data, control=control.pars)
 
 
 
     tmp <- as.data.frame.matrix(LTRCART.fit$cptable)
 
 
-    Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
+    Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
 
     model.out <- list()
     model.out$cox <-LTRCART.fit
 
-    is_lkh <- pkg.env$evaluate_lkh_LTRCtrees(X_train=IndividualData$training.data %>% select(c(IndividualData$categorical_features,IndividualData$continuous_features)),
+    is_lkh <- pkg.env$evaluate_lkh_LTRCtrees(X_train=IndividualDataPP$training.data %>% select(c(IndividualDataPP$categorical_features,IndividualDataPP$continuous_features)),
                                              Y_train=Y,
                                              model=model.out)
 
@@ -2650,7 +2650,7 @@ pkg.env$nn_hparameter_nodes_grid <- function(hparameters, cv = FALSE){
   return(hparameters)
 }
 
-pkg.env$deep_surv_cv <- function(IndividualData,
+pkg.env$deep_surv_cv <- function(IndividualDataPP,
                                  continuous_features_scaling_method,
                                  folds,
                                  kfolds,
@@ -2683,7 +2683,7 @@ pkg.env$deep_surv_cv <- function(IndividualData,
       set.seed(random_seed)} )
 
     out[,c("train.lkh","test.lkh", "time")] <- t(parSapply(cl, 1:dim(hparameters.f)[1],  FUN =cv_deep_surv,
-                                                           IndividualData = IndividualData,
+                                                           IndividualDataPP = IndividualDataPP,
                                                            continuous_features_scaling_method = continuous_features_scaling_method,
                                                            folds= folds,
                                                            kfolds =kfolds,
@@ -2704,7 +2704,7 @@ pkg.env$deep_surv_cv <- function(IndividualData,
 
 
       out[hp,c("train.lkh","test.lkh", "time")] = cv_deep_surv(hp,
-                                                               IndividualData,
+                                                               IndividualDataPP,
                                                                continuous_features_scaling_method,
                                                                folds,
                                                                kfolds,
@@ -3015,7 +3015,7 @@ adjust.predictions <- function(ResurvFit,
 
   formula_ct <- idata$string_formula_i
 
-  newdata <- create.df.2.fcst(IndividualData=idata,
+  newdata <- create.df.2.fcst(IndividualDataPP=idata,
                               hazard_model=hazard_model)
 
   # create data frame of occurrencies to weight development factors

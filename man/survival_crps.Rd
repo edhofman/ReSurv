@@ -12,7 +12,7 @@ survival_crps(ReSurvFit, user_data_set = NULL)
 \item{user_data_set}{data.frame provided from the user to compute the survival CRPS, optional.}
 }
 \value{
-Survival CRPS.
+Survival CRPS, \code{data.table} that contains the CRPS (\code{crps}) for each observation (\code{id}).
 }
 \description{
 Return the Survival Continuously Ranked Probability Score (SCRPS) of a \code{ReSurv} model.

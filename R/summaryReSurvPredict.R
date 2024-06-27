@@ -29,7 +29,8 @@ summary.ReSurvPredict <- function(object, granularity = "input")
 
   keep = c(
     "model.out",
-    "IndividualData"
+    "IndividualDataPP",
+    "hazard_model"
   )
 
   summary <- list(
@@ -60,23 +61,24 @@ print.summaryReSurvPredict <-
   function (x, digits = max(3L, getOption("digits") - 3L))
   {
     cat("\n Hazard model:\n",
-        paste(deparse(x$ReSurvFit$model.out$hazard_model), sep = "\n", collapse = "\n"), "\n\n", sep = "")
+        paste(deparse(x$ReSurvFit$hazard_model), sep = "\n", collapse = "\n"), "\n\n", sep = "")
+
     #cat("Likelihood: \n")
     #  xx <- x$ReSurvFit$model.out$likelihood
     #print.default(xx, digits = digits, na.print = "", print.gap = 2L)
 
-    if(is.null(x$ReSurvFit$IndividualData$categorical_features) & is.null(x$ReSurvFit$IndividualData$continuous_features)) {
+    if(is.null(x$ReSurvFit$IndividualDataPP$categorical_features) & is.null(x$ReSurvFit$IndividualDataPP$continuous_features)) {
       cat("\nNo Features \n")
     } else {
       categorical_features<-NULL
       continuous_features <- NULL
-      if(!is.null(x$ReSurvFit$IndividualData$categorical_features)){
+      if(!is.null(x$ReSurvFit$IndividualDataPP$categorical_features)){
         categorical_features <- sprintf("\nCategorical Features:\n%s",
-                                      paste(x$ReSurvFit$IndividualData$categorical_features ,  collapse="\n"))
+                                      paste(x$ReSurvFit$IndividualDataPP$categorical_features ,  collapse="\n"))
       }
-      if(!is.null(x$ReSurvFit$IndividualData$continuous_features)){
+      if(!is.null(x$ReSurvFit$IndividualDataPP$continuous_features)){
         continuous_features <- sprintf("\nContinuous Features:\n%s",
-                                        paste(x$ReSurvFit$IndividualData$continuous_features ,  collapse="\n"))
+                                        paste(x$ReSurvFit$IndividualDataPP$continuous_features ,  collapse="\n"))
       }
       cat(categorical_features, continuous_features)
 
@@ -85,18 +87,18 @@ print.summaryReSurvPredict <-
     cat("\nTotal IBNR level: \n")
     print.default(x$total_IBNR, digits = digits, na.print = "", print.gap = 2L)
 
-    handle <- match(x$granularity, c("input","output"))
-
-    df_string <- paste0("\n Development factors for ", x$granularity, " granularity.",
-                        switch(
-                          handle,
-                          "",
-                          paste0(" Estimated by ", x$ReSurvPredict$grouping_method, " priciple.")
-                        ))
-
-    cat(df_string
-    )
-    print(x$development_factor)
+    # handle <- match(x$granularity, c("input","output"))
+    #
+    # df_string <- paste0("\n Development factors for ", x$granularity, " granularity.",
+    #                     switch(
+    #                       handle,
+    #                       "",
+    #                       paste0(" Estimated by ", x$ReSurvPredict$grouping_method, " priciple.")
+    #                     ))
+    #
+    # cat(df_string
+    # )
+    # print(x$development_factor)
 
 
     invisible(x)

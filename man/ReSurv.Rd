@@ -5,7 +5,7 @@
 \title{Fit \code{ReSurv} models on the individual data.}
 \usage{
 ReSurv(
-  IndividualData,
+  IndividualDataPP,
   hazard_model = "COX",
   tie = "efron",
   baseline = "spline",
@@ -18,7 +18,7 @@ ReSurv(
 )
 }
 \arguments{
-\item{IndividualData}{IndividualData object to use for the \code{ReSurv} fit.}
+\item{IndividualDataPP}{IndividualDataPP object to use for the \code{ReSurv} fit.}
 
 \item{hazard_model}{\code{character}, hazard model supported from our package, must be provided as a string. The model can be chosen from:
 \itemize{
@@ -49,7 +49,15 @@ Default is \code{"exposure"}.}
 \item{check_value}{\code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.}
 }
 \value{
-ReSurv fit.
+\texttt{ReSurv} fit. A list containing
+\itemize{
+\item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
+\item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}
+\item{\code{os_lkh}:  \code{numeric} Validation  negative log likelihood. Not available for COX.}
+\item{\code{hazard_frame}: \code{data.frame} containing the fitted log-risk and baseline (\code{expg}, \code{baseline}), the fitted hazard (\code{hazard}), the fitted development factors ( \code{dev_f_i}), their cumulative version (\code{cum_dev_f_i }), the fitted survival function \code{S_i}.}
+\item{\code{hazard_model}: \code{string} chosen hazard model (COX, NN or XGB)}
+\item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
+}
 }
 \description{
 This function fits and computes the reserves for the \code{ReSurv} models

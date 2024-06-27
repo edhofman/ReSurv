@@ -14,7 +14,7 @@
 \arguments{
 \item{object}{\code{ResurvFit} object specifying start time, end time and status.}
 
-\item{newdata}{\code{IndividualData} object that contains new data to predict.}
+\item{newdata}{\code{IndividualDataPP} object that contains new data to predict.}
 
 \item{grouping_method}{\code{character}, use probability or exposure approach to group from input to output development factors. Choice between:
 \itemize{
@@ -26,7 +26,7 @@ Default is \code{"exposure"}.}
 \item{check_value}{\code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.}
 }
 \value{
-predictions
+predictions for the \texttt{ReSurvFit} model.
 }
 \description{
 This function predicts the results from the ReSurv fits.

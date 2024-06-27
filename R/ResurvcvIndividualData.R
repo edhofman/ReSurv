@@ -5,7 +5,7 @@
 #' Conversely, the parameters for the models run are provided separately as arguments and they are specific for each machine learning model support from.
 #'
 #'
-#' @param IndividualData \code{IndividualData} object to use for the \code{ReSurv} fit cross-validation.
+#' @param IndividualDataPP \code{IndividualDataPP} object to use for the \code{ReSurv} fit cross-validation.
 #' @param model \code{character}, machine learning for cross validation.
 #' @param hparameters_grid \code{list}, grid of the hyperparameters to cross-validate.
 #' @param folds \code{integer}, number of folds (i.e. K).
@@ -21,7 +21,13 @@
 #' @param nrounds \code{integer}, specific to \code{XGB}, max number of boosting iterations.
 #' @param ncores \code{integer}, specific to \code{NN}, max number of cores used.
 #'
-#' @return Best \code{ReSurv} model fit. The output is different depending on the machine learning approach that is required for cross-validation.
+#' @return Best \code{ReSurv} model fit. The output is different depending on the machine learning approach that is required for cross-validation. A list containing:
+#'  \itemize{
+#' \item{\code{out.cv}: \code{data.frame}, total output of the cross-validation (all the input parameters combinations). }
+#' \item{\code{out.cv.best.oos}:  \code{data.frame}, combination with the best out of sample likelihood. }
+#' }
+#'
+#' For XGB the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{booster}, \code{eta}, \code{max_depth}, \code{subsample}, \code{alpha}, \code{lambda}, \code{min_child_weight}. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}. For NN the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{num_layers}, \code{optim}, \code{activation}, \code{lr}, \code{xi}, \code{eps}, \code{tie}, \code{batch_size}, \code{early_stopping}, \code{patience}, \code{node} train.lkh test.lkh. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}.
 #'
 #' @import reticulate
 #' @import tidyverse
@@ -31,7 +37,7 @@
 #' ## Not run
 #' input_data <- data_generator(random_seed = 1964)
 #'
-#' individual_data <- IndividualData(input_data,
+#' individual_data <- IndividualDataPP(input_data,
 #'                                   id="claim_number",
 #'                                   continuous_features=NULL,
 #'                                   categorical_features="claim_type",
@@ -43,7 +49,7 @@
 #'                                   continuous_features_spline=NULL,
 #'                                   calendar_period_extrapolation=F)
 #'
-#' resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
+#' resurv.cv.xgboost <- ReSurvCV(IndividualDataPP=individual_data,
 #'                               model="XGB",
 #'                               hparameters_grid=list(booster="gbtree",
 #'                               eta=c(.001,.01,.2,.3),
@@ -67,7 +73,7 @@
 #' Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 #'
 #' @export
-ReSurvCV <- function(IndividualData,
+ReSurvCV <- function(IndividualDataPP,
                      model,
                      hparameters_grid,
                      folds,
@@ -91,7 +97,7 @@ ReSurvCV <- function(IndividualData,
 #'
 #' This function computes a K fold cross-validation of a pre-specified ReSurv model for a given grid of parameters.
 #'
-#' @param IndividualData \code{IndividualData} object to use for the \code{ReSurv} fit cross-validation.
+#' @param IndividualDataPP \code{IndividualDataPP} object to use for the \code{ReSurv} fit cross-validation.
 #' @param model \code{character}, machine learning for cross validation.
 #' @param hparameters_grid \code{list}, grid of the hyperparameters to cross-validate.
 #' @param folds \code{integer}, number of folds (i.e. K).
@@ -106,14 +112,20 @@ ReSurvCV <- function(IndividualData,
 #' @param verbose.cv \code{logical}, whether messages from cross-validation must be printed.
 #' @param nrounds \code{integer}, specific to \code{XGB}, max number of boosting iterations.
 #' @param ncores \code{integer}, specific to \code{NN}, max number of cores used.
-
-#' @return Best ReSurv model fit.
+#'
+#' @return Best \code{ReSurv} model fit. The output is different depending on the machine learning approach that is required for cross-validation. A list containing:
+#'  \itemize{
+#' \item{\code{out.cv}: \code{data.frame}, total output of the cross-validation (all the input parameters combinations). }
+#' \item{\code{out.cv.best.oos}:  \code{data.frame}, combination with the best out of sample likelihood. }
+#' }
+#'
+#' For XGB the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{booster}, \code{eta}, \code{max_depth}, \code{subsample}, \code{alpha}, \code{lambda}, \code{min_child_weight}. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}. For NN the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{num_layers}, \code{optim}, \code{activation}, \code{lr}, \code{xi}, \code{eps}, \code{tie}, \code{batch_size}, \code{early_stopping}, \code{patience}, \code{node} train.lkh test.lkh. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}.
 #'
 #' @references
 #' Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 #'
 #' @export
-ReSurvCV.default <- function(IndividualData,
+ReSurvCV.default <- function(IndividualDataPP,
                              model,
                              hparameters_grid,
                              folds,
@@ -129,7 +141,7 @@ ReSurvCV.default <- function(IndividualData,
                              verbose = F,
                              verbose.cv){
 
-  message('The object provided must be of class IndividualData')
+  message('The object provided must be of class IndividualDataPP')
 
 }
 
@@ -137,7 +149,7 @@ ReSurvCV.default <- function(IndividualData,
 #'
 #' This function computes a K fold cross-validation of a pre-specified ReSurv model for a given grid of parameters.
 #'
-#' @param IndividualData \code{IndividualData} object to use for the \code{ReSurv} fit cross-validation.
+#' @param IndividualDataPP \code{IndividualDataPP} object to use for the \code{ReSurv} fit cross-validation.
 #' @param model \code{character}, machine learning for cross validation.
 #' @param hparameters_grid \code{list}, grid of the hyperparameters to cross-validate.
 #' @param folds \code{integer}, number of folds (i.e. K).
@@ -153,10 +165,17 @@ ReSurvCV.default <- function(IndividualData,
 #' @param nrounds \code{integer}, specific to \code{XGB}, max number of boosting iterations.
 #' @param ncores \code{integer}, specific to \code{NN}, max number of cores used.
 #'
-#' @return Best ReSurv model fit.
+#' @return Best \code{ReSurv} model fit. The output is different depending on the machine learning approach that is required for cross-validation. A list containing:
+#'  \itemize{
+#' \item{\code{out.cv}: \code{data.frame}, total output of the cross-validation (all the input parameters combinations). }
+#' \item{\code{out.cv.best.oos}:  \code{data.frame}, combination with the best out of sample likelihood. }
+#' }
+#'
+#' For XGB the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{booster}, \code{eta}, \code{max_depth}, \code{subsample}, \code{alpha}, \code{lambda}, \code{min_child_weight}. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}. For NN the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{num_layers}, \code{optim}, \code{activation}, \code{lr}, \code{xi}, \code{eps}, \code{tie}, \code{batch_size}, \code{early_stopping}, \code{patience}, \code{node} train.lkh test.lkh. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}.
+#'
 #'
 #' @export
-ReSurvCV.IndividualData <- function(IndividualData,
+ReSurvCV.IndividualDataPP <- function(IndividualDataPP,
                                   model,
                                   hparameters_grid,
                                   folds,
@@ -175,7 +194,7 @@ ReSurvCV.IndividualData <- function(IndividualData,
 
   set.seed(random_seed)
 
-  kfolds <- sample(1:folds,size=nrow(IndividualData$training.data),
+  kfolds <- sample(1:folds,size=nrow(IndividualDataPP$training.data),
                    replace=TRUE,
                    prob=rep(1/folds,folds))
 
@@ -190,9 +209,9 @@ ReSurvCV.IndividualData <- function(IndividualData,
 
   if(model == "LTRCtrees"){
 
-    formula_ct <- as.formula(IndividualData$string_formula_i)
+    formula_ct <- as.formula(IndividualDataPP$string_formula_i)
 
-    out.cv <- pkg.env$ltrcart_cv(IndividualData=IndividualData,
+    out.cv <- pkg.env$ltrcart_cv(IndividualDataPP=IndividualDataPP,
                                  folds=folds,
                                  formula_ct=formula_ct,
                                  hparameters.f=hparameters.f,
@@ -231,7 +250,7 @@ ReSurvCV.IndividualData <- function(IndividualData,
 
   if(model == "XGB"){
 
-    out.cv <- pkg.env$xgboost_cv(IndividualData,
+    out.cv <- pkg.env$xgboost_cv(IndividualDataPP,
                               folds,
                               kfolds,
                               random_seed = random_seed,
@@ -249,7 +268,7 @@ ReSurvCV.IndividualData <- function(IndividualData,
 
   }
   if(model == "NN"){
-    out.cv <- pkg.env$deep_surv_cv(IndividualData,
+    out.cv <- pkg.env$deep_surv_cv(IndividualDataPP,
                                  continuous_features_scaling_method = continuous_features_scaling_method,
                                  folds,
                                  kfolds,
