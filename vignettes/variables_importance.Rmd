@@ -32,7 +32,7 @@ input_data0 <- data_generator(random_seed = 1,
                               years = 4,
                               yearly_exposure = 200)
 
-individual_data0 <- IndividualData(data = input_data0,
+individual_data0 <- IndividualDataPP(data = input_data0,
                                   id=NULL,
                                   categorical_features = c("claim_type"),
                                   continuous_features = "AP",
@@ -54,7 +54,7 @@ input_data3 <- data_generator(random_seed = 1,
                               years = 4,
                               yearly_exposure = 200)
 
-individual_data3 <- IndividualData(data = input_data3,
+individual_data3 <- IndividualDataPP(data = input_data3,
                                   id=NULL,
                                   categorical_features = c("claim_type"),
                                   continuous_features = "AP",

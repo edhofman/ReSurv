@@ -7,7 +7,7 @@
 #' @param ReSurvFit ReSurvFit object to use for the score computation.
 #' @param user_data_set data.frame provided from the user to compute the survival CRPS, optional.
 #'
-#' @return Survival CRPS.
+#' @return Survival CRPS, \code{data.table} that contains the CRPS (\code{crps}) for each observation (\code{id}).
 #'
 #' @import data.table
 #'
@@ -38,7 +38,7 @@ survival_crps <- function(ReSurvFit,
 #' @param ReSurvFit ReSurvFit object to use for the score computation.
 #' @param user_data_set data.frame provided from the user to compute the survival CRPS, optional.
 #'
-#' @return Survival CRPS.
+#' @return Survival CRPS, \code{data.table} that contains the CRPS (\code{crps}) for each observation (\code{id}).
 #'
 #' @import data.table
 #'
@@ -68,7 +68,7 @@ survival_crps.default <- function(ReSurvFit,
 #' @param ReSurvFit ReSurvFit object to use for the score computation.
 #' @param user_data_set data.frame provided from the user to compute the survival CRPS, optional.
 #'
-#' @return Survival CRPS.
+#' @return Survival CRPS, \code{data.table} that contains the CRPS (\code{crps}) for each observation (\code{id}).
 #'
 #' @import data.table
 #'
@@ -91,12 +91,12 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
   hazard_frame <- data.table(hazard_frame)
 
   # Simplify the code and save useful attributes
-  categorical_features <- ReSurvFit$IndividualData$categorical_features
-  continuous_features <- ReSurvFit$IndividualData$continuous_features
-  max_dp_i =  pkg.env$maximum.time(ReSurvFit$IndividualData$years,
-                                   ReSurvFit$IndividualData$input_time_granularity)
-  conversion_factor =ReSurvFit$IndividualData$conversion_factor
-  calendar_period_extrapolation = ReSurvFit$IndividualData$calendar_period_extrapolation
+  categorical_features <- ReSurvFit$IndividualDataPP$categorical_features
+  continuous_features <- ReSurvFit$IndividualDataPP$continuous_features
+  max_dp_i =  pkg.env$maximum.time(ReSurvFit$IndividualDataPP$years,
+                                   ReSurvFit$IndividualDataPP$input_time_granularity)
+  conversion_factor =ReSurvFit$IndividualDataPP$conversion_factor
+  calendar_period_extrapolation = ReSurvFit$IndividualDataPP$calendar_period_extrapolation
 
   # find groups
   hazard_frame <- hazard_frame[,
@@ -111,7 +111,7 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
   # find the test set
 
-  test_for_crps = ReSurvFit$IndividualData$full.data %>%
+  test_for_crps = ReSurvFit$IndividualDataPP$full.data %>%
     filter(DP_rev_i <= TR_i)
 
 
@@ -146,24 +146,24 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
            I) %>%
     as.data.table()}else{
 
-      tmp_cond= colnames(ReSurvFit$IndividualData$starting.data) %in% colnames(user_data_set)
+      tmp_cond= colnames(ReSurvFit$IndividualDataPP$starting.data) %in% colnames(user_data_set)
 
-      tmp_training_set = ReSurvFit$IndividualData$starting.data[,tmp_cond]
+      tmp_training_set = ReSurvFit$IndividualDataPP$starting.data[,tmp_cond]
 
       # Simple rbind (full starting data and new data to compute CRPS)
       tmp_fdata = rbind(tmp_training_set,
                         user_data_set)
 
       # Process the data
-      tmp_idata = IndividualData(tmp_fdata,
+      tmp_idata = IndividualDataPP(tmp_fdata,
                                  continuous_features=continuous_features,
                                  categorical_features=categorical_features,
-                                 accident_period=ReSurvFit$IndividualData$accident_period,
+                                 accident_period=ReSurvFit$IndividualDataPP$accident_period,
                                  calendar_period="CM",
-                                 input_time_granularity=ReSurvFit$IndividualData$input_time_granularity,
-                                 output_time_granularity=ReSurvFit$IndividualData$output_time_granularity,
-                                 years=ReSurvFit$IndividualData$years,
-                                 calendar_period_extrapolation=ReSurvFit$IndividualData$calendar_period_extrapolation,
+                                 input_time_granularity=ReSurvFit$IndividualDataPP$input_time_granularity,
+                                 output_time_granularity=ReSurvFit$IndividualDataPP$output_time_granularity,
+                                 years=ReSurvFit$IndividualDataPP$years,
+                                 calendar_period_extrapolation=ReSurvFit$IndividualDataPP$calendar_period_extrapolation,
                                  continuous_features_spline=NULL)
 
       test_for_crps = tmp_idata$full.data %>%

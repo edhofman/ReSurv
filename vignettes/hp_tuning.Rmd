@@ -33,10 +33,10 @@ input_data0 <- data_generator(random_seed = 1964,
                               period_exposure = 200)
 ```
 
-The counts data are then pre-processed using the `IndividualData` function.
+The counts data are then pre-processed using the `IndividualDataPP` function.
 
 ```{r eval=FALSE, include=TRUE}
-individual_data <- IndividualData(data = input_data0,
+individual_data <- IndividualDataPP(data = input_data0,
                                   id=NULL,
                                   categorical_features = c("claim_type"),
                                   continuous_features = "AP",
@@ -73,11 +73,11 @@ In the following part of this vignette, we will discuss the steps required to op
 
 ## Notes on K-Fold cross validation
 
-In `ReSurv`, we have our own implementation of a standard K-Fold cross-validation (@hastie09), namely the `ReSurvCV` method of an `IndividualData` object. We show an illustrative example for XGB below. Even if this routine can be used alone for choosing the optimal parameters, we suggest to use it within the bayesian approach of @snoek12. An example is provided in the following chunk for NN.
+In `ReSurv`, we have our own implementation of a standard K-Fold cross-validation (@hastie09), namely the `ReSurvCV` method of an `IndividualDataPP` object. We show an illustrative example for XGB below. Even if this routine can be used alone for choosing the optimal parameters, we suggest to use it within the bayesian approach of @snoek12. An example is provided in the following chunk for NN.
 
 ```{r eval=FALSE, include=TRUE}
 
-resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
+resurv.cv.xgboost <- ReSurvCV(IndividualDataPP=individual_data,
                                model="XGB",
                                hparameters_grid=list(booster="gbtree",
                                              eta=c(.001,.01,.2,.3),
@@ -146,7 +146,7 @@ obj_func <- function(num_layers,
   number_layers=as.integer(num_layers)
   num_nodes=as.integer(num_nodes)
   
-  deepsurv_cv <- ReSurvCV(IndividualData=individual_data,
+  deepsurv_cv <- ReSurvCV(IndividualDataPP=individual_data,
                     model="NN",
                     hparameters_grid=list(num_layers = num_layers,
                                          num_nodes = num_nodes,
@@ -245,7 +245,7 @@ Secondly, we define an objective function.
 # Function must take the hyper-parameters as inputs
 obj_func <- function(eta, max_depth, min_child_weight, subsample, lambda, alpha) {
   
-  xgbcv <- ReSurvCV(IndividualData=individual_data,
+  xgbcv <- ReSurvCV(IndividualDataPP=individual_data,
                     model="XGB",
                     hparameters_grid=list(booster="gbtree",
                                           eta=eta,

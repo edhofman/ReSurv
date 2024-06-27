@@ -1,4 +1,4 @@
-#' Individual data set
+#' Individual Data Pre-Processing
 #'
 #' This function pre-processes the data for the application of a \code{ReSurv} model.
 #'
@@ -50,7 +50,7 @@
 #' @importFrom data.table data.table
 #'
 #'
-#' @return \code{IndividualData} object. A list containing:
+#' @return \code{IndividualDataPP} object. A list containing:
 #'  \itemize{
 #' \item{\code{full.data}: the input data after pre-processing.}
 #' \item{\code{starting.data}: the input data as they were provided from the user.}
@@ -83,7 +83,7 @@
 #' Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 #'
 #' @export
-IndividualData <- function(data,
+IndividualDataPP <- function(data,
                            id=NULL,
                            continuous_features,
                            categorical_features,
@@ -236,7 +236,7 @@ IndividualData <- function(data,
               output_time_granularity=output_time_granularity)
 
   # Return the correct output
-  class(out) <- "IndividualData"
+  class(out) <- "IndividualDataPP"
 
   out
 

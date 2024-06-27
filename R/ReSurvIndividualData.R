@@ -23,7 +23,7 @@
 #' }
 #'
 #'
-#' @param IndividualData IndividualData object to use for the \code{ReSurv} fit.
+#' @param IndividualDataPP IndividualDataPP object to use for the \code{ReSurv} fit.
 #' @param hazard_model \code{character}, hazard model supported from our package, must be provided as a string. The model can be chosen from:
 #' \itemize{
 #' \item{\code{"COX"}: Standard Cox model for the hazard.}
@@ -45,7 +45,15 @@
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #'
 #'
-#' @return ReSurv fit.
+#' @return \texttt{ReSurv} fit. A list containing
+#' \itemize{
+#' \item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
+#' \item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}
+#' \item{\code{os_lkh}:  \code{numeric} Validation  negative log likelihood. Not available for COX.}
+#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted log-risk and baseline (\code{expg}, \code{baseline}), the fitted hazard (\code{hazard}), the fitted development factors ( \code{dev_f_i}), their cumulative version (\code{cum_dev_f_i }), the fitted survival function \code{S_i}.}
+#' \item{\code{hazard_model}: \code{string} chosen hazard model (COX, NN or XGB)}
+#' \item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
+#' }
 #'
 #' @import reticulate
 #' @import tidyverse
@@ -64,7 +72,7 @@
 #' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
 #'
 #' @export
-ReSurv <- function(IndividualData,
+ReSurv <- function(IndividualDataPP,
                    hazard_model="COX",
                    tie='efron',
                    baseline="spline",
@@ -103,7 +111,7 @@ ReSurv <- function(IndividualData,
 #' }
 #'
 #'
-#' @param IndividualData IndividualData object to use for the \code{ReSurv} fit.
+#' @param IndividualDataPP IndividualDataPP object to use for the \code{ReSurv} fit.
 #' @param hazard_model \code{character}, hazard model supported from our package, must be provided as a string. The model can be chosen from:
 #' \itemize{
 #' \item{\code{"COX"}: Standard Cox model for the hazard.}
@@ -125,7 +133,15 @@ ReSurv <- function(IndividualData,
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #'
 #'
-#' @return ReSurv fit.
+#'  @return \texttt{ReSurv} fit. A list containing
+#' \itemize{
+#' \item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
+#' \item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}
+#' \item{\code{os_lkh}:  \code{numeric} Validation  negative log likelihood. Not available for COX.}
+#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted log-risk and baseline (\code{expg}, \code{baseline}), the fitted hazard (\code{hazard}), the fitted development factors ( \code{dev_f_i}), their cumulative version (\code{cum_dev_f_i }), the fitted survival function \code{S_i}.}
+#' \item{\code{hazard_model}: \code{string} chosen hazard model (COX, NN or XGB)}
+#' \item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
+#' }
 #'
 #' @import reticulate
 #' @import tidyverse
@@ -143,7 +159,7 @@ ReSurv <- function(IndividualData,
 #' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
 #'
 #' @export
-ReSurv.default <- function(IndividualData,
+ReSurv.default <- function(IndividualDataPP,
                            hazard_model="COX",
                            tie='efron',
                            baseline="spline",
@@ -154,7 +170,7 @@ ReSurv.default <- function(IndividualData,
                            grouping_method = "exposure",
                            check_value = 1.85){
 
-  message('The object provided must be of class IndividualData')
+  message('The object provided must be of class IndividualDataPP')
 
 }
 
@@ -185,7 +201,7 @@ ReSurv.default <- function(IndividualData,
 #' }
 #'
 #'
-#' @param IndividualData IndividualData object to use for the \code{ReSurv} fit.
+#' @param IndividualDataPP IndividualDataPP object to use for the \code{ReSurv} fit.
 #' @param hazard_model \code{character}, hazard model supported from our package, must be provided as a string. The model can be chosen from:
 #' \itemize{
 #' \item{\code{"COX"}: Standard Cox model for the hazard.}
@@ -206,7 +222,15 @@ ReSurv.default <- function(IndividualData,
 #' Default is \code{"exposure"}.
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #'
-#' @return ReSurv fit.
+#' @return \texttt{ReSurv} fit. A list containing
+#' \itemize{
+#' \item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
+#' \item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}
+#' \item{\code{os_lkh}:  \code{numeric} Validation  negative log likelihood. Not available for COX.}
+#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted log-risk and baseline (\code{expg}, \code{baseline}), the fitted hazard (\code{hazard}), the fitted development factors ( \code{dev_f_i}), their cumulative version (\code{cum_dev_f_i }), the fitted survival function \code{S_i}.}
+#' \item{\code{hazard_model}: \code{string} chosen hazard model (COX, NN or XGB)}
+#' \item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
+#' }
 #'
 #' @import reticulate
 #' @import tidyverse
@@ -224,7 +248,7 @@ ReSurv.default <- function(IndividualData,
 #' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
 #'
 #' @export
-ReSurv.IndividualData <- function(IndividualData,
+ReSurv.IndividualDataPP <- function(IndividualDataPP,
                                   hazard_model="COX",
                                   tie='efron',
                                   baseline="spline",
@@ -239,26 +263,26 @@ ReSurv.IndividualData <- function(IndividualData,
 
   set.seed(random_seed)
 
-  formula_ct <- as.formula(IndividualData$string_formula_i)
+  formula_ct <- as.formula(IndividualDataPP$string_formula_i)
 
-  newdata <- create.df.2.fcst(IndividualData=IndividualData,
+  newdata <- create.df.2.fcst(IndividualDataPP=IndividualDataPP,
                               hazard_model=hazard_model)
 
 
   # create data frame of occurrencies to weight development factors
-  # Om.df <-   pkg.env$create.om.df(training.data=IndividualData$training.data,
-                                  # input_time_granularity=IndividualData$input_time_granularity,
-                                  # years=IndividualData$years)
+  # Om.df <-   pkg.env$create.om.df(training.data=IndividualDataPP$training.data,
+                                  # input_time_granularity=IndividualDataPP$input_time_granularity,
+                                  # years=IndividualDataPP$years)
 
 
 
   if(hazard_model=="COX"){
 
 
-    data=IndividualData$training.data
+    data=IndividualDataPP$training.data
 
     X=data %>%
-      select(c(IndividualData$continuous_features,IndividualData$categorical_features))
+      select(c(IndividualDataPP$continuous_features,IndividualDataPP$categorical_features))
 
     Y=data[,c("DP_rev_i", "I", "TR_i")]
 
@@ -266,7 +290,7 @@ ReSurv.IndividualData <- function(IndividualData,
                                        formula_ct=formula_ct,
                                        newdata=newdata)
 
-    # tmp <- pkg.env$spline_hp(hparameters,IndividualData)
+    # tmp <- pkg.env$spline_hp(hparameters,IndividualDataPP)
 
 
     ## OLD BASELINE COMPUTATION (BRESLOW)
@@ -279,14 +303,14 @@ ReSurv.IndividualData <- function(IndividualData,
 
     ## NEW BASELINE COMPUTATION (RESURV)
 
-    X_tmp_bsln <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                                      select_columns = IndividualData$categorical_features,
+    X_tmp_bsln <- pkg.env$model.matrix.creator(data= IndividualDataPP$training.data,
+                                      select_columns = IndividualDataPP$categorical_features,
                                       remove_first_dummy=T)
 
     scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
 
-    Xc_tmp_bsln <- IndividualData$training.data %>%
-      reframe(across(all_of(IndividualData$continuous_features),
+    Xc_tmp_bsln <- IndividualDataPP$training.data %>%
+      reframe(across(all_of(IndividualDataPP$continuous_features),
                      scaler))
 
     # training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
@@ -300,13 +324,13 @@ ReSurv.IndividualData <- function(IndividualData,
 
 
     bsln <- data.frame(baseline=bsln,
-                       DP_rev_i=sort(as.integer(unique(IndividualData$training.data$DP_rev_i))))
+                       DP_rev_i=sort(as.integer(unique(IndividualDataPP$training.data$DP_rev_i))))
 
     ### make it relative
-    newdata.bs <- ReSurv:::pkg.env$df.2.fcst.nn.pp(data=IndividualData$training.data,
+    newdata.bs <- ReSurv:::pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
                                                    newdata=newdata,
-                                                   continuous_features=IndividualData$continuous_features,
-                                                   categorical_features=IndividualData$categorical_features)
+                                                   continuous_features=IndividualDataPP$continuous_features,
+                                                   categorical_features=IndividualDataPP$categorical_features)
 
     benchmark_id <- ReSurv:::pkg.env$benchmark_id(X = X_tmp_bsln,
                                                   Y =Y ,
@@ -335,20 +359,20 @@ ReSurv.IndividualData <- function(IndividualData,
 
   if(hazard_model=="NN"){
 
-    X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                                      select_columns = IndividualData$categorical_features)
+    X <- pkg.env$model.matrix.creator(data= IndividualDataPP$training.data,
+                                      select_columns = IndividualDataPP$categorical_features)
 
     scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
 
-    Xc <- IndividualData$training.data %>%
-      reframe(across(all_of(IndividualData$continuous_features),
+    Xc <- IndividualDataPP$training.data %>%
+      reframe(across(all_of(IndividualDataPP$continuous_features),
                        scaler))
 
     training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
 
     X = cbind(X,Xc)
 
-    Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
+    Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
 
     datads_pp = pkg.env$deep_surv_pp(X=X,
                                      Y=Y,
@@ -379,10 +403,10 @@ ReSurv.IndividualData <- function(IndividualData,
                                   X=X,
                                   Y=Y)
 
-    newdata.mx <- pkg.env$df.2.fcst.nn.pp(data=IndividualData$training.data,
+    newdata.mx <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
                                           newdata=newdata,
-                                          continuous_features=IndividualData$continuous_features,
-                                          categorical_features=IndividualData$categorical_features)
+                                          continuous_features=IndividualDataPP$continuous_features,
+                                          categorical_features=IndividualDataPP$categorical_features)
 
 
 
@@ -405,7 +429,7 @@ ReSurv.IndividualData <- function(IndividualData,
     expg <- exp(pred_relative)
     hazard_frame <- cbind(newdata,expg)
     bsln <- data.frame(baseline=bsln,
-                       DP_rev_i=sort(as.integer(unique(IndividualData$training.data$DP_rev_i))))
+                       DP_rev_i=sort(as.integer(unique(IndividualDataPP$training.data$DP_rev_i))))
 
 
 
@@ -421,21 +445,21 @@ ReSurv.IndividualData <- function(IndividualData,
 
   if(hazard_model == "XGB"){
 
-    X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                                      select_columns = IndividualData$categorical_features,
+    X <- pkg.env$model.matrix.creator(data= IndividualDataPP$training.data,
+                                      select_columns = IndividualDataPP$categorical_features,
                                       remove_first_dummy=T)
 
     scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
 
-    Xc <- IndividualData$training.data %>%
-      reframe(across(all_of(IndividualData$continuous_features),
+    Xc <- IndividualDataPP$training.data %>%
+      reframe(across(all_of(IndividualDataPP$continuous_features),
                        scaler))
 
     training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
 
     X=cbind(X,Xc)
 
-    Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
+    Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
 
     datads_pp <- pkg.env$xgboost_pp(X=X,
                                     Y=Y,
@@ -449,18 +473,18 @@ ReSurv.IndividualData <- function(IndividualData,
                                   X=X,
                                   Y=Y)
 
-    newdata.mx <- pkg.env$df.2.fcst.xgboost.pp(data=IndividualData$training.data,
+    newdata.mx <- pkg.env$df.2.fcst.xgboost.pp(data=IndividualDataPP$training.data,
                                                newdata=newdata,
-                                               continuous_features=IndividualData$continuous_features,
-                                               categorical_features=IndividualData$categorical_features)
+                                               continuous_features=IndividualDataPP$continuous_features,
+                                               categorical_features=IndividualDataPP$categorical_features)
 
     pred <- predict(model.out,newdata.mx)
 
     #make to hazard relative to initial model, to have similiar interpretation as standard cox
-    newdata.bs <- pkg.env$df.2.fcst.nn.pp(data=IndividualData$training.data,
+    newdata.bs <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
                                           newdata=newdata,
-                                          continuous_features=IndividualData$continuous_features,
-                                          categorical_features=IndividualData$categorical_features)
+                                          continuous_features=IndividualDataPP$continuous_features,
+                                          categorical_features=IndividualDataPP$categorical_features)
 
     benchmark_id <- pkg.env$benchmark_id(X = X,
                                          Y =Y ,
@@ -475,7 +499,7 @@ ReSurv.IndividualData <- function(IndividualData,
     hazard_frame <- cbind(newdata,expg)
 
     bsln <- data.frame(baseline=bsln,
-                       DP_rev_i=sort(as.integer(unique(IndividualData$training.data$DP_rev_i))))
+                       DP_rev_i=sort(as.integer(unique(IndividualDataPP$training.data$DP_rev_i))))
 
     # compute the likelihood of the fitted model (upper triangle)
     is_lkh <- pkg.env$evaluate_lkh_xgb(X_train=X,
@@ -494,25 +518,25 @@ ReSurv.IndividualData <- function(IndividualData,
 
   if(hazard_model == "LTRCtrees"){
 
-    X <- pkg.env$model.matrix.creator(data= IndividualData$training.data,
-                                      select_columns = IndividualData$categorical_features,
+    X <- pkg.env$model.matrix.creator(data= IndividualDataPP$training.data,
+                                      select_columns = IndividualDataPP$categorical_features,
                                       remove_first_dummy=T)
 
     scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
 
-    Xc <- IndividualData$training.data %>%
-      reframe(across(all_of(IndividualData$continuous_features),
+    Xc <- IndividualDataPP$training.data %>%
+      reframe(across(all_of(IndividualDataPP$continuous_features),
                        scaler))
 
     training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
 
     X=cbind(X,Xc)
 
-    Y=IndividualData$training.data[,c("DP_rev_i", "I", "TR_i")]
+    Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
 
     control.pars <- do.call(rpart.control, hparameters)
 
-    model.out <- pkg.env$fit_LTRCtrees(data=IndividualData$training.data,
+    model.out <- pkg.env$fit_LTRCtrees(data=IndividualDataPP$training.data,
                                        formula_ct=formula_ct,
                                        newdata=newdata,
                                        control.pars)
@@ -522,7 +546,7 @@ ReSurv.IndividualData <- function(IndividualData,
                                   model.out = model.out$cox,
                                   X=X,
                                   Y=Y,
-                                  training_df=IndividualData$training.data)
+                                  training_df=IndividualDataPP$training.data)
 
 
     pred <- predict(model.out$cox,newdata)
@@ -538,11 +562,11 @@ ReSurv.IndividualData <- function(IndividualData,
     # colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
 
     bsln <- data.frame(baseline=bsln,
-                       DP_rev_i=sort(as.integer(unique(IndividualData$training.data$DP_rev_i))))
+                       DP_rev_i=sort(as.integer(unique(IndividualDataPP$training.data$DP_rev_i))))
 
 
 
-    is_lkh <- pkg.env$evaluate_lkh_LTRCtrees(X_train=IndividualData$training.data %>% select(c(IndividualData$categorical_features,IndividualData$continuous_features)),
+    is_lkh <- pkg.env$evaluate_lkh_LTRCtrees(X_train=IndividualDataPP$training.data %>% select(c(IndividualDataPP$categorical_features,IndividualDataPP$continuous_features)),
                                     Y_train=Y,
                                     model=model.out)
 
@@ -580,7 +604,7 @@ ReSurv.IndividualData <- function(IndividualData,
   ############################################################
   #check
 
-  #hazard_q <- matrix(nrow=max_DP, ncol=(ncol(hazard)-1)*IndividualData$conversion_factor)
+  #hazard_q <- matrix(nrow=max_DP, ncol=(ncol(hazard)-1)*IndividualDataPP$conversion_factor)
   #eta_o <- c()
 
 
@@ -589,9 +613,9 @@ ReSurv.IndividualData <- function(IndividualData,
   #Add development and relevant survival values to the hazard_frame
   hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
                                                     # Om.df=Om.df,
-                                                    categorical_features = IndividualData$categorical_features,
-                                                    continuous_features = IndividualData$continuous_features,
-                                                    calendar_period_extrapolation = IndividualData$calendar_period_extrapolation)
+                                                    categorical_features = IndividualDataPP$categorical_features,
+                                                    continuous_features = IndividualDataPP$continuous_features,
+                                                    calendar_period_extrapolation = IndividualDataPP$calendar_period_extrapolation)
 
 
   out=list(model.out=list(data=X,
@@ -601,7 +625,7 @@ ReSurv.IndividualData <- function(IndividualData,
            os_lkh=os_lkh,
            hazard_frame = hazard_frame_updated,
            hazard_model = hazard_model,
-           IndividualData = IndividualData)
+           IndividualDataPP = IndividualDataPP)
 
   class(out) <- c('ReSurvFit')
 

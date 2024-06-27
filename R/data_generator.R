@@ -33,16 +33,18 @@
 #'
 #' @return Individual claims data. It contains the following columns:
 #' \itemize{
-#' \item{\code{AT}: Accident month in continuous time.}
-#' \item{\code{AM}: Accident month.}
-#' \item{\code{RT}: Reporting month in continuous time.}
-#' \item{\code{RM}: Reporting month.}
-#' \item{\code{DT}: Development month in continuous time.}
-#' \item{\code{DM}: Development month.}
-#' \item{\code{DT_rev}:Development month in continuous reverse time.}
-#' \item{\code{DM_rev}: Development month in reverse time. }
+#' \item{\code{claim_number}: Policy ID.}
+#' \item{\code{claim_type}: Type of claim. It can be either 0 or 1.}
+#' \item{\code{AT}: Accident period in continuous time.}
+#' \item{\code{AP}: Accident period}
+#' \item{\code{RT}: Reporting period in continuous time.}
+#' \item{\code{RP}: Reporting period.}
+#' \item{\code{DT}: Development period in continuous time.}
+#' \item{\code{DP}: Development period.}
+#' \item{\code{DT_rev}:Development period in continuous reverse time.}
+#' \item{\code{DP_rev}: Development period in reverse time. }
 #' \item{\code{TR}: Truncation time. }
-#' \item{\code{I}: Event indicator.  }
+#' \item{\code{I}: Event indicator.}
 #' }
 #'
 #' @references

@@ -46,11 +46,11 @@ ooslkh.ReSurvFit <- function(object,
                               ...){
 
   # Extract quantities that you need
-  starting.data <- object$IndividualData$full.data
+  starting.data <- object$IndividualDataPP$full.data
   fitted.model <- object$model.out
   hazard_model<- object$hazard_model
-  categorical_features <- object$IndividualData$categorical_features
-  continuous_features <- object$IndividualData$continuous_features
+  categorical_features <- object$IndividualDataPP$categorical_features
+  continuous_features <- object$IndividualDataPP$continuous_features
 
 
   # Perform the computations
