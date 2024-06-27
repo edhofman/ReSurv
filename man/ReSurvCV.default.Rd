@@ -35,19 +35,19 @@
 
 \item{continuous_features_scaling_method}{\code{character}, method for scaling continuous features.}
 
-\item{print_every_n}{\code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.}
+\item{print_every_n}{\code{integer}, specific to the \code{XGB} approach, see \code{xgboost::xgb.train} documentation.}
 
-\item{nrounds}{\code{integer}, specific to \code{xgboost}, max number of boosting iterations.}
+\item{nrounds}{\code{integer}, specific to \code{XGB}, max number of boosting iterations.}
 
-\item{early_stopping_rounds}{\code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.}
+\item{early_stopping_rounds}{\code{integer}, specific to the \code{XGB} approach, see \code{xgboost::xgb.train} documentation.}
 
-\item{epochs}{\code{integer}, specific to the \code{deepsurv} approach, epochs to be checked.}
+\item{epochs}{\code{integer}, specific to the \code{NN} approach, epochs to be checked.}
 
-\item{parallel}{\code{logical}, specific to the \code{deepsurv} approach, whether to use parallel computing.}
+\item{parallel}{\code{logical}, specific to the \code{NN} approach, whether to use parallel computing.}
 
-\item{ncores}{\code{integer}, specific to \code{deepsurv}, max number of cores used.}
+\item{ncores}{\code{integer}, specific to \code{NN}, max number of cores used.}
 
-\item{num_workers}{\code{numeric}, number of workers for the \code{deepsurv} approach, multi-process data loading with the specified number of loader worker processes.}
+\item{num_workers}{\code{numeric}, number of workers for the \code{NN} approach, multi-process data loading with the specified number of loader worker processes.}
 
 \item{verbose}{\code{logical}, whether messages from the machine learning models must be printed.}
 

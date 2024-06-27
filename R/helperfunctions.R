@@ -759,6 +759,45 @@ pkg.env$check.newdata <- function(newdata,
 
 ## Encoding and formula ----
 
+pkg.env$check.dates.consistency <- function(x,
+                                            input_time_granularity,
+                                            ap1){
+"
+This function checks weather the accident date and the reporting date are of 'Date' class.
+In case they are, it transforms them into numeric.
+"
+
+  if(class(x)=="Date"){
+
+    if(input_time_granularity %in% c('quarters','semesters')){
+      time_unit_string <- c('quarters', 'semesters', 'years')
+      # BE CAREFUL: different from other codes, here we will bring everything to months and divide by six or four. Simpler.
+      time_unit_numeric <- c(1/4, 1/6)
+      input.pos <- which(time_unit_string%in%intersect(input_time_granularity,time_unit_string))
+      divide.by <- time_unit_numeric[input.pos]
+      diff.operator <- 'months'
+
+    }else{
+
+      divide.by <- 1
+      diff.operator <- input_time_granularity
+
+    }
+
+    out <- floor(time_length(x-ap1,diff.operator)*divide.by)
+
+    return(out)
+
+  }else{
+
+    return(x)
+
+  }
+
+
+}
+
+
 pkg.env$encode.variables <- function(x){
   "
   This function encodes the periods.
@@ -1276,7 +1315,7 @@ pkg.env$latest_observed_values_i <- function(data_reserve,
   max_DP_i <- data_reserve %>% group_by(AP_i) %>%
     summarise(DP_max_rev =min(max(DP_rev_i)-DP_i)+1 ) %>%
     distinct()
-
+  # browser()
   data_reserve2 <- data_reserve %>%
     select(AP_i, AP_o, DP_rev_i, DP_i, all_of(categorical_features), all_of(continuous_features), I) %>%
     mutate(AP_i = as.numeric(AP_i)) %>%
@@ -1490,8 +1529,7 @@ pkg.env$retrieve_df_i <- function(hazard_data_frame,
       distinct() %>%
       reshape2::dcast(DP_rev_i ~group_i, value.var="dev_f_i") %>%
       select(-DP_rev_i)
-  }
-  else{
+  }else{
     df_i <- hazard_data_frame %>%
       select(group_i, DP_rev_i, df_i_adjusted) %>%
       distinct() %>%
@@ -1502,8 +1540,7 @@ pkg.env$retrieve_df_i <- function(hazard_data_frame,
   #We only have 5 columns in the case of AP being included as covariate
   if(ncol(groups) == 5){
     colnames(df_i) <- c(paste0("AP_i_",groups$AP_i,",", groups$covariate ))
-  }
-  else{
+  }else{
     colnames(df_i) <- c(groups$covariate )
   }
   #
@@ -2017,7 +2054,7 @@ create.df.2.fcst <- function(IndividualData,
   # Time difference of 0.6656282 secs
 
 
-  if(IndividualData$calendar_period_extrapolation & (hazard_model=='cox')){
+  if(IndividualData$calendar_period_extrapolation & (hazard_model=='COX')){
     tmp$RP_i <- tmp$AP_i+tmp$DP_rev_i-1
   }else{
     if(IndividualData$calendar_period_extrapolation){
@@ -2158,13 +2195,13 @@ pkg.env$baseline.calc <- function(hazard_model,
   #for baseline need full training data
   datads_pp <- pkg.env$xgboost_pp(X,Y, training_test_split = 1)
 
-  if(hazard_model=="cox"){
+  if(hazard_model=="COX"){
 
     predict_bsln <- model.out$train_expg
 
   }
 
-  if(hazard_model=="deepsurv"){
+  if(hazard_model=="NN"){
     datads_pp_nn = pkg.env$deep_surv_pp(X=X,
                                         Y=Y,
                                         training_test_split = 1)
@@ -2173,7 +2210,7 @@ pkg.env$baseline.calc <- function(hazard_model,
 
   }
 
-  if(hazard_model == "xgboost"){
+  if(hazard_model == "XGB"){
     predict_bsln <- predict(model.out,datads_pp$ds_train_m)
   }
 
@@ -2726,8 +2763,8 @@ pkg.env$evaluate_lkh_nn <-function(X_train,
     mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
 
 
-  # if(hazard_model %in% c("cox","LTRCtrees")){ds_train_m <- X_train}
-  # if(hazard_model == "xgboost"){
+  # if(hazard_model %in% c("COX","LTRCtrees")){ds_train_m <- X_train}
+  # if(hazard_model == "XGB"){
 
 
   attr(ds_train_m, 'truncation') <- tmp_train$TR_i
@@ -2751,7 +2788,7 @@ pkg.env$evaluate_lkh_nn <-function(X_train,
 
 
 
-  # if(hazard_model == "cox"){
+  # if(hazard_model == "COX"){
   #   preds_tr <- predict(model$cox,ds_train_m)
   # }
 
@@ -2797,8 +2834,8 @@ pkg.env$evaluate_lkh_xgb <-function(X_train,
     mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
 
 
-  # if(hazard_model %in% c("cox","LTRCtrees")){ds_train_m <- X_train}
-  # if(hazard_model == "xgboost"){
+  # if(hazard_model %in% c("COX","LTRCtrees")){ds_train_m <- X_train}
+  # if(hazard_model == "XGB"){
   ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X_train))),
                                       label=tmp_train$I)
 
@@ -2823,11 +2860,11 @@ pkg.env$evaluate_lkh_xgb <-function(X_train,
 
 
 
-  # if(hazard_model == "cox"){
+  # if(hazard_model == "COX"){
   #   preds_tr <- predict(model$cox,ds_train_m)
   # }
 
-  # if(hazard_model == "xgboost"){
+  # if(hazard_model == "XGB"){
   preds_tr <- predict(model,ds_train_m)
   preds_tr <- preds_tr - preds_tr[1]
   # }
@@ -2869,7 +2906,7 @@ pkg.env$evaluate_lkh_LTRCtrees <-function(X_train,
 
 
   ds_train_m <- X_train
-  # if(hazard_model == "xgboost"){
+  # if(hazard_model == "XGB"){
   #   ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X_train))),
   #                                       label=tmp_train$I)}
 
@@ -2893,11 +2930,11 @@ pkg.env$evaluate_lkh_LTRCtrees <-function(X_train,
                                      attr(ds_train_m, 'tieid'))
 
 
-  # if(hazard_model == "cox"){
+  # if(hazard_model == "COX"){
   #   preds_tr <- predict(model$cox,ds_train_m)
   # }
   #
-  # if(hazard_model == "xgboost"){
+  # if(hazard_model == "XGB"){
   #   preds_tr <- predict(model,ds_train_m)
   #   preds_tr <- preds_tr - preds_tr[1]
   # }
@@ -2936,7 +2973,7 @@ pkg.env$evaluate_lkh_cox <-function(X_train,
 
 
   ds_train_m <- X_train
-  # if(hazard_model == "xgboost"){
+  # if(hazard_model == "XGB"){
   #   ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X_train))),
   #                                       label=tmp_train$I)}
 
@@ -2985,7 +3022,7 @@ adjust.predictions <- function(ResurvFit,
   Om.df <-   ResurvFit$Om.df
 
 
-  if(hazard_model=="cox"){
+  if(hazard_model=="COX"){
 
     data=idata$training.data
     X=data %>%
@@ -3014,7 +3051,7 @@ adjust.predictions <- function(ResurvFit,
 
   }
 
-  if(hazard_model=="deepsurv"){
+  if(hazard_model=="NN"){
 
     X <- pkg.env$model.matrix.creator(data= idata$training.data,
                                       select_columns = idata$categorical_features)

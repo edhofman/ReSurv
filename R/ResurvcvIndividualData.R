@@ -11,15 +11,15 @@
 #' @param folds \code{integer}, number of folds (i.e. K).
 #' @param random_seed \code{integer}, random seed for making the code reproducible.
 #' @param continuous_features_scaling_method \code{character}, method for scaling continuous features.
-#' @param print_every_n \code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.
-#' @param early_stopping_rounds \code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.
-#' @param epochs \code{integer}, specific to the \code{deepsurv} approach, epochs to be checked.
-#' @param parallel \code{logical}, specific to the \code{deepsurv} approach, whether to use parallel computing.
-#' @param num_workers \code{numeric}, number of workers for the \code{deepsurv} approach, multi-process data loading with the specified number of loader worker processes.
+#' @param print_every_n \code{integer}, specific to the \code{XGB} approach, see \code{xgboost::xgb.train} documentation.
+#' @param early_stopping_rounds \code{integer}, specific to the \code{XGB} approach, see \code{xgboost::xgb.train} documentation.
+#' @param epochs \code{integer}, specific to the \code{NN} approach, epochs to be checked.
+#' @param parallel \code{logical}, specific to the \code{NN} approach, whether to use parallel computing.
+#' @param num_workers \code{numeric}, number of workers for the \code{NN} approach, multi-process data loading with the specified number of loader worker processes.
 #' @param verbose \code{logical}, whether messages from the machine learning models must be printed.
 #' @param verbose.cv \code{logical}, whether messages from cross-validation must be printed.
-#' @param nrounds \code{integer}, specific to \code{xgboost}, max number of boosting iterations.
-#' @param ncores \code{integer}, specific to \code{deepsurv}, max number of cores used.
+#' @param nrounds \code{integer}, specific to \code{XGB}, max number of boosting iterations.
+#' @param ncores \code{integer}, specific to \code{NN}, max number of cores used.
 #'
 #' @return Best \code{ReSurv} model fit. The output is different depending on the machine learning approach that is required for cross-validation.
 #'
@@ -44,7 +44,7 @@
 #'                                   calendar_period_extrapolation=F)
 #'
 #' resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
-#'                               model="xgboost",
+#'                               model="XGB",
 #'                               hparameters_grid=list(booster="gbtree",
 #'                               eta=c(.001,.01,.2,.3),
 #'                               max_depth=c(3,6,8),
@@ -97,15 +97,15 @@ ReSurvCV <- function(IndividualData,
 #' @param folds \code{integer}, number of folds (i.e. K).
 #' @param random_seed \code{integer}, random seed for making the code reproducible.
 #' @param continuous_features_scaling_method \code{character}, method for scaling continuous features.
-#' @param print_every_n \code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.
-#' @param early_stopping_rounds \code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.
-#' @param epochs \code{integer}, specific to the \code{deepsurv} approach, epochs to be checked.
-#' @param parallel \code{logical}, specific to the \code{deepsurv} approach, whether to use parallel computing.
-#' @param num_workers \code{numeric}, number of workers for the \code{deepsurv} approach, multi-process data loading with the specified number of loader worker processes.
+#' @param print_every_n \code{integer}, specific to the \code{XGB} approach, see \code{xgboost::xgb.train} documentation.
+#' @param early_stopping_rounds \code{integer}, specific to the \code{XGB} approach, see \code{xgboost::xgb.train} documentation.
+#' @param epochs \code{integer}, specific to the \code{NN} approach, epochs to be checked.
+#' @param parallel \code{logical}, specific to the \code{NN} approach, whether to use parallel computing.
+#' @param num_workers \code{numeric}, number of workers for the \code{NN} approach, multi-process data loading with the specified number of loader worker processes.
 #' @param verbose \code{logical}, whether messages from the machine learning models must be printed.
 #' @param verbose.cv \code{logical}, whether messages from cross-validation must be printed.
-#' @param nrounds \code{integer}, specific to \code{xgboost}, max number of boosting iterations.
-#' @param ncores \code{integer}, specific to \code{deepsurv}, max number of cores used.
+#' @param nrounds \code{integer}, specific to \code{XGB}, max number of boosting iterations.
+#' @param ncores \code{integer}, specific to \code{NN}, max number of cores used.
 
 #' @return Best ReSurv model fit.
 #'
@@ -143,15 +143,15 @@ ReSurvCV.default <- function(IndividualData,
 #' @param folds \code{integer}, number of folds (i.e. K).
 #' @param random_seed \code{integer}, random seed for making the code reproducible.
 #' @param continuous_features_scaling_method \code{character}, method for scaling continuous features.
-#' @param print_every_n \code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.
-#' @param early_stopping_rounds \code{integer}, specific to the \code{xgboost} approach, see \code{xgboost::xgb.train} documentation.
-#' @param epochs \code{integer}, specific to the \code{deepsurv} approach, epochs to be checked.
-#' @param parallel \code{logical}, specific to the \code{deepsurv} approach, whether to use parallel computing.
-#' @param num_workers \code{numeric}, number of workers for the \code{deepsurv} approach, multi-process data loading with the specified number of loader worker processes.
+#' @param print_every_n \code{integer}, specific to the \code{XGB} approach, see \code{xgboost::xgb.train} documentation.
+#' @param early_stopping_rounds \code{integer}, specific to the \code{XGB} approach, see \code{xgboost::xgb.train} documentation.
+#' @param epochs \code{integer}, specific to the \code{NN} approach, epochs to be checked.
+#' @param parallel \code{logical}, specific to the \code{NN} approach, whether to use parallel computing.
+#' @param num_workers \code{numeric}, number of workers for the \code{NN} approach, multi-process data loading with the specified number of loader worker processes.
 #' @param verbose \code{logical}, whether messages from the machine learning models must be printed.
 #' @param verbose.cv \code{logical}, whether messages from cross-validation must be printed.
-#' @param nrounds \code{integer}, specific to \code{xgboost}, max number of boosting iterations.
-#' @param ncores \code{integer}, specific to \code{deepsurv}, max number of cores used.
+#' @param nrounds \code{integer}, specific to \code{XGB}, max number of boosting iterations.
+#' @param ncores \code{integer}, specific to \code{NN}, max number of cores used.
 #'
 #' @return Best ReSurv model fit.
 #'
@@ -229,7 +229,7 @@ ReSurvCV.IndividualData <- function(IndividualData,
                time)
 
 
-  if(model == "xgboost"){
+  if(model == "XGB"){
 
     out.cv <- pkg.env$xgboost_cv(IndividualData,
                               folds,
@@ -248,7 +248,7 @@ ReSurvCV.IndividualData <- function(IndividualData,
 
 
   }
-  if(model == "deepsurv"){
+  if(model == "NN"){
     out.cv <- pkg.env$deep_surv_cv(IndividualData,
                                  continuous_features_scaling_method = continuous_features_scaling_method,
                                  folds,

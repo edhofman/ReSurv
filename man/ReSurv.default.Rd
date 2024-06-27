@@ -6,7 +6,7 @@
 \usage{
 \method{ReSurv}{default}(
   IndividualData,
-  hazard_model = "cox",
+  hazard_model = "COX",
   tie = "efron",
   baseline = "spline",
   continuous_features_scaling_method = "minmax",
@@ -22,9 +22,9 @@
 
 \item{hazard_model}{\code{character}, hazard model supported from our package, must be provided as a string. The model can be chosen from:
 \itemize{
-\item{\code{"cox"}: Standard Cox model for the hazard.}
-\item{\code{"deep_surv"}: Deep Survival Neural Network.}
-\item{\code{"xgboost"}: eXtreme Gradient Boosting.}
+\item{\code{"COX"}: Standard Cox model for the hazard.}
+\item{\code{"NN"}: Deep Survival Neural Network.}
+\item{\code{"XGB"}: eXtreme Gradient Boosting.}
 }}
 
 \item{tie}{ties handling, default is the Efron approach.}
@@ -69,7 +69,7 @@ Composed of a baseline \eqn{\lambda_0(t)} and a proportional effect \eqn{e^{y_i(
 
 Currently, the implementation allows to optimize the partial likelihood (concerning the proportional effects) using one of the following statistical learning approaches:
 \itemize{
-\item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{Cox}}
+\item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{COX}}
 \item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
 \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
 \item{\href{https://cran.r-project.org/web/packages/LTRCtrees/LTRCtrees.pdf}{Left-truncated Right-Censored Trees}}

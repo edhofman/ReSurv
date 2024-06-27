@@ -1,6 +1,6 @@
 Package: ReSurv
 Type: Package
-Title: Machine learning based approach for individual claims reserving
+Title: Machine learning based models for predicting IBNR frequency.
 Version: 0.0.2
 Authors@R:
     c(person(given = "Emil",
@@ -17,16 +17,16 @@ Authors@R:
              email="mh@math.ku.dk",
              role = c("aut", "cph"),
              comment = c(ORCID = "0000-0001-5846-667X")))
-Description: Implementation of the chain ladder model under the reverse time framework
-    introduced in Hiabu (2017) <doi:10.1080/03461238.2016.1240709>.
-    It also implements extensions that add flexibility to the individual development factors modeling
-    by allowing practitioners to set their own hazard rate model.
-URL: https://github.com/gpitt71/ReSurv
-BugReports: https://github.com/gpitt71/ReSurv/issues
+Description: Prediction of future IBNR frequencies using the feature based development factors introduced in Hiabu, Hofman, Pittarello (2023) <doi:10.48550/arXiv.2312.14549>. 
+             Implementation of Neural Networks (NN), eXtreme Gradient Boosting (XGB), 
+             and Cox model with splines (COX) to optimise the partial log-likelihood of proportional hazard models.
+URL: https://github.com/edhofman/ReSurv
+BugReports: https://github.com/edhofman/ReSurv/issues
 License: GPL (>= 2)
 Depends: tidyverse
 Imports: 
   stats,
+  lubridate,
   dplyr,
   dtplyr,
   fastDummies,

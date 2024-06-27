@@ -134,19 +134,19 @@ hp_scenario_delta_nn <- list(batch_size=as.integer(5000),
 ```{r eval=FALSE, include=TRUE}
 
 resurv.model.xgb.A <-  ReSurv(individual_data0,
-                              hazard_model = "xgboost",
+                              hazard_model = "XGB",
                               hparameters=hp_scenario_alpha_xgb)
 
 resurv.model.nn.A <-  ReSurv(individual_data0,
-                              hazard_model = "deepsurv",
+                              hazard_model = "NN",
                               hparameters=hp_scenario_alpha_nn)
 
 resurv.model.xgb.D <-  ReSurv(individual_data3,
-                              hazard_model = "xgboost",
+                              hazard_model = "XGB",
                               hparameters=hp_scenario_delta_xgb)
 
 resurv.model.nn.D <- ReSurv(individual_data3,
-                              hazard_model = "deepsurv",
+                              hazard_model = "NN",
                               hparameters=hp_scenario_delta_nn)
 
 

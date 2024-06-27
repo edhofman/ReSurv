@@ -78,7 +78,7 @@ In `ReSurv`, we have our own implementation of a standard K-Fold cross-validatio
 ```{r eval=FALSE, include=TRUE}
 
 resurv.cv.xgboost <- ReSurvCV(IndividualData=individual_data,
-                               model="xgboost",
+                               model="XGB",
                                hparameters_grid=list(booster="gbtree",
                                              eta=c(.001,.01,.2,.3),
                                              max_depth=c(3,6,8),
@@ -147,7 +147,7 @@ obj_func <- function(num_layers,
   num_nodes=as.integer(num_nodes)
   
   deepsurv_cv <- ReSurvCV(IndividualData=individual_data,
-                    model="deepsurv",
+                    model="NN",
                     hparameters_grid=list(num_layers = num_layers,
                                          num_nodes = num_nodes,
                                          optim=optim,
@@ -246,7 +246,7 @@ Secondly, we define an objective function.
 obj_func <- function(eta, max_depth, min_child_weight, subsample, lambda, alpha) {
   
   xgbcv <- ReSurvCV(IndividualData=individual_data,
-                    model="xgboost",
+                    model="XGB",
                     hparameters_grid=list(booster="gbtree",
                                           eta=eta,
                                           max_depth=max_depth,

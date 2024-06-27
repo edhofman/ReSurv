@@ -61,7 +61,7 @@ ooslkh.ReSurvFit <- function(object,
     mutate(TR_i=0)
 
 
-  if(hazard_model=="cox"){
+  if(hazard_model=="COX"){
 
     X=test.data %>%
       select(c(continuous_features,categorical_features))
@@ -75,7 +75,7 @@ ooslkh.ReSurvFit <- function(object,
 
   }
 
-  if(hazard_model=="deepsurv"){
+  if(hazard_model=="NN"){
 
     X <- pkg.env$model.matrix.creator(data= test.data,
                                       select_columns = categorical_features)
@@ -97,7 +97,7 @@ ooslkh.ReSurvFit <- function(object,
 
   }
 
-  if(hazard_model=="xgboost"){
+  if(hazard_model=="XGB"){
 
     X <- pkg.env$model.matrix.creator(data= test.data,
                                       select_columns = categorical_features,
