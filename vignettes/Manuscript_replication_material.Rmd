@@ -354,8 +354,6 @@ dtb_2_plot_M %>%
 
 ```
 
-
-
 # Table 2
 
 The models likelihood can be extracted using the following commands. Table 2 shows the average negative log-likelihood for each scenario over the different simulations, here we show the results for XGB, scenario Delta and simulation number 7.
