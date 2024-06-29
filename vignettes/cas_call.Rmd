@@ -1,0 +1,959 @@
+---
+title: "2024 Reserving Call Paper Program on Technology and the Reserving Actuary"
+author: "Gabriele Pittarello"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Exploring the variables importance}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r instancepackage, include=FALSE}
+library(ReSurv)
+library(reticulate)
+use_virtualenv('pyresurv')
+library(ggplot2)
+```
+
+
+# Installation
+
+```{r eval=FALSE, include=TRUE}
+
+library(devtools)
+devtools::install_github('edhofman/resurv')
+library(ReSurv)
+packageVersion("ReSurv")
+
+```
+
+# Data Simulation
+
+```{r eval=FALSE, include=TRUE}
+input_data <- data_generator(random_seed = 7,
+                             scenario='alpha',
+                             time_unit = 1/360,
+                             years = 4,
+                             period_exposure = 200)
+
+str(input_data)
+
+```
+
+# Data Pre-Processing
+
+```{r eval=FALSE, include=TRUE}
+input_data <- data_generator(random_seed = 7,
+                             scenario='alpha',
+                             time_unit = 1/360,
+                             years = 4,
+                             period_exposure = 200)
+
+str(input_data)
+
+```
+
+```{r eval=FALSE, include=TRUE}
+input_data <- data_generator(random_seed = 7,
+                             scenario='alpha',
+                             time_unit = 1/360,
+                             years = 4,
+                             period_exposure = 200)
+
+str(input_data)
+
+```
+
+
+# Selection of the hyper-parameters
+
+
+## XGB: K-Fold cross-validation
+
+```{r eval=FALSE, include=TRUE}
+
+resurv.cv.xgboost <- ReSurvCV(IndividualDataPP=individual_data,
+                              model="XGB",
+                              hparameters_grid=list(booster="gbtree",
+                                                    eta=c(.001),
+                                                    max_depth=c(3),
+                                                    subsample=c(1),
+                                                    alpha=c(0),
+                                                    lambda=c(0),
+                                                    min_child_weight=c(.5)),
+                              print_every_n = 1L,
+                              nrounds=1,
+                              verbose=F,
+                              verbose.cv=T,
+                              early_stopping_rounds = 1,
+                              folds=5,
+                              parallel=T,
+                              ncores=2,
+                              random_seed=1)
+
+```
+
+## NN: K-Fold cross-validation
+
+```{r eval=FALSE, include=TRUE}
+resurv.cv.nn <- ReSurvCV(IndividualDataPP=individual_data,
+                        model="NN",
+                        hparameters_grid=list(num_layers = c(1,2),
+                                              num_nodes = c(2,4),
+                                              optim="Adam",
+                                              activation = "ReLU",
+                                              lr=.5,
+                                              xi=.5,
+                                              eps = .5,
+                                              tie = "Efron",
+                                              batch_size = as.integer(5000),
+                                              early_stopping = 'TRUE',
+                                              patience  = 20
+                        ),
+                        epochs=as.integer(300),
+                        num_workers = 0,
+                        verbose=F,
+                        verbose.cv=T,
+                        folds=3,
+                        parallel=F,
+                        random_seed = as.integer(Sys.time()))
+```
+
+
+# ReSurv and Bayesian Parameters Optimisation
+
+
+## XGB: Bayesian Parameters Optimisation
+
+```{r eval=FALSE, include=TRUE}
+bounds <- list(eta = c(0, 1),
+               max_depth = c(1L, 25L),
+               min_child_weight = c(0, 50),
+               subsample = c(0.51, 1),
+               lambda = c(0, 15),
+               alpha = c(0, 15))
+
+
+obj_func <- function(eta, 
+                    max_depth, 
+                    min_child_weight, 
+                    subsample, 
+                    lambda, 
+                    alpha) {
+  
+  xgbcv <- ReSurvCV(IndividualDataPP=individual_data,
+                    model="XGB",
+                    hparameters_grid=list(booster="gbtree",
+                                          eta=eta,
+                                          max_depth=max_depth,
+                                          subsample=subsample,
+                                          alpha=lambda,
+                                          lambda=alpha,
+                                          min_child_weight=min_child_weight),
+                    print_every_n = 1L,
+                    nrounds=500,
+                    verbose=F,
+                    verbose.cv=T,
+                    early_stopping_rounds = 30,
+                    folds=3,
+                    parallel=F,
+                    random_seed = as.integer(Sys.time()))
+  
+  lst <- list(
+    
+    Score = -xgbcv$out.cv.best.oos$test.lkh,
+    train.lkh = xgbcv$out.cv.best.oos$train.lkh
+  )
+  
+  return(lst)
+}
+
+
+
+bayes_out <- bayesOpt(
+    FUN = obj_func
+    , bounds = bounds
+    , initPoints = 50
+    , iters.n = 1000
+    , iters.k = 50
+    , otherHalting = list(timeLimit = 18000)
+  )
+
+```
+
+
+## NN: Bayesian Parameters Optimisation
+
+
+```{r eval=FALSE, include=TRUE}
+bounds <- list(num_layers = c(2L,10L),
+               num_nodes = c(2L,10L),
+               optim=c(1L,2L),
+               activation = c(1L,2L),
+               lr=c(.005,0.5),
+               xi=c(0,0.5),
+               eps = c(0,0.5)
+               )
+
+
+obj_func <- function(num_layers, 
+                     num_nodes, 
+                     optim, 
+                     activation,
+                     lr, 
+                     xi, 
+                     eps) {
+
+  optim = switch(optim, 
+                 "Adam", 
+                 "SGD")
+  activation = switch(activation, "LeakyReLU","SELU")
+  batch_size=as.integer(5000)
+  number_layers=as.integer(num_layers)
+  num_nodes=as.integer(num_nodes)
+  
+  deepsurv_cv <- ReSurvCV(IndividualData=individual_data,
+                    model="NN",
+                    hparameters_grid=list(num_layers = num_layers,
+                                         num_nodes = num_nodes,
+                                         optim=optim,
+                                         activation = activation,
+                                         lr=lr,
+                                         xi=xi,
+                                         eps = eps,
+                                         tie = "Efron",
+                                         batch_size = batch_size,
+                                         early_stopping = 'TRUE',
+                                         patience  = 20
+                    ),
+                    epochs=as.integer(300),
+                    num_workers = 0,      
+                    verbose=F,
+                    verbose.cv=T,
+                    folds=3,
+                    parallel=F,
+                    random_seed = as.integer(Sys.time()))
+  
+
+  lst <- list(
+    
+    Score = -deepsurv_cv$out.cv.best.oos$test.lkh,
+    
+    train.lkh = deepsurv_cv$out.cv.best.oos$train.lkh
+  )
+  
+  return(lst)
+}
+
+
+bayes_out <- bayesOpt(FUN = obj_func, 
+    bounds = bounds, 
+    initPoints = 50, 
+    iters.n = 1000, 
+    iters.k = 50, 
+    otherHalting = list(timeLimit = 18000))
+
+```
+
+
+# Estimation 
+
+## COX
+
+```{r eval=FALSE, include=TRUE}
+
+resurv.fit.cox <- ReSurv(individual_data,
+                     hazard_model = "COX")
+
+```
+
+## XGB
+```{r eval=FALSE, include=TRUE}
+
+hparameters_xgb = list(params=list(booster="gbtree",
+                           eta=0.9611239,
+                           subsample=0.62851,
+                           alpha= 5.836211,
+                           lambda=15,
+                           min_child_weight=29.18158,
+                           max_depth = 1),
+               print_every_n = 0,
+               nrounds=3000,
+               verbose=F,
+               early_stopping_rounds = 500)
+
+
+resurv.fit.xgb <- ReSurv(individual_data,
+                     hazard_model = "XGB",
+                     hparameters = hparameters_xgb)
+
+```
+
+## NN
+
+```{r eval=FALSE, include=TRUE}
+
+hparameters_nn = list(num_layers= 2,
+            early_stopping= TRUE,
+            patience=350,
+            verbose=FALSE,
+            network_structure=NULL,
+            num_nodes= 10,
+            activation ="LeakyReLU",
+            optim ="SGD",
+            lr =0.02226655,
+            xi=0.4678993,
+            epsilon= 0,
+            batch_size= 5000,
+            epochs= 5500,
+            num_workers= 0,
+            tie="Efron" )
+
+
+resurv.fit.nn <- ReSurv(individual_data,
+                     hazard_model = "NN",
+                     hparameters = hparameters_nn)
+
+
+```
+
+
+# Prediction
+
+```{r eval=FALSE, include=TRUE}
+resurv.fit.predict.Q <- predict(resurv.fit.cox)
+
+individual_dataY <- IndividualDataPP(input_data,
+                                   id="claim_number",
+                                   continuous_features="AP_i",
+                                   categorical_features="claim_type",
+                                   accident_period="AP",
+                                   calendar_period="RP",
+                                   input_time_granularity = "days",
+                                   output_time_granularity = "years",
+                                   years=4,
+                                   continuous_features_spline=NULL,
+                                   calendar_period_extrapolation=F)
+
+resurv.fit.predict.Y <- predict(resurv.fit.cox,
+                                newdata=individual_dataY,
+                                grouping_method = "probability")
+
+individual_dataM <- IndividualDataPP(input_data,
+                                     id="claim_number",
+                                     continuous_features="AP_i",
+                                     categorical_features="claim_type",
+                                     accident_period="AP",
+                                     calendar_period="RP",
+                                     input_time_granularity = "days",
+                                     output_time_granularity = "months",
+                                     years=4,
+                                     continuous_features_spline=NULL,
+                                     calendar_period_extrapolation=F)
+
+resurv.fit.predict.M <- predict(resurv.fit.cox,
+                                newdata=individual_dataM,
+                                grouping_method = "probability")
+
+
+
+model_s <- summary(resurv.fit.predict.Y)
+print(model_s)
+
+```
+
+
+# Data application
+
+
+```{r eval=FALSE, include=TRUE}
+crps <- survival_crps(resurv.fit.cox)
+m_crps <- mean(crps$crps)
+m_crps
+
+```
+
+# Appendix
+
+## Code to replicate Figure 1
+
+```{r eval=FALSE, include=TRUE}
+
+p1 <- input_data %>%
+  as.data.frame() %>%
+  mutate(claim_type=as.factor(claim_type))%>%
+  ggplot(aes(x=RT-AT, color=claim_type)) +
+  stat_ecdf(size=1) +
+  labs(title="",
+       x="Notification delay (in days)",
+       y="ECDF") +
+  xlim(0.01,1500)+
+  scale_color_manual(values=c("royalblue", "#a71429"),
+                     labels=c("Claim type 0","Claim type 1")) +
+  scale_linetype_manual(values=c(1,3),
+                        labels=c("Claim type 0","Claim type 1"))+
+  guides(color = guide_legend(title="Claim type",
+                              override.aes = list(color = c("royalblue", "#a71429"),
+                                                  linewidth = 2)),
+         linetype = guide_legend(title="Claim type",
+                                 override.aes = list(linetype = c(1,3),
+                                                     linewidth = 0.7))) +
+  theme_bw()+
+  theme(axis.text=element_text(size=20),
+        axis.title.y = element_text(size=20),
+        axis.title.x  = element_text(size=20),
+        legend.text = element_text(size=20))
+p1
+
+
+p2<- input_data %>%
+  as.data.frame() %>%
+  mutate(claim_type=as.factor(claim_type))%>%
+  ggplot(aes(x=claim_type,fill=claim_type)) +
+  geom_bar()+
+  scale_fill_manual(values=c("royalblue", "#a71429"),
+                     labels=c("Claim type 0","Claim type 1"))+
+  guides(fill = guide_legend(title="Claim type")) +
+  theme_bw()+
+  labs(title="",
+       x="Claim Type",
+       y="")+
+  theme(axis.text=element_text(size=20),
+        axis.title.y = element_text(size=20),
+        axis.title.x  = element_text(size=20),
+        legend.text = element_text(size=20))
+p2
+
+individual_data <- IndividualDataPP(data = input_data,
+                                    id=NULL,
+                                    categorical_features = c("claim_type"),
+                                    continuous_features = "AP",
+                                    accident_period="AP",
+                                    calendar_period="RP",
+                                    input_time_granularity = "days",
+                                    output_time_granularity = "quarters",
+                                    years=4)
+
+```
+
+## Code for plotting feature-dependent development factors
+
+```{r eval=FALSE, include=TRUE}
+dtb_2_plot_M <- resurv.fit.predict.M$hazard_frame_output
+dtb_2_plot_M=dtb_2_plot_M %>%
+  mutate(DP_o=48-DP_rev_o+1)
+
+dtb_2_plot_Q <- resurv.fit.predict.Q$hazard_frame_output
+
+dtb_2_plot_Q=dtb_2_plot_Q %>%
+  mutate(DP_o=16-DP_rev_o+1)
+
+dtb_2_plot_Y <- resurv.fit.predict.Y$hazard_frame_output
+
+dtb_2_plot_Y=dtb_2_plot_Y %>%
+  mutate(DP_o=4-DP_rev_o+1)
+
+##
+
+CL = resurv.fit.cox$IndividualDataPP$training.data %>%
+  mutate(DP_o = max(resurv.fit.predict.Q$hazard_frame_output$DP_rev_o)-DP_rev_o + 1) %>%
+  group_by(AP_o, DP_o) %>%
+  summarize(I=sum(I), .groups="drop") %>%
+  group_by(AP_o) %>%
+  arrange(DP_o) %>%
+  mutate(I_cum = cumsum(I),
+         I_cum_lag = lag(I_cum, default=0)) %>%
+  ungroup() %>%
+  group_by(DP_o) %>%
+  reframe(df_o = sum(I_cum*(AP_o<=max(resurv.fit.cox$IndividualDataPP$training.data$AP_o)-DP_o+1)) /
+            sum(I_cum_lag*(AP_o<=max(resurv.fit.cox$IndividualDataPP$training.data$AP_o)-DP_o+1)),
+          I=sum(I*(AP_o<=max(resurv.fit.cox$IndividualDataPP$training.data$AP_o)-DP_o))) %>%
+  mutate(DP_o_join = DP_o-1) %>%as.data.frame()
+
+
+CL %>%
+  filter(DP_o>1) %>%
+  ggplot(aes(x=DP_o,
+             y=df_o))+
+  geom_line(linewidth=2.5,color="#454555") +
+  labs(title="Chain ladder",
+       x = "Development quarter",
+       y = "Development factor") +
+  ylim(1,max(dtb_2_plot_Q$df_o)+.01)+
+  theme_bw(base_size=rel(5))+
+  theme(plot.title = element_text(size=20))
+
+##
+
+CL_months = individual_dataM$training.data %>%
+  mutate(DP_o = max(resurv.fit.predict.M$hazard_frame_output$DP_rev_o)-DP_rev_o + 1) %>%
+  group_by(AP_o, DP_o) %>%
+  summarize(I=sum(I), .groups="drop") %>%
+  group_by(AP_o) %>%
+  arrange(DP_o) %>%
+  mutate(I_cum = cumsum(I),
+         I_cum_lag = lag(I_cum, default=0)) %>%
+  ungroup() %>%
+  group_by(DP_o) %>%
+  reframe(df_o = sum(I_cum*(AP_o<=max(individual_dataM$training.data$AP_o)-DP_o+1)) /
+            sum(I_cum_lag*(AP_o<=max(individual_dataM$training.data$AP_o)-DP_o+1)),
+          I=sum(I*(AP_o<=max(individual_dataM$training.data$AP_o)-DP_o))) %>%
+  mutate(DP_o_join = DP_o-1) %>%as.data.frame()
+ticks.at <- seq(1,48,4)
+labels.as <- as.character(ticks.at)
+
+CL_months %>%
+  filter(DP_o>1) %>%
+  ggplot(aes(x=DP_o,
+             y=df_o))+
+  geom_line(linewidth=2.5,color="#454555") +
+  labs(title="Chain ladder",
+       x = "Development month",
+       y = "Development factor") +
+  ylim(1, 2.5+.01)+
+  scale_x_continuous(breaks = ticks.at,
+                     labels = labels.as) +
+  theme_bw(base_size=rel(5))+
+  theme(plot.title = element_text(size=20))
+
+
+##
+
+CL_years = individual_dataY$training.data %>%
+  mutate(DP_o = max(resurv.fit.predict.Y$hazard_frame_output$DP_rev_o)-DP_rev_o + 1) %>%
+  group_by(AP_o, DP_o) %>%
+  summarize(I=sum(I), .groups="drop") %>%
+  group_by(AP_o) %>%
+  arrange(DP_o) %>%
+  mutate(I_cum = cumsum(I),
+         I_cum_lag = lag(I_cum, default=0)) %>%
+  ungroup() %>%
+  group_by(DP_o) %>%
+  reframe(df_o = sum(I_cum*(AP_o<=max(individual_dataM$training.data$AP_o)-DP_o+1)) /
+            sum(I_cum_lag*(AP_o<=max(individual_dataM$training.data$AP_o)-DP_o+1)),
+          I=sum(I*(AP_o<=max(individual_dataM$training.data$AP_o)-DP_o))) %>%
+  mutate(DP_o_join = DP_o-1) %>%as.data.frame()
+ticks.at <- seq(1,4,1)
+labels.as <- as.character(ticks.at)
+
+CL_years %>%
+  filter(DP_o>1) %>%
+  ggplot(aes(x=DP_o,
+             y=df_o))+
+  geom_line(linewidth=2.5,color="#454555") +
+  labs(title="Chain ladder",
+       x = "Development year",
+       y = "Development factor") +
+  ylim(1, 2.5+.01)+
+  scale_x_continuous(breaks = ticks.at,
+                     labels = labels.as) +
+  theme_bw(base_size=rel(5))+
+  theme(plot.title = element_text(size=20))
+
+
+
+
+ticks.at <- seq(1,16,by=2)
+labels.as <- as.character(ticks.at)
+
+ap=15
+ct=1
+dtb_2_plot_Q %>%
+  filter(claim_type==ct,
+         AP_o==ap,
+         DP_o>1) %>%
+  ggplot(aes(x=DP_o,
+             y=df_o))+
+  geom_line(linewidth=2.5,color="royalblue") +
+  ylim(1,max(dtb_2_plot_Q$df_o)+.01)+
+  labs(title=paste("COX: Accident Quarter", ap, "Claim Type", ct),
+       x = "Development quarter",
+       y = "Development factor") +
+  scale_x_continuous(breaks = ticks.at,
+                     labels = labels.as) +
+  theme_bw(base_size=rel(5))+
+  theme(plot.title = element_text(size=20))
+
+
+
+ap=12
+ct=0
+dtb_2_plot_Q %>%
+  filter(claim_type==ct,
+         AP_o==ap,
+         DP_o>1) %>%
+  ggplot(aes(x=DP_o,
+             y=df_o))+
+  geom_line(linewidth=2.5,color="royalblue") +
+  ylim(1,max(dtb_2_plot_Q$df_o)+.01)+
+  labs(title=paste("COX: Accident Quarter", ap, "Claim Type", ct),
+       x = "Development quarter",
+       y = "Development factor") +
+  scale_x_continuous(breaks = ticks.at,
+                     labels = labels.as) +
+  theme_bw(base_size=rel(5))+
+  theme(plot.title = element_text(size=20))
+
+
+
+ct=0
+ap=36
+ticks.at <- seq(1,48,4)
+labels.as <- as.character(ticks.at)
+dtb_2_plot_M %>%
+  filter(claim_type==ct,
+         AP_o==ap,
+         DP_o>1) %>%
+  ggplot(aes(x=DP_o,
+             y=df_o))+
+  geom_line(linewidth=2.5,color="#a71429") +
+  ylim(1,2.5+.01)+
+  labs(title=paste("XGB: Accident Month", ap, "Claim Type", ct),
+       x = "Development month",
+       y = "Development factor") +
+  scale_x_continuous(breaks = ticks.at,
+                     labels = labels.as) +
+  theme_bw(base_size=rel(5))+
+  theme(plot.title = element_text(size=20))
+
+
+ct=1
+ap=7
+dtb_2_plot_M %>%
+  filter(claim_type==ct,
+         AP_o==ap,
+         DP_o>1) %>%
+  ggplot(aes(x=DP_o,
+             y=df_o))+
+  geom_line(linewidth=2.5,color="#a71429") +
+  ylim(1,max(dtb_2_plot_M$df_o)+.01)+
+  labs(title=paste("COX: Accident Month", ap, "Claim Type", ct),
+       x = "Development month",
+       y = "Development factor") +
+  scale_x_continuous(breaks = ticks.at,
+                     labels = labels.as) +
+  theme_bw(base_size=rel(5))+
+  theme(plot.title = element_text(size=20))
+
+ct=0
+ap=2
+dtb_2_plot_Y %>%
+  filter(claim_type==ct,
+         AP_o==ap,
+         DP_o>1) %>%
+  ggplot(aes(x=DP_o,
+             y=df_o))+
+  geom_line(linewidth=2.5,color="#FF6A7A") +
+  ylim(1,2.5+.01)+
+  labs(title=paste("COX: Accident Year", ap, "Claim Type", ct),
+       x = "Development year",
+       y = "Development factor") +
+  scale_x_continuous(breaks = ticks.at,
+                     labels = labels.as) +
+  theme_bw(base_size=rel(5))+
+  theme(plot.title = element_text(size=20))
+
+
+
+ct=1
+ap=3
+
+dtb_2_plot_Y %>%
+  filter(claim_type==ct,
+         AP_o==ap,
+         DP_o>1) %>%
+  ggplot(aes(x=DP_o,
+             y=df_o))+
+  geom_line(linewidth=2.5,color="#FF6A7A") +
+  ylim(1,2.5+.01)+
+  labs(title=paste("COX: Accident Year", ap, "Claim Type", ct),
+       x = "Development year",
+       y = "Development factor") +
+  scale_x_continuous(breaks = ticks.at,
+                     labels = labels.as) +
+  theme_bw(base_size=rel(5))+
+  theme(plot.title = element_text(size=20))
+
+
+
+```
+
+
+## Code for computing ARE TOT and ARE CAL
+
+
+```{r eval=FALSE, include=TRUE}
+conversion_factor <- resurv.fit.predict.xgb$ReSurvFit$IndividualData$conversion_factor
+
+max_dp_i <-1440
+
+true_output <- out$ReSurvFit$IndividualData$full.data %>%
+  mutate(
+    DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+    AP_o = ceiling(AP_i*conversion_factor),
+    TR_o= AP_o-1
+  ) %>%
+  filter(DP_rev_o <=TR_o) %>%
+  group_by(claim_type, AP_o, DP_rev_o) %>%
+  mutate(claim_type = as.character(claim_type)) %>%
+  summarize(I=sum(I), .groups = "drop") %>%
+  filter(DP_rev_o>0) #we cant have =0, because corresponds to half a parallelogram.
+
+#Total output
+score_total<- out$hazard_frame_output[,c("claim_type","AP_o", "DP_rev_o", "I_expected")] %>%
+  inner_join(true_output, by =c("claim_type","AP_o", "DP_rev_o")) %>%
+  mutate(ave = I-I_expected,
+         abs_ave = abs(ave)) %>%
+  # from here it is reformulated for the are tot
+  ungroup()%>%
+  group_by(AP_o, DP_rev_o) %>%
+  reframe(abs_ave=abs(sum(ave)),
+          I=sum(I))
+
+are_tot=sum(score_total$abs_ave)/sum(score_total$I)
+
+
+dfs_output <- out$hazard_frame_output %>%
+  select(AP_o, claim_type, DP_rev_o, df_o) %>%
+  mutate(DP_rev_o = DP_rev_o) %>%
+  distinct()
+
+#Cashflow on output scale.Etc quarterly cashflow development
+score_diagonal <- out$ReSurvFit$IndividualData$full.data  %>%
+  mutate(
+    DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+    AP_o = ceiling(AP_i*conversion_factor)
+  ) %>%
+  group_by(claim_type, AP_o, DP_rev_o) %>%
+  mutate(claim_type = as.character(claim_type)) %>%
+  summarize(I=sum(I), .groups = "drop") %>%
+  group_by(claim_type, AP_o) %>%
+  arrange(desc(DP_rev_o)) %>%
+  mutate(I_cum=cumsum(I)) %>%
+  mutate(I_cum_lag = lag(I_cum, default = 0)) %>%
+  left_join(dfs_output, by = c("AP_o", "claim_type", "DP_rev_o")) %>%
+  mutate(I_cum_hat =  I_cum_lag * df_o,
+         RP_o = max(DP_rev_o)-DP_rev_o + AP_o) %>%
+  inner_join(true_output[,c("AP_o", "DP_rev_o")] %>%  distinct()
+             , by =c("AP_o", "DP_rev_o")) %>%
+  group_by(AP_o,DP_rev_o) %>%
+  reframe(abs_ave2_diag = abs(sum(I_cum_hat)-sum(I_cum)),
+          I=sum(I))
+
+are_cal_q=sum(score_diagonal$abs_ave2_diag)/sum(score_diagonal$I)
+
+
+# scoring XGB ----
+true_output <- resurv.fit.predict.xgb$ReSurvFit$IndividualData$full.data %>%
+  mutate(
+    DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+    AP_o = ceiling(AP_i*conversion_factor),
+    TR_o= AP_o-1
+  ) %>%
+  filter(DP_rev_o <=TR_o) %>%
+  group_by(claim_type, AP_o, DP_rev_o) %>%
+  mutate(claim_type = as.character(claim_type)) %>%
+  summarize(I=sum(I), .groups = "drop") %>%
+  filter(DP_rev_o>0) #we cant have =0, because corresponds to half a parallelogram.
+
+
+score_total<- resurv.fit.predict.xgb$hazard_frame_output[,c("claim_type","AP_o", "DP_rev_o", "I_expected")] %>%
+  inner_join(true_output, by =c("claim_type","AP_o", "DP_rev_o")) %>%
+  mutate(ave = I-I_expected,
+         abs_ave = abs(ave)) %>%
+  # from here it is reformulated for the are tot
+  ungroup()%>%
+  group_by(AP_o, DP_rev_o) %>%
+  reframe(abs_ave=abs(sum(ave)),
+          I=sum(I))
+
+are_tot_xgb=sum(score_total$abs_ave)/sum(score_total$I)
+
+
+dfs_output <- resurv.fit.predict.xgb$hazard_frame_output %>%
+  select(AP_o, claim_type, DP_rev_o, df_o) %>%
+  mutate(DP_rev_o = DP_rev_o) %>%
+  distinct()
+
+#Cashflow on output scale.Etc quarterly cashflow development
+score_diagonal <- resurv.fit.predict.xgb$ReSurvFit$IndividualData$full.data  %>%
+  mutate(
+    DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+    AP_o = ceiling(AP_i*conversion_factor)
+  ) %>%
+  group_by(claim_type, AP_o, DP_rev_o) %>%
+  mutate(claim_type = as.character(claim_type)) %>%
+  summarize(I=sum(I), .groups = "drop") %>%
+  group_by(claim_type, AP_o) %>%
+  arrange(desc(DP_rev_o)) %>%
+  mutate(I_cum=cumsum(I)) %>%
+  mutate(I_cum_lag = lag(I_cum, default = 0)) %>%
+  left_join(dfs_output, by = c("AP_o", "claim_type", "DP_rev_o")) %>%
+  mutate(I_cum_hat =  I_cum_lag * df_o,
+         RP_o = max(DP_rev_o)-DP_rev_o + AP_o) %>%
+  inner_join(true_output[,c("AP_o", "DP_rev_o")] %>%  distinct()
+             , by =c("AP_o", "DP_rev_o")) %>%
+  group_by(AP_o,DP_rev_o) %>%
+  reframe(abs_ave2_diag = abs(sum(I_cum_hat)-sum(I_cum)),
+          I=sum(I))
+
+are_cal_q_xgb=sum(score_diagonal$abs_ave2_diag)/sum(score_diagonal$I)
+
+# scoring NN ----
+true_output <- resurv.fit.predict.nn$ReSurvFit$IndividualData$full.data %>%
+  mutate(
+    DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+    AP_o = ceiling(AP_i*conversion_factor),
+    TR_o= AP_o-1
+  ) %>%
+  filter(DP_rev_o <=TR_o) %>%
+  group_by(claim_type, AP_o, DP_rev_o) %>%
+  mutate(claim_type = as.character(claim_type)) %>%
+  summarize(I=sum(I), .groups = "drop") %>%
+  filter(DP_rev_o>0) #we cant have =0, because corresponds to half a parallelogram.
+
+
+score_total<- resurv.fit.predict.nn$hazard_frame_output[,c("claim_type","AP_o", "DP_rev_o", "I_expected")] %>%
+  inner_join(true_output, by =c("claim_type","AP_o", "DP_rev_o")) %>%
+  mutate(ave = I-I_expected,
+         abs_ave = abs(ave)) %>%
+  # from here it is reformulated for the are tot
+  ungroup()%>%
+  group_by(AP_o, DP_rev_o) %>%
+  reframe(abs_ave=abs(sum(ave)),
+          I=sum(I))
+
+are_tot_nn=sum(score_total$abs_ave)/sum(score_total$I)
+
+
+dfs_output <- resurv.fit.predict.nn$hazard_frame_output %>%
+  select(AP_o, claim_type, DP_rev_o, df_o) %>%
+  mutate(DP_rev_o = DP_rev_o) %>%
+  distinct()
+
+#Cashflow on output scale.Etc quarterly cashflow development
+score_diagonal <- resurv.fit.predict.nn$ReSurvFit$IndividualData$full.data  %>%
+  mutate(
+    DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+    AP_o = ceiling(AP_i*conversion_factor)
+  ) %>%
+  group_by(claim_type, AP_o, DP_rev_o) %>%
+  mutate(claim_type = as.character(claim_type)) %>%
+  summarize(I=sum(I), .groups = "drop") %>%
+  group_by(claim_type, AP_o) %>%
+  arrange(desc(DP_rev_o)) %>%
+  mutate(I_cum=cumsum(I)) %>%
+  mutate(I_cum_lag = lag(I_cum, default = 0)) %>%
+  left_join(dfs_output, by = c("AP_o", "claim_type", "DP_rev_o")) %>%
+  mutate(I_cum_hat =  I_cum_lag * df_o,
+         RP_o = max(DP_rev_o)-DP_rev_o + AP_o) %>%
+  inner_join(true_output[,c("AP_o", "DP_rev_o")] %>%  distinct()
+             , by =c("AP_o", "DP_rev_o")) %>%
+  group_by(AP_o,DP_rev_o) %>%
+  reframe(abs_ave2_diag = abs(sum(I_cum_hat)-sum(I_cum)),
+          I=sum(I))
+
+are_cal_q_nn=sum(score_diagonal$abs_ave2_diag)/sum(score_diagonal$I)
+
+
+##
+
+true_output_cl <- individual_data$full.data %>%
+  mutate(
+    DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+    AP_o = ceiling(AP_i*conversion_factor),
+    TR_o= AP_o-1
+  ) %>%
+  filter(DP_rev_o <=TR_o) %>%
+  mutate(DP_o = max(individual_data$training.data$DP_rev_o)-DP_rev_o + 1) %>%
+  group_by(AP_o, DP_o, DP_rev_o) %>%
+  summarize(I=sum(I), .groups="drop") %>%
+  filter(DP_rev_o>0)
+latest_observed <- individual_data$training.data %>%
+  filter(DP_rev_o >=TR_o) %>%
+  mutate(DP_o = max(individual_data$training.data$DP_rev_o)-DP_rev_o + 1) %>%
+  group_by(AP_o) %>%
+  mutate(DP_max =max(DP_o)) %>%
+  group_by(AP_o, DP_max) %>%
+  summarize(I=sum(I),.groups="drop")
+
+CL = individual_data$training.data %>%
+  mutate(DP_o = max(individual_data$training.data$DP_rev_o)-DP_rev_o + 1) %>%
+  group_by(AP_o, DP_o) %>%
+  summarize(I=sum(I), .groups="drop") %>%
+  group_by(AP_o) %>%
+  arrange(DP_o) %>%
+  mutate(I_cum = cumsum(I),
+         I_cum_lag = lag(I_cum, default=0)) %>%
+  ungroup() %>%
+  group_by(DP_o) %>%
+  reframe(df = sum(I_cum*(AP_o<=max(individual_data$training.data$AP_o)-DP_o+1)) /
+            sum(I_cum_lag*(AP_o<=max(individual_data$training.data$AP_o)-DP_o+1)),
+          I=sum(I*(AP_o<=max(individual_data$training.data$AP_o)-DP_o))) %>%
+  mutate(DP_o_join = DP_o) %>%
+  mutate(DP_rev_o = max(DP_o) - DP_o +1 )
+
+predictions <- expand.grid(AP_o = latest_observed$AP_o, DP_o = CL$DP_o_join) %>%
+  left_join(CL[,c("DP_o_join", "df")], by=c("DP_o"="DP_o_join")) %>%
+  left_join(latest_observed, by="AP_o") %>%
+  rowwise() %>%
+  filter(DP_o>DP_max) %>%
+  ungroup() %>%
+  group_by(AP_o) %>%
+  arrange(DP_o) %>%
+  mutate(df_cum = cumprod(df) ) %>%
+  mutate(I_expected= I*df_cum-I*lag(df_cum,default=1)) %>%
+  select(DP_o, AP_o, I_expected)
+
+conversion_factor = individual_data$conversion_factor
+max_dp_i <- 1440
+score_total <- predictions  %>%
+  inner_join(true_output_cl,
+             by =c("AP_o", "DP_o")) %>%
+  mutate(ave = I-I_expected,
+         abs_ave = abs(ave)) %>%
+  # from here it is reformulated for the are tot
+  ungroup()%>%
+  group_by(AP_o, DP_rev_o) %>%
+  reframe(abs_ave=abs(sum(ave)),
+          I=sum(I))
+
+are_tot=sum(score_total$abs_ave)/sum(score_total$I)
+round(are_tot,3)
+score_diagonal <- individual_data$full.data  %>%
+  mutate(
+    DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+    AP_o = ceiling(AP_i*conversion_factor)
+  ) %>%
+  group_by(claim_type, AP_o, DP_rev_o) %>%
+  mutate(claim_type = as.character(claim_type)) %>%
+  summarize(I=sum(I), .groups = "drop") %>%
+  group_by(claim_type, AP_o) %>%
+  arrange(desc(DP_rev_o)) %>%
+  mutate(I_cum=cumsum(I)) %>%
+  mutate(I_cum_lag = lag(I_cum, default = 0)) %>%
+  mutate(DP_o = max(individual_data$training.data$DP_rev_o)-DP_rev_o + 1) %>%
+  left_join(CL[,c("DP_o","df")], by = c("DP_o")) %>%
+  mutate(I_cum_hat =  I_cum_lag * df,
+         RP_o = max(DP_rev_o)-DP_rev_o + AP_o) %>%
+  inner_join(true_output_cl[,c("AP_o", "DP_rev_o")] %>%  distinct()
+             , by =c("AP_o", "DP_rev_o")) %>%
+  group_by(AP_o,DP_rev_o) %>%
+  reframe(abs_ave2_diag = abs(sum(I_cum_hat)-sum(I_cum)),
+          I=sum(I))
+
+are_cal_q=sum(score_diagonal$abs_ave2_diag)/sum(score_diagonal$I)
+round(are_cal_q,3)
+
+```
+
+
+
+
