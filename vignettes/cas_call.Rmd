@@ -50,27 +50,16 @@ str(input_data)
 # Data Pre-Processing
 
 ```{r eval=FALSE, include=TRUE}
-input_data <- data_generator(random_seed = 7,
-                             scenario='alpha',
-                             time_unit = 1/360,
-                             years = 4,
-                             period_exposure = 200)
-
-str(input_data)
-
-```
-
-```{r eval=FALSE, include=TRUE}
-input_data <- data_generator(random_seed = 7,
-                             scenario='alpha',
-                             time_unit = 1/360,
-                             years = 4,
-                             period_exposure = 200)
-
-str(input_data)
+individual_data <- IndividualDataPP(data = input_data,
+    categorical_features = c("claim_type"),
+    continuous_features = "AP",
+    accident_period="AP",
+    calendar_period="RP",
+    input_time_granularity = "days",
+    output_time_granularity = "quarters",
+    years=4)
 
 ```
-
 
 # Selection of the hyper-parameters
 
@@ -615,7 +604,7 @@ dtb_2_plot_M %>%
              y=df_o))+
   geom_line(linewidth=2.5,color="#a71429") +
   ylim(1,2.5+.01)+
-  labs(title=paste("XGB: Accident Month", ap, "Claim Type", ct),
+  labs(title=paste("COX: Accident Month", ap, "Claim Type", ct),
        x = "Development month",
        y = "Development factor") +
   scale_x_continuous(breaks = ticks.at,
