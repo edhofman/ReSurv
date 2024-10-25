@@ -14,7 +14,7 @@
 \item{...}{Other arguments to be passed to plot.}
 }
 \value{
-predictions
+\code{ggplot2} of the SHAP values for an \code{"XGB"} model or a \code{"NN"} model.
 }
 \description{
 This function plots the mean absolute SHAP values for the ReSurv fits of machine learning models.

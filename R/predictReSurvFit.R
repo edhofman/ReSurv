@@ -222,10 +222,10 @@ predict.ReSurvFit <- function(object,
     )
 
     out=list(ReSurvFit = object,
-             df_output = df_o,
-             df_input = df_i,
-             hazard_frame_input = hazard_frame_input,
-             hazard_frame_output = hazard_frame_output,
+             df_output = as.data.frame(df_o),
+             df_input = as.data.frame(df_i),
+             hazard_frame_input = as.data.frame(hazard_frame_input),
+             hazard_frame_output = as.data.frame(hazard_frame_output),
              grouping_method = grouping_method)
 
     class(out) <- c('ReSurvPredict')
@@ -234,8 +234,8 @@ predict.ReSurvFit <- function(object,
   }
 
   out=list(ReSurvFit = object,
-           df_input = df_i,
-           hazard_frame_input = hazard_frame_input,
+           df_input = as.data.frame(df_i),
+           hazard_frame_input = as.data.frame(hazard_frame_input),
            grouping_method = grouping_method)
 
   class(out) <- c('ReSurvPredict')

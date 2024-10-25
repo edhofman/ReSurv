@@ -6,7 +6,7 @@
 #' @param nsamples \code{integer}, number of observations to sample for neural networks features importance plot.
 #' @param ... Other arguments to be passed to plot.
 #'
-#' @return predictions
+#' @return \code{ggplot2} of the SHAP values for an \code{"XGB"} model or a \code{"NN"} model.
 #'
 #' @import SHAPforxgboost
 #' @import ggplot2

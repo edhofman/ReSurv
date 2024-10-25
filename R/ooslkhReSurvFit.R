@@ -1,11 +1,11 @@
-#' Compute the out-of-the sample likelihood
+#' Compute the out-of-sample likelihood
 #'
 #' When the lower triangle data are available, this method computes the likelihood on the lower triangle.
 #'
 #' @param object \code{ReSurvFit} object.
 #' @param ... Other arguments to pass to ooslkh.
 #'
-#' @return \code{numeric}, out of the sample likelihood.
+#' @return \code{numeric}, out-of-sample likelihood.
 #'
 #' @importFrom dplyr reframe
 #'
@@ -24,7 +24,7 @@ ooslkh <- function(object,
 #' @param object \code{ReSurvFit} object.
 #' @param ... Other arguments to pass to ooslkh.
 #'
-#' @return \code{numeric}, out of the sample likelihood.
+#' @return \code{numeric}, out-of-sample likelihood.
 #'
 #' @export
 ooslkh.default <- function(object,
@@ -41,7 +41,7 @@ ooslkh.default <- function(object,
 #' @param object \code{ReSurvFit} object.
 #' @param ... Other arguments to pass to ooslkh.
 #'
-#' @return \code{numeric}, out of the sample likelihood.
+#' @return \code{numeric}, out-of-sample likelihood.
 #'
 #' @export
 ooslkh.ReSurvFit <- function(object,
