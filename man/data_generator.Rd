@@ -45,12 +45,6 @@ Individual claims data. It contains the following columns:
 \item{\code{AP}: Accident period}
 \item{\code{RT}: Reporting period in continuous time.}
 \item{\code{RP}: Reporting period.}
-\item{\code{DT}: Development period in continuous time.}
-\item{\code{DP}: Development period.}
-\item{\code{DT_rev}:Development period in continuous reverse time.}
-\item{\code{DP_rev}: Development period in reverse time. }
-\item{\code{TR}: Truncation time. }
-\item{\code{I}: Event indicator.}
 }
 }
 \description{

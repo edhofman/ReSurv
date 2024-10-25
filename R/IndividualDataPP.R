@@ -2,8 +2,27 @@
 #'
 #' This function pre-processes the data for the application of a \code{ReSurv} model.
 #'
+#'
+#'
+#' The input \code{accident_period} is coded as \code{AP_i}. The input development periods are derived as \code{DP_i}=\code{calendar_period}-\code{accident_period}+1.
+#'
+#' The reverse time development factors are \code{DP_rev_i} = \code{DP_max}-\code{DP_i}, where \code{DP_max} is the maximum number of development times: \code{DP_i} \eqn{=1,\ldots,}\code{DP_max}. Given the parameter \code{years}, \code{DP_max} is derived internally from our package.
+#'
+#' As for the truncation time, \code{TR_i} = \code{AP_i}-1.
+#'
+#' \code{AP_i}, \code{DP_i}, \code{DP_rev_i} and \code{TR_i} are converted to \code{AP_o}, \code{DP_o}, \code{DP_rev_o} and \code{TR_o} (from the \code{input_time_granularity} to the \code{output_time_granularity}) using a multiplicative conversion factor. E.g., \code{AP_o} = \code{AP_i} * \eqn{CF}.
+#'
+#'
+#' The conversion factor is computed as
+#'
+#' \eqn{CF=\frac{{\nu}^i}{({\nu}^o)^{-1}}},
+#'
+#' where \eqn{{\nu}^i} and \eqn{{\nu}^o} are the fraction of a year corresponding to \code{input_time_granularity} and \code{output_time_granularity}. \eqn{{\nu}^i} and \eqn{{\nu}^o} take values \code{1/360, 1/12, 1/4, 1/2, 1} for \code{"days", "months", "quarters", "semesters", "years"} respectively.
+#' We will have \code{RP_o} = \code{AP_o} + \code{DP_o}.
+#'
+#'
 #' @param data \code{data.frame}, for the individual reserving. The number of development periods can be larger than the number of accident periods.
-#' @param id \code{character}, \code{data} column that contains the policy identifier.
+#' @param id \code{character}, \code{data} column that contains the policy identifier. If \code{NULL} (default), we assume that each row is an observation. We assume that each observation can only have one reporting time, if not null we take the reporting time of the first row for each \code{id}.
 #' @param continuous_features \code{character}, continuous features columns to be scaled.
 #' @param categorical_features \code{character}, categorical features columns to be one-hot encoded.
 #' @param accident_period \code{character}, it contains the name of the column in data corresponding to the accident period.
@@ -12,6 +31,7 @@
 #'                                       Default is `FALSE`.
 #' @param input_time_granularity \code{character}, time unit of the input data. Granularity supported:
 #' \itemize{
+#' \item{\code{"days"}: the input data are daily.}
 #' \item{\code{"months"}: the input data are monthly.}
 #' \item{\code{"quarters"}: the input data are quarterly}
 #' \item{\code{"years"}: the input data are yearly.}
@@ -20,9 +40,10 @@
 #'
 #' @param output_time_granularity \code{character}, time unit of the output data. The granularity supported is the same as for the input data:
 #'  \itemize{
-#' \item{\code{"months"}: the input data are monthly.}
-#' \item{\code{"quarters"}: the input data are quarterly}
-#' \item{\code{"years"}: the input data are yearly.}
+#'  \item{\code{"days"}: the output data will be on a daily scale.}
+#' \item{\code{"months"}: the output data will be on a monthly scale.}
+#' \item{\code{"quarters"}: the output data will be on a quarterly scale.}
+#' \item{\code{"years"}: the output data will be on yearly scale.}
 #' }
 #' The output granularity must be bigger than the input granularity.
 #' Also, the output granularity must be consistent with the input granularity, meaning that the time conversion must be possible.
@@ -36,6 +57,48 @@
 #' @param degrees_cp \code{numeric}, degrees of the spline for smoothing the calendar period effect.
 #' @param degrees_of_freedom_cp \code{numeric}, degrees of freedom of the splines for smoothing the calendar period effect.
 #'
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#'
+#'@return \code{IndividualDataPP} object. A list containing
+#'\itemize{
+#'\item{\code{full.data}: \code{data.frame}. The input data after pre-processing.}
+#'\item{\code{starting.data}: \code{data.frame}. The input data as they were provided from the user.}
+#'\item{\code{training.data}: \code{data.frame}. The input data pre-processed for training.}
+#'\item{\code{conversion_factor}: \code{numeric}. The conversion factor for going from input granularity to output granularity. E.g, the conversion factor for going from months to quarters is 1/3.}
+#'\item{\code{string_formula_i}: \code{character}. The \code{survival} formula to model the data in input granularity.}
+#'\item{\code{string_formula_o}: \code{character}. The \code{survival} formula to model the in data output granularity.}
+#'\item{\code{continuous_features}: \code{character}. The continuous features names as provided from the user.}
+#'\item{\code{categorical_features}: \code{character}. The categorical features names as provided from the user.}
+#'\item{\code{calendar_period_extrapolation}: \code{logical}. The value specifying if a calendar period component is extrapolated.}
+#'\item{\code{years}: \code{numeric}. Total number of development years in the data.}
+#'\item{\code{accident_period}: \code{character}. Accident period column name.}
+#'\item{\code{calendar_period}: \code{character}. Calendar_period column name.}
+#'\item{\code{input_time_granularity}: \code{character}. Input time granularity.}
+#' \item{\code{output_time_granularity}: \code{character}. Output time granularity.}
+#'}
+#'
+#'
+#' After pre-processing, we provide a standard encoding for the time components. This regards the output in \code{training.data} and \code{full.data}.
+#' In the \code{ReSurv} notation:
+#'\itemize{
+#'\item{\code{AP_i}: Input granularity accident period.}
+#'\item{\code{AP_o}: Output granularity accident period.}
+#'\item{\code{DP_i}: Input granularity development period in forward time.}
+#'\item{\code{DP_rev_i}: Input granularity development period in reverse time.}
+#'\item{\code{DP_rev_o}: Output granularity development period in reverse time.}
+#'\item{\code{TR_i}: Input granularity truncation time.}
+#'\item{\code{TR_o}: Output granularity truncation time.}
+#'\item{\code{I}: event indicator, under this framework is equal to one for each entry. }
+#'}
+#'
+#'
+#'
 #' @importFrom dplyr mutate
 #' @importFrom dplyr filter
 #' @importFrom dplyr %>%
@@ -48,34 +111,6 @@
 #' @importFrom purrr map_df
 #' @importFrom stats as.formula
 #' @importFrom data.table data.table
-#'
-#'
-#' @return \code{IndividualDataPP} object. A list containing:
-#'  \itemize{
-#' \item{\code{full.data}: the input data after pre-processing.}
-#' \item{\code{starting.data}: the input data as they were provided from the user.}
-#' \item{\code{training.data}: the input data pre-processed for training.}
-#' \item{\code{conversion_factor}: the conversion factor for going from input granularity to output granularity. E.g, the conversion factor for going from months to quarters is 1/3.}
-#' \item{\code{string_formula_i}: string of the \code{survival} formula to model the data in input granularity.}
-#' \item{\code{string_formula_o}: string of the \code{survival} formula to model the in data output granularity.}
-#' \item{\code{continuous_features}: the continuous features names as provided from the user.}
-#' \item{\code{categorical_features}: the categorical features names as provided from the user.}
-#' \item{\code{calendar_period_extrapolation}: the \code{logical} value specifying wheter a calendar period component is extrapolated.}
-#'
-#' }
-#'
-#' After pre-processing, we provide a standard encoding for the time components. This regards the output in \code{training.data} and \code{full.data}.
-#' In the \code{ReSurv} notation:
-#'\itemize{
-#'\item{\code{AP_i}: input accident period.}
-#'\item{\code{AP_o}: output accident period.}
-#'\item{\code{DP_i}: input development period in forward time.}
-#'\item{\code{DP_rev_i}: input development period in reverse time.}
-#'\item{\code{DP_rev_o}: output development period in reverse time.}
-#'\item{\code{TR_i}: input truncation time.}
-#'\item{\code{TR_o}: output truncation time.}
-#'\item{\code{I}: event indicator, under this framework is equal to one for each entry. }
-#'}
 #'
 #'
 #'
@@ -149,18 +184,24 @@ IndividualDataPP <- function(data,
                                                                output_time_granularity)
 
 
-
+  max_dp_i =  pkg.env$maximum.time(years,input_time_granularity)
   # Build the variables you need
   tmp = tmp %>%
     mutate(AP_i=tmp.ap,
            DP_i=tmp.dp,
            RP_i=tmp.cp,
-           DP_rev_i = pkg.env$maximum.time(years,input_time_granularity) - DP_i+1,
+           DP_rev_i = max_dp_i - DP_i+1,
            TR_i = AP_i-1, #just setting truncation to max year simulated. and accounting for
            I=1) %>%
     as.data.frame()
 
-  max_dp_i =  pkg.env$maximum.time(years,input_time_granularity)
+  # In case you have an ID you only take the first row to avoid double counts.
+  # We assume you can only have one reporting time.
+  if(!is.null(id)){
+    tmp <- tmp %>%
+      group_by(get(id)) %>%
+      slice_head(n = 1) %>% as.data.frame()
+  }
 
   # Take the training data (upper triangle) and convert it from input_time_granularitys to output_time_granularitys
   train= tmp %>%

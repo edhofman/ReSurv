@@ -657,7 +657,7 @@ pkg.env$check.all.present <- function(x,check.on){
 
   if(sum(v>1)>0){
 
-    warning(paste0("Some", check.on, "are missing in the data"))
+    warning(paste("Some", check.on, "are missing in the data"))
 
   }
 
