@@ -1,5 +1,11 @@
-# find for each contribution the individuals at risk
-# in the tie
+#' Helper functions for xgboost
+#'
+#' This script contains the utils functions that are used in ReSurv xgboost.
+#' In particular, it finds for each contribution the individuals at risk
+#' in the tie.
+#'
+#' @import data.table
+
 risks_in_the_tie <- function(starts_i,
                              stops,
                              stops_i){
@@ -137,4 +143,4 @@ cox_loss_objective <- function(preds,dtrain){
 }
 
 
-
+utils::globalVariables(c("risks_s","events_s","ties"))

@@ -19,7 +19,7 @@
   ncores = 1,
   num_workers = 0,
   verbose = F,
-  verbose.cv
+  verbose.cv = F
 )
 }
 \arguments{

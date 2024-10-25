@@ -13,13 +13,13 @@
   continuous_features_scaling_method = "minmax",
   print_every_n = 1L,
   nrounds = NULL,
+  early_stopping_rounds = NULL,
   epochs = NULL,
-  num_workers = 0,
   parallel = F,
   ncores = 1,
-  verbose.cv = F,
+  num_workers = 0,
   verbose = F,
-  early_stopping_rounds = NULL
+  verbose.cv = F
 )
 }
 \arguments{
@@ -39,19 +39,19 @@
 
 \item{nrounds}{\code{integer}, specific to \code{XGB}, max number of boosting iterations.}
 
-\item{epochs}{\code{integer}, specific to the \code{NN} approach, epochs to be checked.}
+\item{early_stopping_rounds}{\code{integer}, specific to the \code{XGB} approach, see \code{xgboost::xgb.train} documentation.}
 
-\item{num_workers}{\code{numeric}, number of workers for the \code{NN} approach, multi-process data loading with the specified number of loader worker processes.}
+\item{epochs}{\code{integer}, specific to the \code{NN} approach, epochs to be checked.}
 
 \item{parallel}{\code{logical}, specific to the \code{NN} approach, whether to use parallel computing.}
 
 \item{ncores}{\code{integer}, specific to \code{NN}, max number of cores used.}
 
-\item{verbose.cv}{\code{logical}, whether messages from cross-validation must be printed.}
+\item{num_workers}{\code{numeric}, number of workers for the \code{NN} approach, multi-process data loading with the specified number of loader worker processes.}
 
 \item{verbose}{\code{logical}, whether messages from the machine learning models must be printed.}
 
-\item{early_stopping_rounds}{\code{integer}, specific to the \code{XGB} approach, see \code{xgboost::xgb.train} documentation.}
+\item{verbose.cv}{\code{logical}, whether messages from cross-validation must be printed.}
 }
 \value{
 Best \code{ReSurv} model fit. The output is different depending on the machine learning approach that is required for cross-validation. A list containing:

@@ -244,7 +244,7 @@ IndividualDataPP <- function(data,
 
 
 
-
+utils::globalVariables(c('RP_i','degree_cp'))
 
 
 

@@ -4,12 +4,14 @@
 \alias{plot.ReSurvFit}
 \title{Plot for machine learning models}
 \usage{
-\method{plot}{ReSurvFit}(object, nsamples = NULL)
+\method{plot}{ReSurvFit}(x, nsamples = NULL, ...)
 }
 \arguments{
-\item{object}{\code{ReSurvFit} object.}
+\item{x}{\code{ReSurvFit} x.}
 
 \item{nsamples}{\code{integer}, number of observations to sample for neural networks features importance plot.}
+
+\item{...}{Other arguments to be passed to plot.}
 }
 \value{
 predictions

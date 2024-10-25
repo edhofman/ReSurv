@@ -7,6 +7,8 @@
 #'
 #' @return \code{numeric}, out of the sample likelihood.
 #'
+#' @importFrom dplyr reframe
+#'
 #' @export
 ooslkh <- function(object,
                     ...){

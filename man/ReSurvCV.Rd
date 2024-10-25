@@ -18,8 +18,8 @@ ReSurvCV(
   parallel = F,
   ncores = 1,
   num_workers = 0,
-  verbose.cv = F,
-  verbose = F
+  verbose = F,
+  verbose.cv = F
 )
 }
 \arguments{
@@ -49,9 +49,9 @@ ReSurvCV(
 
 \item{num_workers}{\code{numeric}, number of workers for the \code{NN} approach, multi-process data loading with the specified number of loader worker processes.}
 
-\item{verbose.cv}{\code{logical}, whether messages from cross-validation must be printed.}
-
 \item{verbose}{\code{logical}, whether messages from the machine learning models must be printed.}
+
+\item{verbose.cv}{\code{logical}, whether messages from cross-validation must be printed.}
 }
 \value{
 Best \code{ReSurv} model fit. The output is different depending on the machine learning approach that is required for cross-validation. A list containing:
@@ -75,13 +75,13 @@ individual_data <- IndividualDataPP(input_data,
                                   id="claim_number",
                                   continuous_features=NULL,
                                   categorical_features="claim_type",
-                                  accident_period="AM",
-                                  calendar_period="RM",
+                                  accident_period="AP",
+                                  calendar_period="RP",
                                   input_time_granularity = "months",
                                   output_time_granularity = "quarters",
                                   years=4,
                                   continuous_features_spline=NULL,
-                                  calendar_period_extrapolation=F)
+                                  calendar_period_extrapolation=FALSE)
 
 resurv.cv.xgboost <- ReSurvCV(IndividualDataPP=individual_data,
                               model="XGB",
@@ -93,14 +93,14 @@ resurv.cv.xgboost <- ReSurvCV(IndividualDataPP=individual_data,
                               lambda=c(0,.2,1),
                                min_child_weight=c(.5,1)),
                                print_every_n = 1L,
-                               nrounds=500,
-                               verbose=F,
-                               verbose.cv=T,
-                               early_stopping_rounds = 100,
-                               folds=5,
-                               parallel=T,
-                               ncores=2,
-                               random_seed=1)
+                               nrounds=1L, ##set to one to run quickly
+                               verbose=FALSE,
+                               verbose.cv=TRUE,
+                               early_stopping_rounds = 100L,
+                               folds=5L,
+                               parallel=TRUE,
+                               ncores=2L,
+                               random_seed=1L)
 
 
 }

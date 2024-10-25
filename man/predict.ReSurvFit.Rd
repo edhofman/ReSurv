@@ -26,7 +26,7 @@ Default is \code{"exposure"}.}
 \item{check_value}{\code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.}
 }
 \value{
-predictions for the \texttt{ReSurvFit} model.
+Predictions for the \code{ReSurvFit} model.
 }
 \description{
 This function predicts the results from the ReSurv fits.

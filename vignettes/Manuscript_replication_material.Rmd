@@ -21,6 +21,7 @@ With reference to the code related to the simulation case study, we wanted to ma
 
 library(ReSurv)
 library(data.table)
+library(ggplot2)
 
 ```
 

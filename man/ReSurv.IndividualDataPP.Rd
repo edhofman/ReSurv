@@ -49,7 +49,7 @@ Default is \code{"exposure"}.}
 \item{check_value}{\code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.}
 }
 \value{
-\texttt{ReSurv} fit. A list containing
+\code{ReSurv} fit. A list containing
 \itemize{
 \item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
 \item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}

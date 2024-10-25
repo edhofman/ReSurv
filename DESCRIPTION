@@ -1,6 +1,6 @@
 Package: ReSurv
 Type: Package
-Title: Machine learning based models for predicting IBNR frequency.
+Title: Machine learning models for predicting IBNR claim counts
 Version: 0.0.2
 Authors@R:
     c(person(given = "Emil",
@@ -33,7 +33,9 @@ Imports:
   forecast,
   data.table,
   reshape,
-  purrr,
+  tidyr,
+  tibble,
+  ggplot2,
   survival,
   LTRCtrees,
   reshape2,

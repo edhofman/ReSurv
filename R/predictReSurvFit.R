@@ -12,8 +12,9 @@
 #' Default is \code{"exposure"}.
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #'
-#' @return predictions for the \texttt{ReSurvFit} model.
+#' @return Predictions for the \code{ReSurvFit} model.
 #'
+#' @importFrom dplyr bind_rows distinct
 #' @export
 #' @method predict ReSurvFit
 predict.ReSurvFit <- function(object,
@@ -240,7 +241,6 @@ predict.ReSurvFit <- function(object,
   class(out) <- c('ReSurvPredict')
 
   return(out)
-
 
 }
 

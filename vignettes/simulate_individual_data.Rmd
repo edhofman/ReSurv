@@ -13,6 +13,7 @@ bibliography: '`r system.file("references.bib", package="ReSurv")`'
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(ReSurv)
+library(ggplot2)
 ```
 
 # Introduction

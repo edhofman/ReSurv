@@ -10,6 +10,7 @@
 #' @return Survival CRPS, \code{data.table} that contains the CRPS (\code{crps}) for each observation (\code{id}).
 #'
 #' @import data.table
+#' @importFrom stats complete.cases
 #'
 #' @references
 #' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
@@ -226,7 +227,7 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 }
 
 
-
+utils::globalVariables(c("ix_group","S_i","id"))
 
 
 

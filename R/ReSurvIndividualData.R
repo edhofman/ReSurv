@@ -45,7 +45,7 @@
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #'
 #'
-#' @return \texttt{ReSurv} fit. A list containing
+#' @return \code{ReSurv} fit. A list containing
 #' \itemize{
 #' \item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
 #' \item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}
@@ -61,6 +61,8 @@
 #' @import rpart
 #' @import LTRCtrees
 #' @import data.table
+#' @importFrom dplyr reframe full_join
+#' @importFrom tidyr replace_na
 #'
 #' @references
 #' Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
@@ -133,7 +135,7 @@ ReSurv <- function(IndividualDataPP,
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #'
 #'
-#'  @return \texttt{ReSurv} fit. A list containing
+#'  @return \code{ReSurv} fit. A list containing
 #' \itemize{
 #' \item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
 #' \item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}
@@ -222,7 +224,7 @@ ReSurv.default <- function(IndividualDataPP,
 #' Default is \code{"exposure"}.
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #'
-#' @return \texttt{ReSurv} fit. A list containing
+#' @return \code{ReSurv} fit. A list containing
 #' \itemize{
 #' \item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
 #' \item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}
@@ -327,12 +329,12 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
                        DP_rev_i=sort(as.integer(unique(IndividualDataPP$training.data$DP_rev_i))))
 
     ### make it relative
-    newdata.bs <- ReSurv:::pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
+    newdata.bs <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
                                                    newdata=newdata,
                                                    continuous_features=IndividualDataPP$continuous_features,
                                                    categorical_features=IndividualDataPP$categorical_features)
 
-    benchmark_id <- ReSurv:::pkg.env$benchmark_id(X = X_tmp_bsln,
+    benchmark_id <- pkg.env$benchmark_id(X = X_tmp_bsln,
                                                   Y =Y ,
                                                   newdata.mx = newdata.bs,
                                                   remove_first_dummy=T)
@@ -632,6 +634,6 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
   return(out)
 }
 
-
+utils::globalVariables(c("is_lkh"))
 
 

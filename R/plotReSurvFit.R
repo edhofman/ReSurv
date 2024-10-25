@@ -2,20 +2,25 @@
 #'
 #' This function plots the mean absolute SHAP values for the ReSurv fits of machine learning models.
 #'
-#' @param object \code{ReSurvFit} object.
+#' @param x \code{ReSurvFit} x.
 #' @param nsamples \code{integer}, number of observations to sample for neural networks features importance plot.
+#' @param ... Other arguments to be passed to plot.
 #'
 #' @return predictions
 #'
 #' @import SHAPforxgboost
+#' @import ggplot2
+#' @importFrom tibble rownames_to_column
 #'
 #' @export
 #' @method plot ReSurvFit
-plot.ReSurvFit <- function(object,
-                           nsamples=NULL){
+plot.ReSurvFit <- function(x,
+                           nsamples=NULL,
+                           ...
+                           ){
 
-  hazard_model <- object$hazard_model
-  output.fit <- object$model.out
+  hazard_model <- x$hazard_model
+  output.fit <- x$model.out
 
   if(hazard_model=="XGB"){
 
