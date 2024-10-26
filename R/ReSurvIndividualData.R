@@ -19,7 +19,6 @@
 #' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{COX}}
 #' \item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
 #' \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
-#' \item{\href{https://cran.r-project.org/web/packages/LTRCtrees/LTRCtrees.pdf}{Left-truncated Right-Censored Trees}}
 #' }
 #'
 #'
@@ -50,7 +49,17 @@
 #' \item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
 #' \item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}
 #' \item{\code{os_lkh}:  \code{numeric} Validation  negative log likelihood. Not available for COX.}
-#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted log-risk and baseline (\code{expg}, \code{baseline}), the fitted hazard (\code{hazard}), the fitted development factors ( \code{dev_f_i}), their cumulative version (\code{cum_dev_f_i }), the fitted survival function \code{S_i}.}
+#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted hazard model with the corresponding covariates. It contains:}
+#'    \itemize{
+#'    \item{\code{expg}: fitted risk score.}
+#'    \item{\code{baseline}: fitted baseline.}
+#'    \item{\code{hazard}: fitted hazard rate (\code{expg}*\code{baseline}).}
+#'    \item{\code{dev_f_i}: fitted development factors.}
+#'    \item{\code{cum_dev_f_i}: fitted cumulative development factors.}
+#'    \item{\code{S_i}:fitted survival function.}
+#'    \item{\code{S_i_lag}:fitted survival function (lag version, for further information see \code{?dplyr::lag}).}
+#'    \item{\code{S_i_lead}:fitted survival function (lead version, for further information see \code{?dplyr::lead}).}
+#'    }
 #' \item{\code{hazard_model}: \code{string} chosen hazard model (COX, NN or XGB)}
 #' \item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
 #' }
@@ -109,7 +118,6 @@ ReSurv <- function(IndividualDataPP,
 #' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{COX}}
 #' \item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
 #' \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
-#' \item{\href{https://cran.r-project.org/web/packages/LTRCtrees/LTRCtrees.pdf}{Left-truncated Right-Censored Trees}}
 #' }
 #'
 #'
@@ -135,12 +143,22 @@ ReSurv <- function(IndividualDataPP,
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #'
 #'
-#'  @return \code{ReSurv} fit. A list containing
+#' @return \code{ReSurv} fit. A list containing
 #' \itemize{
 #' \item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
 #' \item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}
 #' \item{\code{os_lkh}:  \code{numeric} Validation  negative log likelihood. Not available for COX.}
-#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted log-risk and baseline (\code{expg}, \code{baseline}), the fitted hazard (\code{hazard}), the fitted development factors ( \code{dev_f_i}), their cumulative version (\code{cum_dev_f_i }), the fitted survival function \code{S_i}.}
+#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted hazard model with the corresponding covariates. It contains:}
+#'    \itemize{
+#'    \item{\code{expg}: fitted risk score.}
+#'    \item{\code{baseline}: fitted baseline.}
+#'    \item{\code{hazard}: fitted hazard rate (\code{expg}*\code{baseline}).}
+#'    \item{\code{dev_f_i}: fitted development factors.}
+#'    \item{\code{cum_dev_f_i}: fitted cumulative development factors.}
+#'    \item{\code{S_i}:fitted survival function.}
+#'    \item{\code{S_i_lag}:fitted survival function (lag version, for further information see \code{?dplyr::lag}).}
+#'    \item{\code{S_i_lead}:fitted survival function (lead version, for further information see \code{?dplyr::lead}).}
+#'    }
 #' \item{\code{hazard_model}: \code{string} chosen hazard model (COX, NN or XGB)}
 #' \item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
 #' }
@@ -199,7 +217,6 @@ ReSurv.default <- function(IndividualDataPP,
 #' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{COX}}
 #' \item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
 #' \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
-#' \item{\href{https://cran.r-project.org/web/packages/LTRCtrees/LTRCtrees.pdf}{Left-truncated Right-Censored Trees}}
 #' }
 #'
 #'
@@ -229,7 +246,17 @@ ReSurv.default <- function(IndividualDataPP,
 #' \item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
 #' \item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}
 #' \item{\code{os_lkh}:  \code{numeric} Validation  negative log likelihood. Not available for COX.}
-#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted log-risk and baseline (\code{expg}, \code{baseline}), the fitted hazard (\code{hazard}), the fitted development factors ( \code{dev_f_i}), their cumulative version (\code{cum_dev_f_i }), the fitted survival function \code{S_i}.}
+#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted hazard model with the corresponding covariates. It contains:}
+#'    \itemize{
+#'    \item{\code{expg}: fitted risk score.}
+#'    \item{\code{baseline}: fitted baseline.}
+#'    \item{\code{hazard}: fitted hazard rate (\code{expg}*\code{baseline}).}
+#'    \item{\code{dev_f_i}: fitted development factors.}
+#'    \item{\code{cum_dev_f_i}: fitted cumulative development factors.}
+#'    \item{\code{S_i}:fitted survival function.}
+#'    \item{\code{S_i_lag}:fitted survival function (lag version, for further information see \code{?dplyr::lag}).}
+#'    \item{\code{S_i_lead}:fitted survival function (lead version, for further information see \code{?dplyr::lead}).}
+#'    }
 #' \item{\code{hazard_model}: \code{string} chosen hazard model (COX, NN or XGB)}
 #' \item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
 #' }

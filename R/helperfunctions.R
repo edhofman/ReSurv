@@ -1611,8 +1611,7 @@ pkg.env$input_hazard_frame <- function(
     adjusted=FALSE)
 {
   "
-  Create a hazard frame with relevant input-period specific values for later output
-
+  Create a hazard frame with relevant input time granularity specific values for later output.
   "
   if("AP_i" %in% continuous_features & length(continuous_features) == 1){
     continuous_features <- NULL
