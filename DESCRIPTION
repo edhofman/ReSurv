@@ -30,6 +30,7 @@ Imports:
   dtplyr,
   fastDummies,
   forecast,
+  lubridate,
   data.table,
   reshape,
   purrr,
@@ -45,6 +46,7 @@ Imports:
   reticulate, 
   xgboost,
   SHAPforxgboost
+SystemRequirements: Python (>= 3.9)
 Encoding: UTF-8
 LazyData: true
 Suggests: 

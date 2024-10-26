@@ -104,6 +104,7 @@
 #' @importFrom dplyr %>%
 #' @importFrom dplyr across
 #' @importFrom dplyr all_of
+#' @importFrom dplyr slice_head
 #' @importFrom dplyr select
 #' @importFrom dplyr group_by
 #' @importFrom dplyr row_number

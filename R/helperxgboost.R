@@ -143,7 +143,7 @@ cox_loss_objective <- function(preds,dtrain){
 }
 
 
-utils::globalVariables(c("risks_in_the_tie","starts_i","stops","stops_i","risks_s","events_s","ties"))
+utils::globalVariables(c("risks_s","events_s","ties"))
 
 
 
