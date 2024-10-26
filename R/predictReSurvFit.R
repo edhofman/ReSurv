@@ -11,6 +11,8 @@
 #' }
 #' Default is \code{"exposure"}.
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
+#' @param ... Additional arguments to pass to the predict function.
+#'
 #'
 #' @return Predictions for the \code{ReSurvFit} model.
 #'
@@ -20,7 +22,8 @@
 predict.ReSurvFit <- function(object,
                               newdata=NULL,
                               grouping_method = "probability",
-                              check_value = 1.85){
+                              check_value = 1.85,
+                              ...){
 
 
   if(!is.null(newdata)){

@@ -8,7 +8,8 @@
   object,
   newdata = NULL,
   grouping_method = "probability",
-  check_value = 1.85
+  check_value = 1.85,
+  ...
 )
 }
 \arguments{
@@ -24,6 +25,8 @@
 Default is \code{"exposure"}.}
 
 \item{check_value}{\code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.}
+
+\item{...}{Additional arguments to pass to the predict function.}
 }
 \value{
 Predictions for the \code{ReSurvFit} model.

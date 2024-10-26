@@ -26,13 +26,13 @@ License: GPL (>= 2)
 Depends: tidyverse
 Imports: 
   stats,
-  lubridate,
   dplyr,
   dtplyr,
   fastDummies,
   forecast,
   data.table,
   reshape,
+  purrr,
   tidyr,
   tibble,
   ggplot2,

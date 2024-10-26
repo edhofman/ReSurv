@@ -8,7 +8,6 @@
 #' @importFrom reshape2 melt
 #' @import survival
 #' @importFrom stats runif pnorm predict
-#' @import lubridate
 #' @import dtplyr
 #' @import forecast
 #' @import reticulate
