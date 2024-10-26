@@ -4,7 +4,7 @@ author: "Gabriele Pittarello"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Exploring the variables importance}
+  %\VignetteIndexEntry{2024 Reserving Call Paper Program on Technology and the Reserving Actuary}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---

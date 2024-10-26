@@ -11,6 +11,7 @@
 #'
 #' @import data.table
 #' @importFrom stats complete.cases
+#' @importFrom data.table .
 #'
 #' @references
 #' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.

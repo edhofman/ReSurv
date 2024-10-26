@@ -14,6 +14,7 @@
 #' @return Summary of predictions
 #'
 #' @import data.table
+#' @importFrom data.table .
 #'
 #' @export
 #' @method summary ReSurvPredict
