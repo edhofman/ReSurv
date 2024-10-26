@@ -6,6 +6,7 @@
 #'
 #' @import data.table
 
+#' @noRd
 risks_in_the_tie <- function(starts_i,
                              stops,
                              stops_i){
@@ -142,8 +143,6 @@ cox_loss_objective <- function(preds,dtrain){
   return(list(grad=grad,hess=hess))
 }
 
-
-utils::globalVariables(c("risks_s","events_s","ties"))
 
 
 

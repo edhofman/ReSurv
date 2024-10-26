@@ -14,7 +14,6 @@
 #' @return Summary of predictions
 #'
 #' @import data.table
-#' @importFrom data.table .
 #'
 #' @export
 #' @method summary ReSurvPredict
@@ -111,6 +110,4 @@ print.summaryReSurvPredict <-
     invisible(x)
   }
 
-
-utils::globalVariables(c("IBNR"))
 

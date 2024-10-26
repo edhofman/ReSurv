@@ -634,6 +634,5 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
   return(out)
 }
 
-utils::globalVariables(c("is_lkh"))
 
 
