@@ -1,2 +1,5 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+^README\.Rmd$
+^\.github$
+^_rhub\.yml$

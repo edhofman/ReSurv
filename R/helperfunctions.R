@@ -4,8 +4,6 @@
 #'
 #' @importFrom fastDummies dummy_cols
 #' @importFrom bshazard bshazard
-#' @import reshape
-#' @importFrom reshape2 melt
 #' @import survival
 #' @importFrom stats runif pnorm predict
 #' @import dtplyr
