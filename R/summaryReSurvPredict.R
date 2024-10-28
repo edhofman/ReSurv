@@ -23,13 +23,13 @@ summary.ReSurvPredict <- function(object, granularity = "input", ...)
   handle <- match(granularity, c("input","output"))
 
   IBNR_AP <- switch(handle,
-                    data.table(object$hazard_frame_input)[, .(IBNR=sum(IBNR, na.rm=T)), by = AP_i],
-                    data.table(object$hazard_frame_output)[, .(IBNR=sum(IBNR, na.rm=T)), by = AP_o]
+                    data.table(object$long_triangle_format_output$input_tg)[, .(IBNR=sum(IBNR, na.rm=T)), by = AP_i],
+                    data.table(object$long_triangle_format_output$output_tg)[, .(IBNR=sum(IBNR, na.rm=T)), by = AP_o]
   )
 
-  development_factor = switch(handle,
-                              object$df_input,
-                              object$df_output)
+  # development_factor = switch(handle,
+  #                             object$df_input,
+  #                             object$df_output)
 
   keep = c(
     "model.out",
@@ -40,7 +40,7 @@ summary.ReSurvPredict <- function(object, granularity = "input", ...)
   summary <- list(
     IBNR_AP = IBNR_AP,
     total_IBNR = sum(IBNR_AP$IBNR),
-    development_factor=development_factor,
+    # development_factor=development_factor,
     grouping_method = object$grouping_method,
     granularity = granularity,
     ReSurvFit = object$ReSurvFit[keep]

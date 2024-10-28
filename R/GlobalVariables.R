@@ -26,7 +26,9 @@ vector_of_variables <- c("DP_i",
                          "ix_group",
                          "S_i",
                          ".",
-                         "id")
+                         "id",
+                         "expg",
+                         "baseline")
 
 globalVariables(vector_of_variables)
 

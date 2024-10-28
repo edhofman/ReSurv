@@ -14,7 +14,43 @@
 #' @param ... Additional arguments to pass to the predict function.
 #'
 #'
-#' @return Predictions for the \code{ReSurvFit} model.
+#' @return Predictions for the \code{ReSurvFit} model. It includes
+#' \itemize{
+#' \item{\code{ReSurvFit}: Fitted \code{ReSurv} model.}
+#' \item{\code{long_triangle_format_out}: \code{data.frame}. Predicted development factors and IBNR claim counts for each feature combination in long format.}
+#' \itemize{
+#' \item{\code{input_tg}: \code{data.frame}. Predictions for each feature combination in long format for \code{input_time_granularity}.}
+#' \itemize{
+#' \item{\code{AP_i}: Accident period, \code{input_time_granularity}.}
+#' \item{\code{DP_i}: Development period, \code{input_time_granularity}.}
+#' \item{\code{df_i}: Predicted development factors, \code{input_time_granularity}.}
+#' \item{\code{group_i}: Group code, \code{input_time_granularity}. This associates to each feature combination an identifier.}
+#' \item{\code{I_expected}: Expected counts, \code{input_time_granularity}.}
+#' \item{\code{IBNR}: Predicted IBNR claim counts, \code{input_time_granularity}.}
+#' }
+#' \item{\code{output_tg}: \code{data.frame}. Predictions for each feature combination in long format for \code{output_time_granularity}.}
+#' \itemize{
+#' \item{\code{AP_o}: Accident period, \code{output_time_granularity}.}
+#' \item{\code{DP_o}: Development period, \code{output_time_granularity}.}
+#' \item{\code{df_o}: Predicted development factors, \code{output_time_granularity}.}
+#' \item{\code{group_o}: Group code, \code{output_time_granularity}. This associates to each feature combination an identifier.}
+#' \item{\code{I_expected}: Expected counts, \code{output_time_granularity}.}
+#' \item{\code{IBNR}: Predicted IBNR claim counts, \code{output_time_granularity}.}
+#' }
+#' }
+#' \item{\code{lower_triangle}: Predicted lower triangle.}
+#' \itemize{
+#' \item{\code{input_tg}: \code{data.frame}. Predicted lower triangle for \code{input_time_granularity}.}
+#' \item{\code{output_tg}: \code{data.frame}. Predicted lower triangle for \code{output_time_granularity}.}
+#' }
+#' \item{\code{predicted_IBNR_count}: Predicted total IBNR frequencies.}
+#' \itemize{
+#' \item{\code{input_tg}: \code{numeric}. Predicted lower triangle for \code{input_time_granularity}.}
+#' \item{\code{output_tg}: \code{numeric}. Predicted lower triangle for \code{output_time_granularity}.}
+#' }
+#' \item{\code{grouping_method}: \code{character}. Chosen grouping method.}
+#'
+#' }
 #'
 #' @importFrom dplyr bind_rows distinct
 #' @export
@@ -224,11 +260,36 @@ predict.ReSurvFit <- function(object,
       groups = hazard_frame_grouped$groups
     )
 
+    # Final output formatting: no actual computations from here on
+
+    max_dp_i=pkg.env$maximum.time(object$IndividualDataPP$years, object$IndividualDataPP$input_time_granularity)
+
+    long_tr_input = hazard_frame_input %>%
+      mutate(DP_i = max_dp_i -DP_rev_i +1) %>%
+      select(-expg,-baseline,-hazard,-DP_rev_i) %>%
+      as.data.frame()
+
+    long_tr_output = hazard_frame_output %>%
+      mutate(DP_o = max(DP_rev_o) -DP_rev_o +1) %>%
+      select(-DP_rev_o) %>%
+      as.data.frame()
+
+    rm(list=c("df_o","df_i","hazard_frame_input","hazard_frame_output"))
+
+    ltr_input <- pkg.env$find_lt_input(long_tr_input,max_dp_i)
+
+    ltr_output <- pkg.env$find_lt_output(long_tr_output,max(long_tr_output$DP_o))
+
     out=list(ReSurvFit = object,
-             df_output = as.data.frame(df_o),
-             df_input = as.data.frame(df_i),
-             hazard_frame_input = as.data.frame(hazard_frame_input),
-             hazard_frame_output = as.data.frame(hazard_frame_output),
+             # I removed these two (memory issues)
+             # df_output = as.data.frame(df_o),
+             # df_input = as.data.frame(df_i),
+             long_triangle_format_out = list(input_tg = long_tr_input,
+                                         output_tg = long_tr_output),
+             lower_triangle=list(input_tg=ltr_input,
+                                 output_tg=ltr_output),
+             predicted_IBNR_count=list(input_tg = sum(long_tr_input$IBNR, na.rm = T),
+                                       output_tg = sum(long_tr_output$IBNR, na.rm = T)),
              grouping_method = grouping_method)
 
     class(out) <- c('ReSurvPredict')
@@ -236,9 +297,22 @@ predict.ReSurvFit <- function(object,
     return(out)
   }
 
+
+  max_dp_i=pkg.env$maximum.time(object$IndividualDataPP$years, object$IndividualDataPP$input_time_granularity)
+
+  long_tr_input = hazard_frame_input %>%
+    mutate(DP_i = max_dp_i -DP_rev_i +1) %>%
+    select(-expg,-baseline,-hazard,-DP_rev_i) %>%
+    as.data.frame()
+
+
+  ltr_input <- pkg.env$find_lt_input(long_tr_input,max_dp_i)
+
   out=list(ReSurvFit = object,
-           df_input = as.data.frame(df_i),
-           hazard_frame_input = as.data.frame(hazard_frame_input),
+           # I removed these two (memory issues)
+           # df_input = as.data.frame(df_i),
+           long_triangle_format_out = long_tr_input,
+           lower_triangle=ltr_input,
            grouping_method = grouping_method)
 
   class(out) <- c('ReSurvPredict')

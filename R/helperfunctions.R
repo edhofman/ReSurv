@@ -3193,4 +3193,194 @@ survival_information<-function(x,
 }
 
 
+pkg.env$complete_lt_predictions_i <- function(dt,max_dp){
+
+  "
+  Add the missing combinations of AP_i and DP_i to the long format output long_tr_input to create a triangle data.frame.
+  "
+
+  seq1_main <- unique(dt$AP_i)
+  seq2_main <- unique(dt$DP_i)
+
+  complete_seq <- 1:max_dp
+
+  diff1<-setdiff(complete_seq, seq1_main)
+  diff2<-setdiff(complete_seq, seq2_main)
+
+
+  if(length(diff1)==0){
+
+    if(length(diff2)==0){
+
+      return(NULL)
+
+    }else{
+
+      return(CJ(seq1_main,diff2))
+
+    }
+
+  }else{
+
+    if(length(diff2)==0){
+
+      return(CJ(diff1,seq2_main))
+
+    }else{
+
+      return(CJ(diff1,diff2))
+
+    }
+
+
+  }
+
+
+}
+
+
+pkg.env$complete_lt_predictions_o <- function(dt,max_dp){
+
+  "
+  Add the missing combinations of AP_o and DP_o to the long format output long_tr_output to create a triangle data.frame.
+  "
+
+  seq1_main <- unique(dt$AP_o)
+  seq2_main <- unique(dt$DP_o)
+
+  complete_seq <- 1:max_dp
+
+  diff1<-setdiff(complete_seq, seq1_main)
+  diff2<-setdiff(complete_seq, seq2_main)
+
+
+  if(length(diff1)==0){
+
+    if(length(diff2)==0){
+
+      return(NULL)
+
+    }else{
+
+      return(CJ(seq1_main,diff2))
+
+    }
+
+  }else{
+
+    if(length(diff2)==0){
+
+      return(CJ(diff1,seq2_main))
+
+    }else{
+
+      return(CJ(diff1,diff2))
+
+    }
+
+
+  }
+
+
+}
+
+pkg.env$find_lt_input <- function(dt,max_dp){
+
+  "
+  Return the lower triangular output in a data.frame format (input granularity).
+  "
+
+
+  dt <- as.data.table(dt)
+
+  dt<-dt[,.(value=sum(IBNR,na.rm=TRUE)),by=.(AP_i,DP_i)]
+
+  add_up <- pkg.env$complete_lt_predictions_i(dt,max_dp)
+
+  if(!is.null(add_up)){
+
+    colnames(add_up) <- c("AP_i","DP_i")
+
+    add_up[["value"]] <- 0
+
+    dt <- rbind(dt,add_up)
+
+  }
+
+  dt.w<-dcast(dt, AP_i ~ DP_i , value.var = "value") %>%
+    as.data.frame()
+
+  rownames(dt.w) <- dt.w$AP_i
+  dt.w <- dt.w[,-1]
+
+  for(i in 1:max_dp){
+
+    for(j in 1:max_dp){
+
+      if((i+j-1) <= (max_dp)){
+
+        dt.w[i,j]<-NA
+
+      }
+
+    }
+
+  }
+
+  return(dt.w)
+
+}
+
+
+pkg.env$find_lt_output <- function(dt,max_dp){
+
+
+  "
+  Return the lower triangular output in a data.frame format (output granularity).
+  "
+
+  dt <- as.data.table(dt)
+
+  dt<-dt[,.(value=sum(IBNR,na.rm=TRUE)),by=.(AP_o,DP_o)]
+
+  add_up <- pkg.env$complete_lt_predictions_o(dt,max_dp)
+
+  if(!is.null(add_up)){
+
+    colnames(add_up) <- c("AP_o","DP_o")
+
+    add_up[["value"]] <- 0
+
+    dt <- rbind(dt,add_up)
+
+  }
+
+  dt.w<-dcast(dt, AP_o ~ DP_o , value.var = "value") %>%
+    as.data.frame()
+
+  rownames(dt.w) <- dt.w$AP_o
+  dt.w <- dt.w[,-1]
+
+
+
+  for(i in 1:max_dp){
+
+    for(j in 1:max_dp){
+
+      if((i+j-1) <= (max_dp)){
+
+        if(is.na(dt.w[i,j]) | dt.w[i,j]==0){dt.w[i,j]<-NA}
+
+      }
+
+    }
+
+  }
+
+  return(dt.w)
+
+}
+
+
+
 
