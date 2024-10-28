@@ -4,7 +4,7 @@
 \alias{summary.ReSurvPredict}
 \title{Summary of IBNR predictions}
 \usage{
-\method{summary}{ReSurvPredict}(object, granularity = "input")
+\method{summary}{ReSurvPredict}(object, granularity = "input", ...)
 }
 \arguments{
 \item{object}{"ReSurvPredict" object specifying hazard and development factors.}
@@ -15,9 +15,11 @@
 \item{\code{"output"}}
 }
 Default is \code{"input"}.}
+
+\item{...}{Other arguments to be passed to summary.}
 }
 \value{
-summary of predictions
+Summary of predictions
 }
 \description{
 Gives overview of IBNR predictions

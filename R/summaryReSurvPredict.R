@@ -9,12 +9,16 @@
 #' \item{\code{"output"}}
 #' }
 #' Default is \code{"input"}.
-#' @return summary of predictions
+#' @param ... Other arguments to be passed to summary.
+#'
+#' @return Summary of predictions
+#'
+#' @import data.table
 #'
 #' @export
 #' @method summary ReSurvPredict
 
-summary.ReSurvPredict <- function(object, granularity = "input")
+summary.ReSurvPredict <- function(object, granularity = "input", ...)
 {
   handle <- match(granularity, c("input","output"))
 
@@ -52,13 +56,15 @@ summary.ReSurvPredict <- function(object, granularity = "input")
 #'
 #' @param x "ReSurvPredict" object specifying hazard and development factors.
 #' @param digits \code{numeric}, number of digits to print for IBNR and Likelihood.
+#' @param ... Other arguments to be passed to print.
+#'
 #' @return print of summary of predictions
 #'
 #' @export
 #' @method print summaryReSurvPredict
 
 print.summaryReSurvPredict <-
-  function (x, digits = max(3L, getOption("digits") - 3L))
+  function (x, digits = max(3L, getOption("digits") - 3L), ...)
   {
     cat("\n Hazard model:\n",
         paste(deparse(x$ReSurvFit$hazard_model), sep = "\n", collapse = "\n"), "\n\n", sep = "")
@@ -103,3 +109,5 @@ print.summaryReSurvPredict <-
 
     invisible(x)
   }
+
+

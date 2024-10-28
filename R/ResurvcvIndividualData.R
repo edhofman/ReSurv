@@ -41,13 +41,13 @@
 #'                                   id="claim_number",
 #'                                   continuous_features=NULL,
 #'                                   categorical_features="claim_type",
-#'                                   accident_period="AM",
-#'                                   calendar_period="RM",
+#'                                   accident_period="AP",
+#'                                   calendar_period="RP",
 #'                                   input_time_granularity = "months",
 #'                                   output_time_granularity = "quarters",
 #'                                   years=4,
 #'                                   continuous_features_spline=NULL,
-#'                                   calendar_period_extrapolation=F)
+#'                                   calendar_period_extrapolation=FALSE)
 #'
 #' resurv.cv.xgboost <- ReSurvCV(IndividualDataPP=individual_data,
 #'                               model="XGB",
@@ -59,14 +59,14 @@
 #'                               lambda=c(0,.2,1),
 #'                                min_child_weight=c(.5,1)),
 #'                                print_every_n = 1L,
-#'                                nrounds=500,
-#'                                verbose=F,
-#'                                verbose.cv=T,
-#'                                early_stopping_rounds = 100,
-#'                                folds=5,
-#'                                parallel=T,
-#'                                ncores=2,
-#'                                random_seed=1)
+#'                                nrounds=1L, ##set to one to run quickly
+#'                                verbose=FALSE,
+#'                                verbose.cv=TRUE,
+#'                                early_stopping_rounds = 100L,
+#'                                folds=5L,
+#'                                parallel=TRUE,
+#'                                ncores=2L,
+#'                                random_seed=1L)
 #'
 #'
 #' @references
@@ -86,8 +86,8 @@ ReSurvCV <- function(IndividualDataPP,
                      parallel=F,
                      ncores = 1,
                      num_workers  =0,
-                     verbose.cv=F,
-                     verbose=F){
+                     verbose=F,
+                     verbose.cv=F){
 
   UseMethod("ReSurvCV")
 
@@ -139,7 +139,7 @@ ReSurvCV.default <- function(IndividualDataPP,
                              ncores = 1,
                              num_workers  =0,
                              verbose = F,
-                             verbose.cv){
+                             verbose.cv=F){
 
   message('The object provided must be of class IndividualDataPP')
 
@@ -183,13 +183,13 @@ ReSurvCV.IndividualDataPP <- function(IndividualDataPP,
                                   continuous_features_scaling_method="minmax",
                                   print_every_n = 1L,
                                   nrounds= NULL,
+                                  early_stopping_rounds = NULL,
                                   epochs=NULL,
-                                  num_workers = 0,
                                   parallel=F,
                                   ncores = 1,
-                                  verbose.cv=F,
+                                  num_workers = 0,
                                   verbose = F,
-                                  early_stopping_rounds = NULL){
+                                  verbose.cv=F){
 
 
   set.seed(random_seed)

@@ -4,7 +4,7 @@ author: "Gabriele Pittarello"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Exploring the variables importance}
+  %\VignetteIndexEntry{2024 Reserving Call Paper Program on Technology and the Reserving Actuary}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -359,6 +359,12 @@ print(model_s)
 ```
 
 
+Similar functions for the other models
+```{r eval=FALSE, include=TRUE}
+resurv.predict.xgb <- predict(resurv.fit.xgb)
+resurv.predict.nn <- predict(resurv.fit.nn)
+```
+
 # Data application
 
 
@@ -683,7 +689,7 @@ conversion_factor <- resurv.fit.predict.xgb$ReSurvFit$IndividualData$conversion_
 
 max_dp_i <-1440
 
-true_output <- out$ReSurvFit$IndividualData$full.data %>%
+true_output <- resurv.fit.cox$IndividualDataPP$full.data%>%
   mutate(
     DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
     AP_o = ceiling(AP_i*conversion_factor),
@@ -696,7 +702,7 @@ true_output <- out$ReSurvFit$IndividualData$full.data %>%
   filter(DP_rev_o>0) #we cant have =0, because corresponds to half a parallelogram.
 
 #Total output
-score_total<- out$hazard_frame_output[,c("claim_type","AP_o", "DP_rev_o", "I_expected")] %>%
+score_total<- resurv.fit.predict.xgb$hazard_frame_output[,c("claim_type","AP_o", "DP_rev_o", "I_expected")] %>%
   inner_join(true_output, by =c("claim_type","AP_o", "DP_rev_o")) %>%
   mutate(ave = I-I_expected,
          abs_ave = abs(ave)) %>%

@@ -1,6 +1,6 @@
 Package: ReSurv
 Type: Package
-Title: Machine learning based models for predicting IBNR frequency.
+Title: Machine learning models for predicting IBNR claim counts
 Version: 0.0.2
 Authors@R:
     c(person(given = "Emil",
@@ -26,14 +26,15 @@ License: GPL (>= 2)
 Depends: tidyverse
 Imports: 
   stats,
-  lubridate,
   dplyr,
   dtplyr,
   fastDummies,
   forecast,
   data.table,
-  reshape,
   purrr,
+  tidyr,
+  tibble,
+  ggplot2,
   survival,
   LTRCtrees,
   reshape2,
@@ -43,10 +44,11 @@ Imports:
   reticulate, 
   xgboost,
   SHAPforxgboost
+SystemRequirements: Python (>= 3.8.0)
 Encoding: UTF-8
 LazyData: true
 Suggests: 
   knitr,
   rmarkdown
 VignetteBuilder: knitr, rmarkdown
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2

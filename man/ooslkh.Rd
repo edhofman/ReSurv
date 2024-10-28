@@ -2,7 +2,7 @@
 % Please edit documentation in R/ooslkhReSurvFit.R
 \name{ooslkh}
 \alias{ooslkh}
-\title{Compute the out-of-the sample likelihood}
+\title{Compute the out-of-sample likelihood}
 \usage{
 ooslkh(object, ...)
 }
@@ -12,7 +12,7 @@ ooslkh(object, ...)
 \item{...}{Other arguments to pass to ooslkh.}
 }
 \value{
-\code{numeric}, out of the sample likelihood.
+\code{numeric}, out-of-sample likelihood.
 }
 \description{
 When the lower triangle data are available, this method computes the likelihood on the lower triangle.

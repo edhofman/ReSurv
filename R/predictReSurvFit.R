@@ -11,15 +11,19 @@
 #' }
 #' Default is \code{"exposure"}.
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
+#' @param ... Additional arguments to pass to the predict function.
 #'
-#' @return predictions for the \texttt{ReSurvFit} model.
 #'
+#' @return Predictions for the \code{ReSurvFit} model.
+#'
+#' @importFrom dplyr bind_rows distinct
 #' @export
 #' @method predict ReSurvFit
 predict.ReSurvFit <- function(object,
                               newdata=NULL,
                               grouping_method = "probability",
-                              check_value = 1.85){
+                              check_value = 1.85,
+                              ...){
 
 
   if(!is.null(newdata)){
@@ -221,10 +225,10 @@ predict.ReSurvFit <- function(object,
     )
 
     out=list(ReSurvFit = object,
-             df_output = df_o,
-             df_input = df_i,
-             hazard_frame_input = hazard_frame_input,
-             hazard_frame_output = hazard_frame_output,
+             df_output = as.data.frame(df_o),
+             df_input = as.data.frame(df_i),
+             hazard_frame_input = as.data.frame(hazard_frame_input),
+             hazard_frame_output = as.data.frame(hazard_frame_output),
              grouping_method = grouping_method)
 
     class(out) <- c('ReSurvPredict')
@@ -233,14 +237,13 @@ predict.ReSurvFit <- function(object,
   }
 
   out=list(ReSurvFit = object,
-           df_input = df_i,
-           hazard_frame_input = hazard_frame_input,
+           df_input = as.data.frame(df_i),
+           hazard_frame_input = as.data.frame(hazard_frame_input),
            grouping_method = grouping_method)
 
   class(out) <- c('ReSurvPredict')
 
   return(out)
-
 
 }
 

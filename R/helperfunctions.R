@@ -4,8 +4,8 @@
 #'
 #' @importFrom fastDummies dummy_cols
 #' @importFrom bshazard bshazard
-#' @importFrom reshape2 melt
 #' @import survival
+#' @importFrom stats runif pnorm predict
 #' @import dtplyr
 #' @import forecast
 #' @import reticulate
@@ -13,6 +13,8 @@
 #' @importFrom rpart rpart.control
 #' @importFrom LTRCtrees LTRCART
 #' @import data.table
+#' @importFrom dplyr reframe lag full_join rename
+#' @importFrom tidyr replace_na
 
 pkg.env <- new.env()
 
@@ -263,7 +265,14 @@ pkg.env$scenario0_simulator <- function(ref_claim,
            I)
 
 
-  simulated_dataframe_RM_CT
+  setDT(simulated_dataframe_RM_CT)
+
+  return(simulated_dataframe_RM_CT[,.(claim_number,
+                               AT,
+                               RT,
+                               claim_type,
+                               AP,
+                               RP)])
 
 }
 
@@ -339,7 +348,16 @@ pkg.env$scenario1_simulator <- function(ref_claim,
     ) %>%
     select(claim_number, AT, RT, claim_type, AP, RP, DT, RP, DP_rev, DT_rev, TR, I)
 
-  simulated_dataframe_RM_CT
+  #simulated_dataframe_RM_CT
+
+  setDT(simulated_dataframe_RM_CT)
+
+  return(simulated_dataframe_RM_CT[,.(claim_number,
+                                      AT,
+                                      RT,
+                                      claim_type,
+                                      AP,
+                                      RP)])
 
 }
 
@@ -425,7 +443,17 @@ pkg.env$scenario2_simulator <- function(ref_claim,
     ) %>%
     select(claim_number, AT, RT, claim_type, AP, RP, DT, DP, DP_rev, DT_rev, TR, I)
 
-  simulated_dataframe_RM_CT  }
+  # simulated_dataframe_RM_CT
+  setDT(simulated_dataframe_RM_CT)
+
+  return(simulated_dataframe_RM_CT[,.(claim_number,
+                                      AT,
+                                      RT,
+                                      claim_type,
+                                      AP,
+                                      RP)])
+
+  }
 
 pkg.env$scenario3_simulator <- function(ref_claim,
                                         time_unit,
@@ -501,7 +529,16 @@ pkg.env$scenario3_simulator <- function(ref_claim,
     ) %>%
     select(claim_number, AT, RT, claim_type, AP, RP, DT, DP, DP_rev, DT_rev, TR, I)
 
-  simulated_dataframe_RM_CT
+  # simulated_dataframe_RM_CT
+
+  setDT(simulated_dataframe_RM_CT)
+
+  return(simulated_dataframe_RM_CT[,.(claim_number,
+                                      AT,
+                                      RT,
+                                      claim_type,
+                                      AP,
+                                      RP)])
 
 
 
@@ -582,8 +619,16 @@ pkg.env$scenario4_simulator <- function(ref_claim,
            RP,
            DT, DP, DP_rev, DT_rev, TR, I) %>% as.data.frame()
 
-  simulated_dataframe_RM_CT
+  # simulated_dataframe_RM_CT
 
+  setDT(simulated_dataframe_RM_CT)
+
+  return(simulated_dataframe_RM_CT[,.(claim_number,
+                                      AT,
+                                      RT,
+                                      claim_type,
+                                      AP,
+                                      RP)])
 
 
 
@@ -609,7 +654,7 @@ pkg.env$check.all.present <- function(x,check.on){
 
   if(sum(v>1)>0){
 
-    warning(paste0("Some", check.on, "are missing in the data"))
+    warning(paste("Some", check.on, "are missing in the data"))
 
   }
 
@@ -737,8 +782,8 @@ pkg.env$check.newdata <- function(newdata,
 
   }
 
-
-  if(class(newdata) != "IndividualDataPP"){
+  # old:class(newdata) != "IndividualDataPP"
+  if(!inherits(newdata, "IndividualDataPP")){
 
     stop('newdata must be an IndividualDataPP object.')
 
@@ -767,7 +812,7 @@ This function checks weather the accident date and the reporting date are of 'Da
 In case they are, it transforms them into numeric.
 "
 
-  if(class(x)=="Date"){
+  if(inherits(x, "Date")){
 
     if(input_time_granularity %in% c('quarters','semesters')){
       time_unit_string <- c('quarters', 'semesters', 'years')
@@ -1566,8 +1611,7 @@ pkg.env$input_hazard_frame <- function(
     adjusted=FALSE)
 {
   "
-  Create a hazard frame with relevant input-period specific values for later output
-
+  Create a hazard frame with relevant input time granularity specific values for later output.
   "
   if("AP_i" %in% continuous_features & length(continuous_features) == 1){
     continuous_features <- NULL
@@ -2013,7 +2057,6 @@ pkg.env$spline_hp <- function(hparameters,IndividualDataPP){
   }
 }
 
-
 create.df.2.fcst <- function(IndividualDataPP,
                              hazard_model){
 
@@ -2031,22 +2074,23 @@ create.df.2.fcst <- function(IndividualDataPP,
 
   l4$DP_rev_i <- min(IndividualDataPP$training.data[,'DP_rev_i']):max(IndividualDataPP$training.data[,'DP_rev_i'])
 
-  # s1 <- Sys.time()
-  # tmp = cross_df(c(l1,l2,l3,l4)) %>%
-  #   as.data.frame()
-  # e1 <- Sys.time()
-  #Time difference of 1.092559 mins
+  # OLD
+  # l1 <- as.data.table(cross_df(l1))
+  # l2 <- as.data.table(cross_df(l2))
+  # data.table alternative
+  l1<-do.call(CJ, c(l1, sorted = FALSE))
+  l2<-do.call(CJ, c(l2, sorted = FALSE))
 
-  # s2 <- Sys.time()
-  l1 <- as.data.table(cross_df(l1))
-  l2 <- as.data.table(cross_df(l2))
   tmp<-setkey(l1[,c(k=1,.SD)],k)[l2[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]
 
   if(!is.null(l3)){
-    l3 <- as.data.table(cross_df(l3))
+    # OLD
+    # l3 <- as.data.table(cross_df(l3))
+    l3<-do.call(CJ, c(l3, sorted = FALSE))
     tmp<-setkey(tmp[,c(k=1,.SD)],k)[l3[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]}
-
-  l4 <- as.data.table(cross_df(l4))
+  # OLD
+  # l4 <- as.data.table(cross_df(l4))
+  l4<-do.call(CJ, c(l4, sorted = FALSE))
   tmp<-setkey(tmp[,c(k=1,.SD)],k)[l4[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]
   tmp <- tmp %>%
     as.data.frame()
@@ -3147,12 +3191,6 @@ survival_information<-function(x,
   return(crps)
 
 }
-
-
-
-
-
-
 
 
 

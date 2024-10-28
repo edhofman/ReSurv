@@ -7,11 +7,26 @@ vector_of_variables <- c("DP_i",
                          "AP_o",
                          "DP_rev_o",
                          "TR_o",
+                         'RP_i',
+                         'degree_cp',
                          "years",
                          "time_unit",
                          "p_month",
                          "time_w",
-                         "weight")
+                         "weight",
+                         "is_lkh",
+                         "k",
+                         "hazard",
+                         "risks_s",
+                         "events_s",
+                         "ties",
+                         "feature",
+                         "value",
+                         "IBNR",
+                         "ix_group",
+                         "S_i",
+                         ".",
+                         "id")
 
 globalVariables(vector_of_variables)
 

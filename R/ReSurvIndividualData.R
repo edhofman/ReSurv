@@ -19,7 +19,6 @@
 #' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{COX}}
 #' \item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
 #' \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
-#' \item{\href{https://cran.r-project.org/web/packages/LTRCtrees/LTRCtrees.pdf}{Left-truncated Right-Censored Trees}}
 #' }
 #'
 #'
@@ -45,12 +44,22 @@
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #'
 #'
-#' @return \texttt{ReSurv} fit. A list containing
+#' @return \code{ReSurv} fit. A list containing
 #' \itemize{
 #' \item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
 #' \item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}
 #' \item{\code{os_lkh}:  \code{numeric} Validation  negative log likelihood. Not available for COX.}
-#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted log-risk and baseline (\code{expg}, \code{baseline}), the fitted hazard (\code{hazard}), the fitted development factors ( \code{dev_f_i}), their cumulative version (\code{cum_dev_f_i }), the fitted survival function \code{S_i}.}
+#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted hazard model with the corresponding covariates. It contains:}
+#'    \itemize{
+#'    \item{\code{expg}: fitted risk score.}
+#'    \item{\code{baseline}: fitted baseline.}
+#'    \item{\code{hazard}: fitted hazard rate (\code{expg}*\code{baseline}).}
+#'    \item{\code{dev_f_i}: fitted development factors.}
+#'    \item{\code{cum_dev_f_i}: fitted cumulative development factors.}
+#'    \item{\code{S_i}:fitted survival function.}
+#'    \item{\code{S_i_lag}:fitted survival function (lag version, for further information see \code{?dplyr::lag}).}
+#'    \item{\code{S_i_lead}:fitted survival function (lead version, for further information see \code{?dplyr::lead}).}
+#'    }
 #' \item{\code{hazard_model}: \code{string} chosen hazard model (COX, NN or XGB)}
 #' \item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
 #' }
@@ -61,6 +70,8 @@
 #' @import rpart
 #' @import LTRCtrees
 #' @import data.table
+#' @importFrom dplyr reframe full_join
+#' @importFrom tidyr replace_na
 #'
 #' @references
 #' Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
@@ -107,7 +118,6 @@ ReSurv <- function(IndividualDataPP,
 #' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{COX}}
 #' \item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
 #' \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
-#' \item{\href{https://cran.r-project.org/web/packages/LTRCtrees/LTRCtrees.pdf}{Left-truncated Right-Censored Trees}}
 #' }
 #'
 #'
@@ -133,12 +143,22 @@ ReSurv <- function(IndividualDataPP,
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #'
 #'
-#'  @return \texttt{ReSurv} fit. A list containing
+#' @return \code{ReSurv} fit. A list containing
 #' \itemize{
 #' \item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
 #' \item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}
 #' \item{\code{os_lkh}:  \code{numeric} Validation  negative log likelihood. Not available for COX.}
-#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted log-risk and baseline (\code{expg}, \code{baseline}), the fitted hazard (\code{hazard}), the fitted development factors ( \code{dev_f_i}), their cumulative version (\code{cum_dev_f_i }), the fitted survival function \code{S_i}.}
+#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted hazard model with the corresponding covariates. It contains:}
+#'    \itemize{
+#'    \item{\code{expg}: fitted risk score.}
+#'    \item{\code{baseline}: fitted baseline.}
+#'    \item{\code{hazard}: fitted hazard rate (\code{expg}*\code{baseline}).}
+#'    \item{\code{dev_f_i}: fitted development factors.}
+#'    \item{\code{cum_dev_f_i}: fitted cumulative development factors.}
+#'    \item{\code{S_i}:fitted survival function.}
+#'    \item{\code{S_i_lag}:fitted survival function (lag version, for further information see \code{?dplyr::lag}).}
+#'    \item{\code{S_i_lead}:fitted survival function (lead version, for further information see \code{?dplyr::lead}).}
+#'    }
 #' \item{\code{hazard_model}: \code{string} chosen hazard model (COX, NN or XGB)}
 #' \item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
 #' }
@@ -197,7 +217,6 @@ ReSurv.default <- function(IndividualDataPP,
 #' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{COX}}
 #' \item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
 #' \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
-#' \item{\href{https://cran.r-project.org/web/packages/LTRCtrees/LTRCtrees.pdf}{Left-truncated Right-Censored Trees}}
 #' }
 #'
 #'
@@ -222,12 +241,22 @@ ReSurv.default <- function(IndividualDataPP,
 #' Default is \code{"exposure"}.
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #'
-#' @return \texttt{ReSurv} fit. A list containing
+#' @return \code{ReSurv} fit. A list containing
 #' \itemize{
 #' \item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
 #' \item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}
 #' \item{\code{os_lkh}:  \code{numeric} Validation  negative log likelihood. Not available for COX.}
-#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted log-risk and baseline (\code{expg}, \code{baseline}), the fitted hazard (\code{hazard}), the fitted development factors ( \code{dev_f_i}), their cumulative version (\code{cum_dev_f_i }), the fitted survival function \code{S_i}.}
+#' \item{\code{hazard_frame}: \code{data.frame} containing the fitted hazard model with the corresponding covariates. It contains:}
+#'    \itemize{
+#'    \item{\code{expg}: fitted risk score.}
+#'    \item{\code{baseline}: fitted baseline.}
+#'    \item{\code{hazard}: fitted hazard rate (\code{expg}*\code{baseline}).}
+#'    \item{\code{dev_f_i}: fitted development factors.}
+#'    \item{\code{cum_dev_f_i}: fitted cumulative development factors.}
+#'    \item{\code{S_i}:fitted survival function.}
+#'    \item{\code{S_i_lag}:fitted survival function (lag version, for further information see \code{?dplyr::lag}).}
+#'    \item{\code{S_i_lead}:fitted survival function (lead version, for further information see \code{?dplyr::lead}).}
+#'    }
 #' \item{\code{hazard_model}: \code{string} chosen hazard model (COX, NN or XGB)}
 #' \item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
 #' }
@@ -327,12 +356,12 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
                        DP_rev_i=sort(as.integer(unique(IndividualDataPP$training.data$DP_rev_i))))
 
     ### make it relative
-    newdata.bs <- ReSurv:::pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
+    newdata.bs <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
                                                    newdata=newdata,
                                                    continuous_features=IndividualDataPP$continuous_features,
                                                    categorical_features=IndividualDataPP$categorical_features)
 
-    benchmark_id <- ReSurv:::pkg.env$benchmark_id(X = X_tmp_bsln,
+    benchmark_id <- pkg.env$benchmark_id(X = X_tmp_bsln,
                                                   Y =Y ,
                                                   newdata.mx = newdata.bs,
                                                   remove_first_dummy=T)
@@ -631,7 +660,6 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
   return(out)
 }
-
 
 
 

@@ -4,12 +4,14 @@
 \alias{print.summaryReSurvPredict}
 \title{Print summary of IBNR predictions}
 \usage{
-\method{print}{summaryReSurvPredict}(x, digits = max(3L, getOption("digits") - 3L))
+\method{print}{summaryReSurvPredict}(x, digits = max(3L, getOption("digits") - 3L), ...)
 }
 \arguments{
 \item{x}{"ReSurvPredict" object specifying hazard and development factors.}
 
 \item{digits}{\code{numeric}, number of digits to print for IBNR and Likelihood.}
+
+\item{...}{Other arguments to be passed to print.}
 }
 \value{
 print of summary of predictions
