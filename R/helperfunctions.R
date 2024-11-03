@@ -734,6 +734,31 @@ pkg.env$conversion.factor.of.time.units <- function(input_time_unit,
 }
 
 
+pkg.env$total.years.in.the.data <- function(input_time_unit,
+                                            development_period){
+
+  "
+  This function computes the total number of years in the data, if not provided by the user.
+
+  input_time_unit: character, input time granularity.
+  development_period: numeric, vector of dp_i.
+
+  returns: numeric, number of years in the data.
+
+  "
+  time_unit_string <- c('days', 'months', 'quarters', 'semesters', 'years')
+  time_unit_numeric <- c(1/360, 1/12, 1/4, 1/2, 1)
+
+  input.pos <- which(time_unit_string%in%intersect(input_time_unit,time_unit_string))
+
+  input_numeric <- time_unit_numeric[input.pos]
+  output_numeric <- 1
+
+  conversion_factor <- input_numeric*(1/output_numeric)
+  return(ceiling(max(development_period)*conversion_factor))
+
+}
+
 pkg.env$check.traintestsplit <- function(x){
 
   "
@@ -902,7 +927,6 @@ pkg.env$formula.editor <- function(continuous_features,
 
   "
 
-
   tmp.cat <- switch(!is.null(categorical_features), paste(categorical_features, collapse='+'), NULL)
   tmp.spline.pos <- which(continuous_features%in%intersect(continuous_features,continuous_features_spline))
   tmp.cont.pos <- which(!(continuous_features%in%intersect(continuous_features,continuous_features_spline)))
@@ -910,7 +934,19 @@ pkg.env$formula.editor <- function(continuous_features,
   tmp.splines <- switch((!is.null(continuous_features[tmp.spline.pos]) & !is.null(continuous_features_spline)),paste0("pspline(",continuous_features[tmp.spline.pos], ",degree=",degree_cf,",df=",degrees_of_freedom_cf,")"),NULL)
   tmp.calendar <- switch(calendar_period_extrapolation,paste0("pspline(",calendar_period, ",degree=",degree_cf,",df=",degrees_of_freedom_cp,")"),NULL)
 
-  string_formula<- paste(paste0("survival::Surv","(TR_",input_output,", DP_rev_",input_output,", I) ~ "),paste(c(tmp.cat,tmp.cont,tmp.splines,tmp.calendar), collapse='+'))
+  tmp.all <- c(tmp.cat,tmp.cont,tmp.splines,tmp.calendar)
+
+  if(is.null(tmp.all)){
+
+    string_formula<- paste(paste0("survival::Surv","(TR_",input_output,", DP_rev_",input_output,", I) ~ "), "1")
+
+  }else{
+
+    string_formula<- paste(paste0("survival::Surv","(TR_",input_output,", DP_rev_",input_output,", I) ~ "),paste(tmp.all, collapse='+'))
+
+  }
+
+
   string_formula
 
 
@@ -1269,7 +1305,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
   if("AP_i" %in% continuous_features |
      "RP_i" %in% continuous_features){
 
-    #Generic approach that groups by either AP_i, RP_i or both, and craete the corresponding dataset.
+    #Generic approach that groups by either AP_i, RP_i or both, and create the corresponding dataset.
     time_features <- continuous_features[continuous_features %in% c("AP_i","RP_i")]
 
     time_elements_0 <- paste(sapply(time_features, function(x){paste0(x,"=hazard_frame[['",x,"']]")}
@@ -1360,7 +1396,7 @@ pkg.env$latest_observed_values_i <- function(data_reserve,
   max_DP_i <- data_reserve %>% group_by(AP_i) %>%
     summarise(DP_max_rev =min(max(DP_rev_i)-DP_i)+1 ) %>%
     distinct()
-  # browser()
+
   data_reserve2 <- data_reserve %>%
     select(AP_i, AP_o, DP_rev_i, DP_i, all_of(categorical_features), all_of(continuous_features), I) %>%
     mutate(AP_i = as.numeric(AP_i)) %>%
@@ -1563,7 +1599,8 @@ pkg.env$predict_i <- function(hazard_data_frame,
 
 pkg.env$retrieve_df_i <- function(hazard_data_frame,
                                   groups,
-                                  adjusted=FALSE
+                                  adjusted=FALSE,
+                                  is_baseline_model=FALSE
 ){
   "
   Return data frame only containing input development factors.
@@ -1590,10 +1627,20 @@ pkg.env$retrieve_df_i <- function(hazard_data_frame,
   }
   #
 
+  if(is_baseline_model){
 
-  df_i <- as.data.frame(df_i[1:(nrow(df_i)-1),]) %>%
+    df_i <- df_i %>%
+      map_df(rev) %>%
+      mutate(DP_i=row_number())
+
+    return(df_i)
+
+  }else{
+    df_i <- as.data.frame(df_i[1:(nrow(df_i)-1),]) %>%
     map_df(rev) %>%
     mutate(DP_i=row_number())
+
+    }
 
   return(df_i)
 
@@ -1608,11 +1655,15 @@ pkg.env$input_hazard_frame <- function(
     continuous_features,
     df_i,
     groups,
-    adjusted=FALSE)
+    adjusted=FALSE,
+    is_baseline_model=FALSE)
 {
   "
   Create a hazard frame with relevant input time granularity specific values for later output.
   "
+
+
+
   if("AP_i" %in% continuous_features & length(continuous_features) == 1){
     continuous_features <- NULL
   }
@@ -1636,12 +1687,25 @@ pkg.env$input_hazard_frame <- function(
   }
   else{
 
+    if(is_baseline_model){
+
+      df_i_long <- df_i %>%
+        reshape2::melt(id.vars="DP_i") %>%
+        mutate(variable=0) %>%
+        left_join(groups[,c("covariate", "group_i")], by=c("variable" = "covariate")) %>%
+        mutate(DP_i = DP_i +1) #to get correct DP_i
+
+       colnames(df_i_long) <- c("DP_i", "covariate", "df_i", "group_i")
+    }else{
+
     df_i_long <- df_i %>%
       reshape2::melt(id.vars="DP_i") %>%
       left_join(groups[,c("covariate", "group_i")], by=c("variable" = "covariate")) %>%
       mutate(DP_i = DP_i +1) #to get correct DP_i
 
     colnames(df_i_long) <- c("DP_i", "covariate", "df_i", "group_i")
+
+    }
   }
 
 
@@ -1700,14 +1764,13 @@ pkg.env$predict_o <- function(
 
    "
   max_dp_i <-pkg.env$maximum.time(years,input_time_granularity)
-
   # Predict expected numbers, this is also used grouping methodology
   expected <-  expected_i %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
     mutate(DP_i =  max_dp_i-DP_rev_i + 1) %>%
     mutate(AP_o = ceiling(AP_i*conversion_factor),
-           DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1) %>%
-    filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parrallelogram in the end of the development time
+           DP_rev_o = ceiling(max_dp_i*conversion_factor)- ceiling((DP_i+(AP_i-1)%%(1/conversion_factor))*conversion_factor)+1) %>%
+    filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parallelogram in the end of the development time
     group_by(AP_o, DP_rev_o, group_o) %>%
     summarize(I_expected = sum(I_expected,na.rm=T),
               IBNR = sum(IBNR, na.rm=T), .groups="drop") %>%
@@ -1853,7 +1916,8 @@ pkg.env$output_hazard_frame <- function(
     categorical_features,
     continuous_features,
     df_o,
-    groups
+    groups,
+    is_baseline_model=FALSE
     )
 {
   "
@@ -1889,12 +1953,25 @@ pkg.env$output_hazard_frame <- function(
   }
   else{
 
+    if(is_baseline_model){
+
+      df_o_long <- df_o %>%
+          reshape2::melt(id.vars="DP_o") %>%
+          mutate(variable=0) %>%
+          left_join(groups[,c("covariate", "group_i")], by=c("variable" = "covariate")) %>%
+        mutate(DP_o = DP_o +1) #to get correct DP_i
+
+        colnames(df_o_long) <- c("DP_o", "covariate", "df_o", "group_o")
+
+
+    }else{
+
     df_o_long <- df_o %>%
       reshape2::melt(id.vars="DP_o") %>%
       left_join(groups[,c("covariate", "group_o")], by=c("variable" = "covariate")) %>%
       mutate(DP_o = DP_o +1) #to get correct
 
-    colnames(df_o_long) <- c("DP_o", "covariate", "df_o", "group_o")
+    colnames(df_o_long) <- c("DP_o", "covariate", "df_o", "group_o")}
   }
 
 
@@ -2131,10 +2208,20 @@ pkg.env$df.2.fcst.nn.pp <- function(data,
 
   Xc=as.matrix.data.frame(tmp)
 
-  X=pkg.env$model.matrix.creator(data= newdata,
-                                 select_columns = categorical_features)
+  if(!is.null(categorical_features)){
 
-  return(cbind(X,Xc))
+    X=pkg.env$model.matrix.creator(data= newdata,
+                                   select_columns = categorical_features)
+
+    out <- cbind(X,Xc)
+
+    }else{
+
+    out <- Xc
+
+    }
+
+  return(out)
 
 }
 
@@ -2161,12 +2248,23 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
   }
 
 
+  if(!is.null(categorical_features)){
 
-  X=pkg.env$model.matrix.creator(data= newdata,
-                                 select_columns = categorical_features,
-                                 remove_first_dummy = T)
+    X=pkg.env$model.matrix.creator(data= newdata,
+                                   select_columns = categorical_features,
+                                   remove_first_dummy = T)
+  }
 
-  if(!is.null(Xc)){X <- cbind(X,Xc)}
+
+  if(!is.null(Xc)){
+
+    if(!is.null(categorical_features)){
+
+    X <- cbind(X,Xc)}else{
+
+      X <- Xc
+
+    }}
 
   ds_train_fcst <- xgboost::xgb.DMatrix(as.matrix.data.frame(X), label=rep(1, dim(X)[1]))
 

@@ -300,8 +300,8 @@ hparameters_nn = list(num_layers= 2,
             lr =0.02226655,
             xi=0.4678993,
             epsilon= 0,
-            batch_size= 5000,
-            epochs= 5500,
+            batch_size= 5000L,
+            epochs= 1L,# 5500L,
             num_workers= 0,
             tie="Efron" )
 
@@ -702,7 +702,8 @@ true_output <- resurv.fit.cox$IndividualDataPP$full.data%>%
   filter(DP_rev_o>0) #we cant have =0, because corresponds to half a parallelogram.
 
 #Total output
-score_total<- resurv.fit.predict.xgb$hazard_frame_output[,c("claim_type","AP_o", "DP_rev_o", "I_expected")] %>%
+score_total<- resurv.fit.predict.Q$long_triangle_format_out$output_granularity[,c("claim_type","AP_o", "DP_o", "I_expected")] %>%
+  mutate(DP_rev_o=16-DP_o+1) %>%
   inner_join(true_output, by =c("claim_type","AP_o", "DP_rev_o")) %>%
   mutate(ave = I-I_expected,
          abs_ave = abs(ave)) %>%
@@ -759,7 +760,19 @@ true_output <- resurv.fit.predict.xgb$ReSurvFit$IndividualData$full.data %>%
   filter(DP_rev_o>0) #we cant have =0, because corresponds to half a parallelogram.
 
 
-score_total<- resurv.fit.predict.xgb$hazard_frame_output[,c("claim_type","AP_o", "DP_rev_o", "I_expected")] %>%
+# score_total<- resurv.fit.predict.xgb$hazard_frame_output[,c("claim_type","AP_o", "DP_rev_o", "I_expected")] %>%
+#   inner_join(true_output, by =c("claim_type","AP_o", "DP_rev_o")) %>%
+#   mutate(ave = I-I_expected,
+#          abs_ave = abs(ave)) %>%
+#   # from here it is reformulated for the are tot
+#   ungroup()%>%
+#   group_by(AP_o, DP_rev_o) %>%
+#   reframe(abs_ave=abs(sum(ave)),
+#           I=sum(I))
+
+score_total<- resurv.fit.predict.Q$long_triangle_format_out$output_granularity[,c("claim_type","AP_o", "DP_o", "I_expected")] %>%
+  mutate(DP_rev_o=1440-DP_o+1) %>%
+  as_tibble() %>%
   inner_join(true_output, by =c("claim_type","AP_o", "DP_rev_o")) %>%
   mutate(ave = I-I_expected,
          abs_ave = abs(ave)) %>%
@@ -768,6 +781,7 @@ score_total<- resurv.fit.predict.xgb$hazard_frame_output[,c("claim_type","AP_o",
   group_by(AP_o, DP_rev_o) %>%
   reframe(abs_ave=abs(sum(ave)),
           I=sum(I))
+
 
 are_tot_xgb=sum(score_total$abs_ave)/sum(score_total$I)
 

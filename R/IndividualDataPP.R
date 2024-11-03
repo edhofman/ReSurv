@@ -76,7 +76,7 @@
 #'\item{\code{continuous_features}: \code{character}. The continuous features names as provided from the user.}
 #'\item{\code{categorical_features}: \code{character}. The categorical features names as provided from the user.}
 #'\item{\code{calendar_period_extrapolation}: \code{logical}. The value specifying if a calendar period component is extrapolated.}
-#'\item{\code{years}: \code{numeric}. Total number of development years in the data.}
+#'\item{\code{years}: \code{numeric}. Total number of development years in the data. Default is NULL and computed automatically from the data.}
 #'\item{\code{accident_period}: \code{character}. Accident period column name.}
 #'\item{\code{calendar_period}: \code{character}. Calendar_period column name.}
 #'\item{\code{input_time_granularity}: \code{character}. Input time granularity.}
@@ -121,13 +121,13 @@
 #' @export
 IndividualDataPP <- function(data,
                            id=NULL,
-                           continuous_features,
-                           categorical_features,
+                           continuous_features=NULL,
+                           categorical_features=NULL,
                            accident_period,
                            calendar_period,
                            input_time_granularity="months",
                            output_time_granularity="quarters",
-                           years=4,
+                           years=NULL,
                            calendar_period_extrapolation=FALSE,
                            continuous_features_spline=NULL,
                            degrees_cf=3,
@@ -183,6 +183,15 @@ IndividualDataPP <- function(data,
 
   conversion_factor <- pkg.env$conversion.factor.of.time.units(input_time_granularity,
                                                                output_time_granularity)
+
+
+
+  if(is.null(years)){
+
+    years <- pkg.env$total.years.in.the.data(input_time_granularity,
+                                             tmp.dp)
+
+  }
 
 
   max_dp_i =  pkg.env$maximum.time(years,input_time_granularity)

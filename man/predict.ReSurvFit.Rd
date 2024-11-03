@@ -34,7 +34,7 @@ Predictions for the \code{ReSurvFit} model. It includes
 \item{\code{ReSurvFit}: Fitted \code{ReSurv} model.}
 \item{\code{long_triangle_format_out}: \code{data.frame}. Predicted development factors and IBNR claim counts for each feature combination in long format.}
 \itemize{
-\item{\code{input_tg}: \code{data.frame}. Predictions for each feature combination in long format for \code{input_time_granularity}.}
+\item{\code{input_granularity}: \code{data.frame}. Predictions for each feature combination in long format for \code{input_time_granularity}.}
 \itemize{
 \item{\code{AP_i}: Accident period, \code{input_time_granularity}.}
 \item{\code{DP_i}: Development period, \code{input_time_granularity}.}
@@ -43,7 +43,7 @@ Predictions for the \code{ReSurvFit} model. It includes
 \item{\code{I_expected}: Expected counts, \code{input_time_granularity}.}
 \item{\code{IBNR}: Predicted IBNR claim counts, \code{input_time_granularity}.}
 }
-\item{\code{output_tg}: \code{data.frame}. Predictions for each feature combination in long format for \code{output_time_granularity}.}
+\item{\code{output_granularity}: \code{data.frame}. Predictions for each feature combination in long format for \code{output_time_granularity}.}
 \itemize{
 \item{\code{AP_o}: Accident period, \code{output_time_granularity}.}
 \item{\code{DP_o}: Development period, \code{output_time_granularity}.}
@@ -55,13 +55,13 @@ Predictions for the \code{ReSurvFit} model. It includes
 }
 \item{\code{lower_triangle}: Predicted lower triangle.}
 \itemize{
-\item{\code{input_tg}: \code{data.frame}. Predicted lower triangle for \code{input_time_granularity}.}
-\item{\code{output_tg}: \code{data.frame}. Predicted lower triangle for \code{output_time_granularity}.}
+\item{\code{input_granularity}: \code{data.frame}. Predicted lower triangle for \code{input_time_granularity}.}
+\item{\code{output_granularity}: \code{data.frame}. Predicted lower triangle for \code{output_time_granularity}.}
 }
-\item{\code{predicted_IBNR_count}: Predicted total IBNR frequencies.}
+\item{\code{predicted_counts}: Predicted total frequencies.}
 \itemize{
-\item{\code{input_tg}: \code{numeric}. Predicted lower triangle for \code{input_time_granularity}.}
-\item{\code{output_tg}: \code{numeric}. Predicted lower triangle for \code{output_time_granularity}.}
+\item{\code{input_granularity}: \code{numeric}. Predicted lower triangle for \code{input_time_granularity}.}
+\item{\code{output_granularity}: \code{numeric}. Predicted lower triangle for \code{output_time_granularity}.}
 }
 \item{\code{grouping_method}: \code{character}. Chosen grouping method.}
 
