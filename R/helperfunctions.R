@@ -11,7 +11,6 @@
 #' @import reticulate
 #' @import xgboost
 #' @importFrom rpart rpart.control
-#' @importFrom LTRCtrees LTRCART
 #' @import data.table
 #' @importFrom dplyr reframe lag full_join rename
 #' @importFrom tidyr replace_na
@@ -1129,19 +1128,6 @@ pkg.env$fit_cox_model <- function(data,
 }
 
 
-pkg.env$fit_LTRCtrees <- function(data,
-                                  formula_ct,
-                                  newdata,
-                                  control.pars){
-
-  LTRCART.fit <- LTRCART(formula_ct, data=data, control = control.pars)
-
-  # The following is relative risk predicitons from LTRCtrees
-  LTRCART.pred <- predict(LTRCART.fit, newdata = newdata)
-
-  list(cox=LTRCART.fit,
-       expg = unname(LTRCART.pred))
-}
 
 
 pkg.env$fit_deep_surv <- function(data,
@@ -2359,13 +2345,6 @@ pkg.env$baseline.calc <- function(hazard_model,
     predict_bsln <- predict(model.out,datads_pp$ds_train_m)
   }
 
-  if(hazard_model == "LTRCtrees"){
-
-    predict_bsln <- log(predict(model.out, training_df %>%
-                                  arrange(DP_rev_i) %>%
-                                  as.data.frame()))
-
-  }
 
   predict_bsln <- predict_bsln - predict_bsln[1] #make relative to initial value, same approach as cox
   bsln <- pkg.env$baseline.efron(predict_bsln,
@@ -2703,53 +2682,6 @@ pkg.env$xgboost_cv <- function(IndividualDataPP,
 }
 
 
-pkg.env$ltrcart_cv <- function(IndividualDataPP,
-                               folds,
-                               formula_ct,
-                               hparameters.f,
-                               verbose.cv){
-
-  hparameters.f['xval']=folds
-  out <- data.frame()
-
-  for(hp in 1:dim(hparameters.f)[1]){
-
-    if(verbose.cv){cat(as.character(Sys.time()),
-                       "Testing hyperparameters combination",
-                       hp,
-                       "out of",
-                       dim(hparameters.f)[1], "\n")}
-
-    control.pars <- do.call(rpart.control, as.list.data.frame(hparameters.f[hp,]))
-
-    LTRCART.fit <- LTRCART(formula_ct, data=IndividualDataPP$training.data, control=control.pars)
-
-
-
-    tmp <- as.data.frame.matrix(LTRCART.fit$cptable)
-
-
-    Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
-
-    model.out <- list()
-    model.out$cox <-LTRCART.fit
-
-    is_lkh <- pkg.env$evaluate_lkh_LTRCtrees(X_train=IndividualDataPP$training.data %>% select(c(IndividualDataPP$categorical_features,IndividualDataPP$continuous_features)),
-                                             Y_train=Y,
-                                             model=model.out)
-
-
-    tmp$is_lkh<- is_lkh$value
-    out <- rbind(out,tmp[which.min(tmp[,"xerror"]),])
-
-  }
-
-  out <- cbind(hparameters.f, out)
-
-  return(out)
-
-}
-
 # nn cv -----
 pkg.env$nn_hparameter_nodes_grid <- function(hparameters, cv = FALSE){
   "
@@ -2908,7 +2840,6 @@ pkg.env$evaluate_lkh_nn <-function(X_train,
     mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
 
 
-  # if(hazard_model %in% c("COX","LTRCtrees")){ds_train_m <- X_train}
   # if(hazard_model == "XGB"){
 
 
@@ -2938,11 +2869,6 @@ pkg.env$evaluate_lkh_nn <-function(X_train,
   # }
 
 
-
-  # if(hazard_model == "LTRCtrees"){
-  #   preds_tr <- predict(model$cox,ds_train_m)
-  #   preds_tr <- preds_tr - preds_tr[1]
-  # }
 
 
   train_lkh=cox_evaluation_metrix(dtrain=ds_train_m,
@@ -2979,7 +2905,7 @@ pkg.env$evaluate_lkh_xgb <-function(X_train,
     mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
 
 
-  # if(hazard_model %in% c("COX","LTRCtrees")){ds_train_m <- X_train}
+
   # if(hazard_model == "XGB"){
   ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X_train))),
                                       label=tmp_train$I)
@@ -3014,78 +2940,7 @@ pkg.env$evaluate_lkh_xgb <-function(X_train,
   preds_tr <- preds_tr - preds_tr[1]
   # }
 
-  # if(hazard_model == "LTRCtrees"){
-  #   preds_tr <- predict(model$cox,ds_train_m)
-  #   preds_tr <- preds_tr - preds_tr[1]
-  # }
 
-
-  train_lkh=cox_evaluation_metrix(dtrain=ds_train_m,
-                                  preds=preds_tr)
-
-
-  return(train_lkh)
-
-
-}
-
-
-pkg.env$evaluate_lkh_LTRCtrees <-function(X_train,
-                                          Y_train,
-                                          model){
-
-  xy_tr=cbind(X_train,Y_train)
-
-
-  tmp_tr=xy_tr %>%
-    arrange(DP_rev_i) %>%
-    as.data.frame()
-
-  # tmp_tr[,'id'] = seq(1,dim(tmp_tr)[1])
-  # tmp_tst[,'id'] = seq(1,dim(tmp_tst)[1])
-
-  tmp_train <- tmp_tr %>%
-    arrange(DP_rev_i) %>%
-    group_by(DP_rev_i) %>%
-    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
-
-
-  ds_train_m <- X_train
-  # if(hazard_model == "XGB"){
-  #   ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X_train))),
-  #                                       label=tmp_train$I)}
-
-  attr(ds_train_m, 'truncation') <- tmp_train$TR_i
-  attr(ds_train_m, 'claim_arrival') <- tmp_train$DP_rev_i
-
-
-  attr(ds_train_m, 'risk_sets') <- risks_in_the_tie(starts_i=tmp_train$TR_i,
-                                                    stops_i=tmp_train$DP_rev_i,
-                                                    stops = unique(tmp_train$DP_rev_i))
-
-  attr(ds_train_m, 'event_sets') <- events_in_the_tie(starts_i=tmp_train$TR_i,
-                                                      stops_i=tmp_train$DP_rev_i,
-                                                      stops = unique(tmp_train$DP_rev_i))
-
-  attr(ds_train_m, 'efron_c') <- tmp_train$efron_c
-
-  attr(ds_train_m, 'tieid') <- unname(table(tmp_train$DP_rev_i))
-
-  attr(ds_train_m, 'groups') <- rep( as.integer(names(table(tmp_train$end_time))),
-                                     attr(ds_train_m, 'tieid'))
-
-
-  # if(hazard_model == "COX"){
-  #   preds_tr <- predict(model$cox,ds_train_m)
-  # }
-  #
-  # if(hazard_model == "XGB"){
-  #   preds_tr <- predict(model,ds_train_m)
-  #   preds_tr <- preds_tr - preds_tr[1]
-  # }
-
-  preds_tr <- predict(model$cox,ds_train_m)
-  preds_tr <- preds_tr - preds_tr[1]
 
   train_lkh=cox_evaluation_metrix(dtrain=ds_train_m,
                                   preds=preds_tr)

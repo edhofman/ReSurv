@@ -1,7 +1,7 @@
 Package: ReSurv
 Type: Package
 Title: Machine learning models for predicting IBNR claim counts
-Version: 0.0.2
+Version: 1.0.0
 Authors@R:
     c(person(given = "Emil",
              family = "Hofman",
@@ -36,7 +36,6 @@ Imports:
   tibble,
   ggplot2,
   survival,
-  LTRCtrees,
   reshape2,
   bshazard,
   SynthETIC,

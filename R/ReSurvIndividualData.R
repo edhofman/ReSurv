@@ -68,7 +68,6 @@
 #' @import tidyverse
 #' @import xgboost
 #' @import rpart
-#' @import LTRCtrees
 #' @import data.table
 #' @importFrom dplyr reframe full_join
 #' @importFrom tidyr replace_na
@@ -666,64 +665,6 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
                                        dset='os',
                                        samples_cn=datads_pp$samples_cn,
                                        model=model.out)
-
-  }
-
-  if(hazard_model == "LTRCtrees"){
-
-    X <- pkg.env$model.matrix.creator(data= IndividualDataPP$training.data,
-                                      select_columns = IndividualDataPP$categorical_features,
-                                      remove_first_dummy=T)
-
-    scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
-
-    Xc <- IndividualDataPP$training.data %>%
-      reframe(across(all_of(IndividualDataPP$continuous_features),
-                       scaler))
-
-    training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
-
-    X=cbind(X,Xc)
-
-    Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
-
-    control.pars <- do.call(rpart.control, hparameters)
-
-    model.out <- pkg.env$fit_LTRCtrees(data=IndividualDataPP$training.data,
-                                       formula_ct=formula_ct,
-                                       newdata=newdata,
-                                       control.pars)
-
-
-    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
-                                  model.out = model.out$cox,
-                                  X=X,
-                                  Y=Y,
-                                  training_df=IndividualDataPP$training.data)
-
-
-    pred <- predict(model.out$cox,newdata)
-
-    benchmark_id <- 1
-    # pred_relative <- model.out$expg/model.out$expg[benchmark_id]
-
-    pred_relative <- exp(pred - pred[benchmark_id])
-
-    # exp(pred_relative)
-
-    hazard_frame <- cbind(newdata, expg=pred_relative)
-    # colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
-
-    bsln <- data.frame(baseline=bsln,
-                       DP_rev_i=sort(as.integer(unique(IndividualDataPP$training.data$DP_rev_i))))
-
-
-
-    is_lkh <- pkg.env$evaluate_lkh_LTRCtrees(X_train=IndividualDataPP$training.data %>% select(c(IndividualDataPP$categorical_features,IndividualDataPP$continuous_features)),
-                                    Y_train=Y,
-                                    model=model.out)
-
-    os_lkh <- NULL
 
   }
 
