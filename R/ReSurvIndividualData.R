@@ -153,8 +153,8 @@ ReSurv <- function(IndividualDataPP,
 #'    \item{\code{expg}: fitted risk score.}
 #'    \item{\code{baseline}: fitted baseline.}
 #'    \item{\code{hazard}: fitted hazard rate (\code{expg}*\code{baseline}).}
-#'    \item{\code{dev_f_i}: fitted development factors.}
-#'    \item{\code{cum_dev_f_i}: fitted cumulative development factors.}
+#'    \item{\code{f_i}: fitted development factors.}
+#'    \item{\code{cum_f_i}: fitted cumulative development factors.}
 #'    \item{\code{S_i}:fitted survival function.}
 #'    \item{\code{S_i_lag}:fitted survival function (lag version, for further information see \code{?dplyr::lag}).}
 #'    \item{\code{S_i_lead}:fitted survival function (lead version, for further information see \code{?dplyr::lead}).}
@@ -251,8 +251,8 @@ ReSurv.default <- function(IndividualDataPP,
 #'    \item{\code{expg}: fitted risk score.}
 #'    \item{\code{baseline}: fitted baseline.}
 #'    \item{\code{hazard}: fitted hazard rate (\code{expg}*\code{baseline}).}
-#'    \item{\code{dev_f_i}: fitted development factors.}
-#'    \item{\code{cum_dev_f_i}: fitted cumulative development factors.}
+#'    \item{\code{f_i}: fitted development factors.}
+#'    \item{\code{cum_f_i}: fitted cumulative development factors.}
 #'    \item{\code{S_i}:fitted survival function.}
 #'    \item{\code{S_i_lag}:fitted survival function (lag version, for further information see \code{?dplyr::lag}).}
 #'    \item{\code{S_i_lead}:fitted survival function (lead version, for further information see \code{?dplyr::lead}).}
