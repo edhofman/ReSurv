@@ -38,7 +38,7 @@ Predictions for the \code{ReSurvFit} model. It includes
 \itemize{
 \item{\code{AP_i}: Accident period, \code{input_time_granularity}.}
 \item{\code{DP_i}: Development period, \code{input_time_granularity}.}
-\item{\code{df_i}: Predicted development factors, \code{input_time_granularity}.}
+\item{\code{f_i}: Predicted development factors, \code{input_time_granularity}.}
 \item{\code{group_i}: Group code, \code{input_time_granularity}. This associates to each feature combination an identifier.}
 \item{\code{I_expected}: Expected counts, \code{input_time_granularity}.}
 \item{\code{IBNR}: Predicted IBNR claim counts, \code{input_time_granularity}.}
@@ -47,7 +47,7 @@ Predictions for the \code{ReSurvFit} model. It includes
 \itemize{
 \item{\code{AP_o}: Accident period, \code{output_time_granularity}.}
 \item{\code{DP_o}: Development period, \code{output_time_granularity}.}
-\item{\code{df_o}: Predicted development factors, \code{output_time_granularity}.}
+\item{\code{f_o}: Predicted development factors, \code{output_time_granularity}.}
 \item{\code{group_o}: Group code, \code{output_time_granularity}. This associates to each feature combination an identifier.}
 \item{\code{I_expected}: Expected counts, \code{output_time_granularity}.}
 \item{\code{IBNR}: Predicted IBNR claim counts, \code{output_time_granularity}.}

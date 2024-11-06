@@ -30,10 +30,16 @@ vector_of_variables <- c("DP_i",
                          "expg",
                          "baseline",
                          "group_i",
+                         "f_i",
                          "df_i",
+                         "dev_f_i",
                          "group_o",
+                         "cum_dev_f_i",
+                         "cum_f_i",
                          "DP_o",
-                         "df_o")
+                         "f_o",
+                         "df_o",
+                         "I_expected")
 
 globalVariables(vector_of_variables)
 

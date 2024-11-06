@@ -108,7 +108,7 @@
 #' @importFrom dplyr select
 #' @importFrom dplyr group_by
 #' @importFrom dplyr row_number
-#' @importFrom dplyr summarize
+#' @importFrom dplyr summarize arrange relocate
 #' @importFrom purrr map_df
 #' @importFrom stats as.formula
 #' @importFrom data.table data.table

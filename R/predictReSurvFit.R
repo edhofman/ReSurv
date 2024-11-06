@@ -23,7 +23,7 @@
 #' \itemize{
 #' \item{\code{AP_i}: Accident period, \code{input_time_granularity}.}
 #' \item{\code{DP_i}: Development period, \code{input_time_granularity}.}
-#' \item{\code{df_i}: Predicted development factors, \code{input_time_granularity}.}
+#' \item{\code{f_i}: Predicted development factors, \code{input_time_granularity}.}
 #' \item{\code{group_i}: Group code, \code{input_time_granularity}. This associates to each feature combination an identifier.}
 #' \item{\code{I_expected}: Expected counts, \code{input_time_granularity}.}
 #' \item{\code{IBNR}: Predicted IBNR claim counts, \code{input_time_granularity}.}
@@ -32,7 +32,7 @@
 #' \itemize{
 #' \item{\code{AP_o}: Accident period, \code{output_time_granularity}.}
 #' \item{\code{DP_o}: Development period, \code{output_time_granularity}.}
-#' \item{\code{df_o}: Predicted development factors, \code{output_time_granularity}.}
+#' \item{\code{f_o}: Predicted development factors, \code{output_time_granularity}.}
 #' \item{\code{group_o}: Group code, \code{output_time_granularity}. This associates to each feature combination an identifier.}
 #' \item{\code{I_expected}: Expected counts, \code{output_time_granularity}.}
 #' \item{\code{IBNR}: Predicted IBNR claim counts, \code{output_time_granularity}.}
@@ -52,7 +52,7 @@
 #'
 #' }
 #'
-#' @importFrom dplyr bind_rows distinct
+#' @importFrom dplyr bind_rows distinct relocate arrange
 #' @export
 #' @method predict ReSurvFit
 predict.ReSurvFit <- function(object,
@@ -82,7 +82,10 @@ predict.ReSurvFit <- function(object,
 
   is_baseline_model <- is.null(c(idata$categorical_features,idata$continuous_features))
 
-  hazard_frame <-object$hazard_frame
+  hazard_frame <-object$hazard_frame %>%
+    select(-DP_i) %>%
+    rename(dev_f_i = f_i,
+           cum_dev_f_i = cum_f_i)
 
     hazard_frame_grouped <- pkg.env$covariate_mapping(
     hazard_frame = hazard_frame,
@@ -278,30 +281,36 @@ predict.ReSurvFit <- function(object,
       mutate(DP_i = max_dp_i -DP_rev_i +1) %>%
       select(-expg,-baseline,-hazard,-DP_rev_i)%>%
       relocate(DP_i, .after =  AP_i) %>%
+      rename(f_i = df_i,
+             expected_counts=I_expected) %>%
       as.data.frame()
 
     long_tr_output = hazard_frame_output %>%
       mutate(DP_o = max(DP_rev_o) -DP_rev_o +1) %>%
       select(-DP_rev_o)%>%
+      arrange(DP_o) %>%
       relocate(DP_o, .after =  AP_o) %>%
+      rename(f_o = df_o,
+             expected_counts=I_expected) %>%
       as.data.frame()
 
     rm(list=c("df_o","df_i","hazard_frame_input","hazard_frame_output"))
 
     ltr_input <- pkg.env$find_lt_input(long_tr_input,max_dp_i)
 
-    ltr_output <- pkg.env$find_lt_output(long_tr_output,max(long_tr_output$DP_o))
+    ltr_output <- pkg.env$find_lt_output(long_tr_output,
+                                         max(long_tr_output$DP_o),
+                                         cut_point=ceiling(max_dp_i*idata$conversion_factor))
 
     out=list(ReSurvFit = object,
-             # I removed these two (memory issues)
+             # I removed these two (save memory)
              # df_output = as.data.frame(df_o),
              # df_input = as.data.frame(df_i),
              long_triangle_format_out = list(input_granularity = long_tr_input,
                                          output_granularity = long_tr_output),
              lower_triangle=list(input_granularity=ltr_input,
                                  output_granularity=ltr_output),
-             predicted_counts=list(input_granularity = sum(long_tr_input$IBNR, na.rm = T),
-                                       output_granularity = sum(long_tr_output$IBNR, na.rm = T)),
+             predicted_counts=sum(long_tr_input$IBNR, na.rm = T),
              grouping_method = grouping_method)
 
     class(out) <- c('ReSurvPredict')
@@ -325,6 +334,7 @@ predict.ReSurvFit <- function(object,
            # df_input = as.data.frame(df_i),
            long_triangle_format_out = list(input_granularity=long_tr_input),
            lower_triangle=list(input_granularity=ltr_input),
+           predicted_counts=sum(long_tr_input$IBNR, na.rm = T),
            grouping_method = grouping_method)
 
   class(out) <- c('ReSurvPredict')

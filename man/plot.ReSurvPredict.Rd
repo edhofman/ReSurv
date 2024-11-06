@@ -24,7 +24,7 @@
 
 \item{granularity}{\code{character}, either \code{"input"} for \code{input_time_granularity} or \code{"output"} for \code{output_time_granularity}.}
 
-\item{group_code}{\code{numeric}: Identifier for the group that will be plotted. Default is 1. The code identifiers can be find in the \code{ReSurvPredict$long_triangle_format_out} list. Depending on the granularity of interest, it will be either in \code{ReSurvPredict$long_triangle_format_out$input_tg} for \code{input_time_granularity} or \code{ReSurvPredict$long_triangle_format_out$output_tg} for \code{output_time_granularity}.}
+\item{group_code}{\code{numeric}: Identifier for the group that will be plotted. Default is 1. The code identifiers can be find in the \code{ReSurvPredict$long_triangle_format_out} list. Depending on the granularity of interest, it will be either in \code{ReSurvPredict$long_triangle_format_out$input_granularity} for \code{input_time_granularity} or \code{ReSurvPredict$long_triangle_format_out$output_granularity} for \code{output_time_granularity}.}
 
 \item{color_par}{\code{character}: \code{ggplot2} Colour of the line plot. Default is \code{'royalblue'}. Optional.}
 

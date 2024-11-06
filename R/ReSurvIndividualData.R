@@ -54,8 +54,8 @@
 #'    \item{\code{expg}: fitted risk score.}
 #'    \item{\code{baseline}: fitted baseline.}
 #'    \item{\code{hazard}: fitted hazard rate (\code{expg}*\code{baseline}).}
-#'    \item{\code{dev_f_i}: fitted development factors.}
-#'    \item{\code{cum_dev_f_i}: fitted cumulative development factors.}
+#'    \item{\code{f_i}: fitted development factors.}
+#'    \item{\code{cum_f_i}: fitted cumulative development factors.}
 #'    \item{\code{S_i}:fitted survival function.}
 #'    \item{\code{S_i_lag}:fitted survival function (lag version, for further information see \code{?dplyr::lag}).}
 #'    \item{\code{S_i_lead}:fitted survival function (lead version, for further information see \code{?dplyr::lead}).}
@@ -771,12 +771,18 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
                                                     calendar_period_extrapolation = IndividualDataPP$calendar_period_extrapolation)
 
 
+  out_hz_frame <-  hazard_frame_updated %>%
+      mutate(DP_i=pkg.env$maximum.time(IndividualDataPP$years, IndividualDataPP$input_time_granularity)-DP_rev_i+1) %>%
+      relocate(DP_i, .after =  AP_i) %>%
+      rename(f_i=dev_f_i,
+             cum_f_i=cum_dev_f_i)
+
   out=list(model.out=list(data=X,
                           model.out=model.out),
            # Om.df=Om.df,
            is_lkh=is_lkh,
            os_lkh=os_lkh,
-           hazard_frame = hazard_frame_updated,
+           hazard_frame = out_hz_frame,
            hazard_model = hazard_model,
            IndividualDataPP = IndividualDataPP)
 

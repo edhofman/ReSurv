@@ -252,27 +252,21 @@ pkg.env$scenario0_simulator <- function(ref_claim,
       I=1
     ) %>%
     select(claim_number,
-           AT,
-           RT,
+           # AT,
+           # RT,
            claim_type,
            AP,
-           RP,
-           DT,
-           DP,
-           DP_rev,
-           DT_rev,
-           TR,
-           I)
+           RP#,
+           # DT,
+           # DP,
+           # DP_rev,
+           # DT_rev,
+           # TR,
+           # I
+           ) %>%
+    as.data.frame()
 
-
-  setDT(simulated_dataframe_RM_CT)
-
-  return(simulated_dataframe_RM_CT[,.(claim_number,
-                               AT,
-                               RT,
-                               claim_type,
-                               AP,
-                               RP)])
+  return(simulated_dataframe_RM_CT)
 
 }
 
@@ -346,18 +340,25 @@ pkg.env$scenario1_simulator <- function(ref_claim,
       TR = AP-1, #just setting truncation to max year simulated. and accounting for
       I=1
     ) %>%
-    select(claim_number, AT, RT, claim_type, AP, RP, DT, RP, DP_rev, DT_rev, TR, I)
+    select(claim_number,
+           # AT,
+           # RT,
+           claim_type,
+           AP,
+           RP#,
+           # DT,
+           # RP,
+           # DP_rev,
+           # DT_rev,
+           # TR,
+           # I
+           ) %>% as.data.frame()
 
   #simulated_dataframe_RM_CT
 
-  setDT(simulated_dataframe_RM_CT)
+  # setDT(simulated_dataframe_RM_CT)
 
-  return(simulated_dataframe_RM_CT[,.(claim_number,
-                                      AT,
-                                      RT,
-                                      claim_type,
-                                      AP,
-                                      RP)])
+  return(simulated_dataframe_RM_CT)
 
 }
 
@@ -441,17 +442,20 @@ pkg.env$scenario2_simulator <- function(ref_claim,
       TR = AP-1, #just setting truncation to max year simulated. and accounting for
       I=1
     ) %>%
-    select(claim_number, AT, RT, claim_type, AP, RP, DT, DP, DP_rev, DT_rev, TR, I)
+    select(claim_number,
+           # AT,
+           # RT,
+           claim_type,
+           AP,
+           RP)#,
+           # DT,
+           # DP,
+           # DP_rev, DT_rev, TR, I)
 
   # simulated_dataframe_RM_CT
-  setDT(simulated_dataframe_RM_CT)
+  # setDT(simulated_dataframe_RM_CT)
 
-  return(simulated_dataframe_RM_CT[,.(claim_number,
-                                      AT,
-                                      RT,
-                                      claim_type,
-                                      AP,
-                                      RP)])
+  return(simulated_dataframe_RM_CT)
 
   }
 
@@ -527,18 +531,19 @@ pkg.env$scenario3_simulator <- function(ref_claim,
       TR = AP-1, #just setting truncation to max year simulated. and accounting for
       I=1
     ) %>%
-    select(claim_number, AT, RT, claim_type, AP, RP, DT, DP, DP_rev, DT_rev, TR, I)
+    select(claim_number,
+           #AT,
+           #RT,
+           claim_type,
+           AP,
+           RP) %>% as.data.frame()#,
+           #DT, DP, DP_rev, DT_rev, TR, I)
 
   # simulated_dataframe_RM_CT
 
-  setDT(simulated_dataframe_RM_CT)
+  # setDT(simulated_dataframe_RM_CT)
 
-  return(simulated_dataframe_RM_CT[,.(claim_number,
-                                      AT,
-                                      RT,
-                                      claim_type,
-                                      AP,
-                                      RP)])
+  return(simulated_dataframe_RM_CT)
 
 
 
@@ -613,22 +618,20 @@ pkg.env$scenario4_simulator <- function(ref_claim,
       TR = AP-1, #just setting truncation to max year simulated. and accounting for
       I=1
     ) %>%
-    select(claim_number, AT, RT,
+    select(claim_number, #AT, RT,
            claim_type,
            AP,
-           RP,
-           DT, DP, DP_rev, DT_rev, TR, I) %>% as.data.frame()
+           RP#,
+           #DT, DP, DP_rev, DT_rev, TR, I
+
+
+           ) %>% as.data.frame()
 
   # simulated_dataframe_RM_CT
 
-  setDT(simulated_dataframe_RM_CT)
+  # setDT(simulated_dataframe_RM_CT)
 
-  return(simulated_dataframe_RM_CT[,.(claim_number,
-                                      AT,
-                                      RT,
-                                      claim_type,
-                                      AP,
-                                      RP)])
+  return(simulated_dataframe_RM_CT)
 
 
 
@@ -1770,7 +1773,7 @@ pkg.env$predict_o <- function(
     mutate(DP_i =  max_dp_i-DP_rev_i + 1) %>%
     mutate(AP_o = ceiling(AP_i*conversion_factor),
            DP_rev_o = ceiling(max_dp_i*conversion_factor)- ceiling((DP_i+(AP_i-1)%%(1/conversion_factor))*conversion_factor)+1) %>%
-    filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parallelogram in the end of the development time
+    #we can consider re-adding it in the future: filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parallelogram in the end of the development time
     group_by(AP_o, DP_rev_o, group_o) %>%
     summarize(I_expected = sum(I_expected,na.rm=T),
               IBNR = sum(IBNR, na.rm=T), .groups="drop") %>%
@@ -2050,7 +2053,7 @@ pkg.env$update_hazard_frame <- function(
     left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
     mutate(AP_o = ceiling(AP_i*conversion_factor),
            DP_rev_o =   floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1) %>%
-    filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parrallelogram in the end of the development time
+    filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parallelogram in the end of the development time
     mutate(DP_o = max_DP_rev_o-DP_rev_o +1) %>%
     group_by(AP_o,group_o) %>%
     summarize(latest_I = sum(I), DP_o_max = max(DP_o), .groups="drop") %>%
@@ -3430,7 +3433,9 @@ pkg.env$find_lt_input <- function(dt,max_dp){
 }
 
 
-pkg.env$find_lt_output <- function(dt,max_dp){
+pkg.env$find_lt_output <- function(dt,
+                                   max_dp,
+                                   cut_point){
 
 
   "
@@ -3475,7 +3480,7 @@ pkg.env$find_lt_output <- function(dt,max_dp){
 
   }
 
-  return(dt.w)
+  return(dt.w[1:cut_point,])
 
 }
 

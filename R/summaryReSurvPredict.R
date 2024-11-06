@@ -23,8 +23,8 @@ summary.ReSurvPredict <- function(object, granularity = "input", ...)
   handle <- match(granularity, c("input","output"))
 
   IBNR_AP <- switch(handle,
-                    data.table(object$long_triangle_format_out$input_tg)[, .(IBNR=sum(IBNR, na.rm=T)), by = AP_i],
-                    data.table(object$long_triangle_format_out$output_tg)[, .(IBNR=sum(IBNR, na.rm=T)), by = AP_o]
+                    data.table(object$long_triangle_format_out$input_granularity)[, .(IBNR=sum(IBNR, na.rm=T)), by = AP_i],
+                    data.table(object$long_triangle_format_out$output_granularity)[, .(IBNR=sum(IBNR, na.rm=T)), by = AP_o]
   )
 
   # development_factor = switch(handle,
@@ -117,7 +117,7 @@ print.summaryReSurvPredict <-
 #'
 #' @param x "ReSurvPredict" object specifying hazard and development factors.
 #' @param granularity \code{character}, either \code{"input"} for \code{input_time_granularity} or \code{"output"} for \code{output_time_granularity}.
-#' @param group_code \code{numeric}: Identifier for the group that will be plotted. Default is 1. The code identifiers can be find in the \code{ReSurvPredict$long_triangle_format_out} list. Depending on the granularity of interest, it will be either in \code{ReSurvPredict$long_triangle_format_out$input_tg} for \code{input_time_granularity} or \code{ReSurvPredict$long_triangle_format_out$output_tg} for \code{output_time_granularity}.
+#' @param group_code \code{numeric}: Identifier for the group that will be plotted. Default is 1. The code identifiers can be find in the \code{ReSurvPredict$long_triangle_format_out} list. Depending on the granularity of interest, it will be either in \code{ReSurvPredict$long_triangle_format_out$input_granularity} for \code{input_time_granularity} or \code{ReSurvPredict$long_triangle_format_out$output_granularity} for \code{output_time_granularity}.
 #' @param color_par \code{character}: \code{ggplot2} Colour of the line plot. Default is \code{'royalblue'}. Optional.
 #' @param linewidth_par \code{numeric}: Line plot width. Optional.
 #' @param ylim_par \code{numeric}: Highest intercept on the y-axis (development factors). The default is the highest predicted development factor. Optional.
@@ -149,7 +149,7 @@ plot.ReSurvPredict <-function (x,
   if(granularity=="input"){
 
 
-    dtb_2_plot <- x$long_triangle_format_out$input_tg %>%
+    dtb_2_plot <- x$long_triangle_format_out$input_granularity %>%
       filter(group_i==group_code,
              DP_i>1)
 
@@ -165,7 +165,7 @@ plot.ReSurvPredict <-function (x,
 
 
     if(is.null(ylim_par)){
-      ylim_setting <- max(dtb_2_plot$df_i)
+      ylim_setting <- max(dtb_2_plot$f_i)
     }else{
 
       ylim_setting <- ylim_par
@@ -177,7 +177,7 @@ plot.ReSurvPredict <-function (x,
 
     ggplot_definition <- dtb_2_plot  %>%
       ggplot(aes(x=DP_i,
-                 y=df_i),
+                 y=f_i),
              ...)
 
 
@@ -186,7 +186,7 @@ plot.ReSurvPredict <-function (x,
 
     if(granularity=="output"){
 
-      dtb_2_plot <- x$long_triangle_format_out$output_tg %>%
+      dtb_2_plot <- x$long_triangle_format_out$output_granularity %>%
         filter(group_o==group_code,
                DP_o>1)
 
@@ -202,7 +202,7 @@ plot.ReSurvPredict <-function (x,
 
 
       if(is.null(ylim_par)){
-        ylim_setting <- max(dtb_2_plot$df_o)
+        ylim_setting <- max(dtb_2_plot$f_o)
       }else{
 
         ylim_setting <- ylim_par
@@ -217,7 +217,7 @@ plot.ReSurvPredict <-function (x,
 
       ggplot_definition <- dtb_2_plot  %>%
         ggplot(aes(x=DP_o,
-                   y=df_o),
+                   y=f_o),
                ...)
 
 
