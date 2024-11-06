@@ -252,27 +252,21 @@ pkg.env$scenario0_simulator <- function(ref_claim,
       I=1
     ) %>%
     select(claim_number,
-           AT,
-           RT,
+           # AT,
+           # RT,
            claim_type,
            AP,
-           RP,
-           DT,
-           DP,
-           DP_rev,
-           DT_rev,
-           TR,
-           I)
+           RP#,
+           # DT,
+           # DP,
+           # DP_rev,
+           # DT_rev,
+           # TR,
+           # I
+           ) %>%
+    as.data.frame()
 
-
-  setDT(simulated_dataframe_RM_CT)
-
-  return(simulated_dataframe_RM_CT[,.(claim_number,
-                               AT,
-                               RT,
-                               claim_type,
-                               AP,
-                               RP)])
+  return(simulated_dataframe_RM_CT)
 
 }
 
@@ -346,18 +340,25 @@ pkg.env$scenario1_simulator <- function(ref_claim,
       TR = AP-1, #just setting truncation to max year simulated. and accounting for
       I=1
     ) %>%
-    select(claim_number, AT, RT, claim_type, AP, RP, DT, RP, DP_rev, DT_rev, TR, I)
+    select(claim_number,
+           # AT,
+           # RT,
+           claim_type,
+           AP,
+           RP#,
+           # DT,
+           # RP,
+           # DP_rev,
+           # DT_rev,
+           # TR,
+           # I
+           ) %>% as.data.frame()
 
   #simulated_dataframe_RM_CT
 
-  setDT(simulated_dataframe_RM_CT)
+  # setDT(simulated_dataframe_RM_CT)
 
-  return(simulated_dataframe_RM_CT[,.(claim_number,
-                                      AT,
-                                      RT,
-                                      claim_type,
-                                      AP,
-                                      RP)])
+  return(simulated_dataframe_RM_CT)
 
 }
 
@@ -441,17 +442,20 @@ pkg.env$scenario2_simulator <- function(ref_claim,
       TR = AP-1, #just setting truncation to max year simulated. and accounting for
       I=1
     ) %>%
-    select(claim_number, AT, RT, claim_type, AP, RP, DT, DP, DP_rev, DT_rev, TR, I)
+    select(claim_number,
+           # AT,
+           # RT,
+           claim_type,
+           AP,
+           RP)#,
+           # DT,
+           # DP,
+           # DP_rev, DT_rev, TR, I)
 
   # simulated_dataframe_RM_CT
-  setDT(simulated_dataframe_RM_CT)
+  # setDT(simulated_dataframe_RM_CT)
 
-  return(simulated_dataframe_RM_CT[,.(claim_number,
-                                      AT,
-                                      RT,
-                                      claim_type,
-                                      AP,
-                                      RP)])
+  return(simulated_dataframe_RM_CT)
 
   }
 
@@ -527,18 +531,19 @@ pkg.env$scenario3_simulator <- function(ref_claim,
       TR = AP-1, #just setting truncation to max year simulated. and accounting for
       I=1
     ) %>%
-    select(claim_number, AT, RT, claim_type, AP, RP, DT, DP, DP_rev, DT_rev, TR, I)
+    select(claim_number,
+           #AT,
+           #RT,
+           claim_type,
+           AP,
+           RP) %>% as.data.frame()#,
+           #DT, DP, DP_rev, DT_rev, TR, I)
 
   # simulated_dataframe_RM_CT
 
-  setDT(simulated_dataframe_RM_CT)
+  # setDT(simulated_dataframe_RM_CT)
 
-  return(simulated_dataframe_RM_CT[,.(claim_number,
-                                      AT,
-                                      RT,
-                                      claim_type,
-                                      AP,
-                                      RP)])
+  return(simulated_dataframe_RM_CT)
 
 
 
@@ -613,22 +618,20 @@ pkg.env$scenario4_simulator <- function(ref_claim,
       TR = AP-1, #just setting truncation to max year simulated. and accounting for
       I=1
     ) %>%
-    select(claim_number, AT, RT,
+    select(claim_number, #AT, RT,
            claim_type,
            AP,
-           RP,
-           DT, DP, DP_rev, DT_rev, TR, I) %>% as.data.frame()
+           RP#,
+           #DT, DP, DP_rev, DT_rev, TR, I
+
+
+           ) %>% as.data.frame()
 
   # simulated_dataframe_RM_CT
 
-  setDT(simulated_dataframe_RM_CT)
+  # setDT(simulated_dataframe_RM_CT)
 
-  return(simulated_dataframe_RM_CT[,.(claim_number,
-                                      AT,
-                                      RT,
-                                      claim_type,
-                                      AP,
-                                      RP)])
+  return(simulated_dataframe_RM_CT)
 
 
 
@@ -733,6 +736,31 @@ pkg.env$conversion.factor.of.time.units <- function(input_time_unit,
 
 }
 
+
+pkg.env$total.years.in.the.data <- function(input_time_unit,
+                                            development_period){
+
+  "
+  This function computes the total number of years in the data, if not provided by the user.
+
+  input_time_unit: character, input time granularity.
+  development_period: numeric, vector of dp_i.
+
+  returns: numeric, number of years in the data.
+
+  "
+  time_unit_string <- c('days', 'months', 'quarters', 'semesters', 'years')
+  time_unit_numeric <- c(1/360, 1/12, 1/4, 1/2, 1)
+
+  input.pos <- which(time_unit_string%in%intersect(input_time_unit,time_unit_string))
+
+  input_numeric <- time_unit_numeric[input.pos]
+  output_numeric <- 1
+
+  conversion_factor <- input_numeric*(1/output_numeric)
+  return(ceiling(max(development_period)*conversion_factor))
+
+}
 
 pkg.env$check.traintestsplit <- function(x){
 
@@ -902,7 +930,6 @@ pkg.env$formula.editor <- function(continuous_features,
 
   "
 
-
   tmp.cat <- switch(!is.null(categorical_features), paste(categorical_features, collapse='+'), NULL)
   tmp.spline.pos <- which(continuous_features%in%intersect(continuous_features,continuous_features_spline))
   tmp.cont.pos <- which(!(continuous_features%in%intersect(continuous_features,continuous_features_spline)))
@@ -910,7 +937,19 @@ pkg.env$formula.editor <- function(continuous_features,
   tmp.splines <- switch((!is.null(continuous_features[tmp.spline.pos]) & !is.null(continuous_features_spline)),paste0("pspline(",continuous_features[tmp.spline.pos], ",degree=",degree_cf,",df=",degrees_of_freedom_cf,")"),NULL)
   tmp.calendar <- switch(calendar_period_extrapolation,paste0("pspline(",calendar_period, ",degree=",degree_cf,",df=",degrees_of_freedom_cp,")"),NULL)
 
-  string_formula<- paste(paste0("survival::Surv","(TR_",input_output,", DP_rev_",input_output,", I) ~ "),paste(c(tmp.cat,tmp.cont,tmp.splines,tmp.calendar), collapse='+'))
+  tmp.all <- c(tmp.cat,tmp.cont,tmp.splines,tmp.calendar)
+
+  if(is.null(tmp.all)){
+
+    string_formula<- paste(paste0("survival::Surv","(TR_",input_output,", DP_rev_",input_output,", I) ~ "), "1")
+
+  }else{
+
+    string_formula<- paste(paste0("survival::Surv","(TR_",input_output,", DP_rev_",input_output,", I) ~ "),paste(tmp.all, collapse='+'))
+
+  }
+
+
   string_formula
 
 
@@ -1269,7 +1308,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
   if("AP_i" %in% continuous_features |
      "RP_i" %in% continuous_features){
 
-    #Generic approach that groups by either AP_i, RP_i or both, and craete the corresponding dataset.
+    #Generic approach that groups by either AP_i, RP_i or both, and create the corresponding dataset.
     time_features <- continuous_features[continuous_features %in% c("AP_i","RP_i")]
 
     time_elements_0 <- paste(sapply(time_features, function(x){paste0(x,"=hazard_frame[['",x,"']]")}
@@ -1360,7 +1399,7 @@ pkg.env$latest_observed_values_i <- function(data_reserve,
   max_DP_i <- data_reserve %>% group_by(AP_i) %>%
     summarise(DP_max_rev =min(max(DP_rev_i)-DP_i)+1 ) %>%
     distinct()
-  # browser()
+
   data_reserve2 <- data_reserve %>%
     select(AP_i, AP_o, DP_rev_i, DP_i, all_of(categorical_features), all_of(continuous_features), I) %>%
     mutate(AP_i = as.numeric(AP_i)) %>%
@@ -1563,7 +1602,8 @@ pkg.env$predict_i <- function(hazard_data_frame,
 
 pkg.env$retrieve_df_i <- function(hazard_data_frame,
                                   groups,
-                                  adjusted=FALSE
+                                  adjusted=FALSE,
+                                  is_baseline_model=FALSE
 ){
   "
   Return data frame only containing input development factors.
@@ -1590,10 +1630,20 @@ pkg.env$retrieve_df_i <- function(hazard_data_frame,
   }
   #
 
+  if(is_baseline_model){
 
-  df_i <- as.data.frame(df_i[1:(nrow(df_i)-1),]) %>%
+    df_i <- df_i %>%
+      map_df(rev) %>%
+      mutate(DP_i=row_number())
+
+    return(df_i)
+
+  }else{
+    df_i <- as.data.frame(df_i[1:(nrow(df_i)-1),]) %>%
     map_df(rev) %>%
     mutate(DP_i=row_number())
+
+    }
 
   return(df_i)
 
@@ -1608,11 +1658,15 @@ pkg.env$input_hazard_frame <- function(
     continuous_features,
     df_i,
     groups,
-    adjusted=FALSE)
+    adjusted=FALSE,
+    is_baseline_model=FALSE)
 {
   "
   Create a hazard frame with relevant input time granularity specific values for later output.
   "
+
+
+
   if("AP_i" %in% continuous_features & length(continuous_features) == 1){
     continuous_features <- NULL
   }
@@ -1636,12 +1690,25 @@ pkg.env$input_hazard_frame <- function(
   }
   else{
 
+    if(is_baseline_model){
+
+      df_i_long <- df_i %>%
+        reshape2::melt(id.vars="DP_i") %>%
+        mutate(variable=0) %>%
+        left_join(groups[,c("covariate", "group_i")], by=c("variable" = "covariate")) %>%
+        mutate(DP_i = DP_i +1) #to get correct DP_i
+
+       colnames(df_i_long) <- c("DP_i", "covariate", "df_i", "group_i")
+    }else{
+
     df_i_long <- df_i %>%
       reshape2::melt(id.vars="DP_i") %>%
       left_join(groups[,c("covariate", "group_i")], by=c("variable" = "covariate")) %>%
       mutate(DP_i = DP_i +1) #to get correct DP_i
 
     colnames(df_i_long) <- c("DP_i", "covariate", "df_i", "group_i")
+
+    }
   }
 
 
@@ -1700,14 +1767,13 @@ pkg.env$predict_o <- function(
 
    "
   max_dp_i <-pkg.env$maximum.time(years,input_time_granularity)
-
   # Predict expected numbers, this is also used grouping methodology
   expected <-  expected_i %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
     mutate(DP_i =  max_dp_i-DP_rev_i + 1) %>%
     mutate(AP_o = ceiling(AP_i*conversion_factor),
-           DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1) %>%
-    filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parrallelogram in the end of the development time
+           DP_rev_o = ceiling(max_dp_i*conversion_factor)- ceiling((DP_i+(AP_i-1)%%(1/conversion_factor))*conversion_factor)+1) %>%
+    #we can consider re-adding it in the future: filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parallelogram in the end of the development time
     group_by(AP_o, DP_rev_o, group_o) %>%
     summarize(I_expected = sum(I_expected,na.rm=T),
               IBNR = sum(IBNR, na.rm=T), .groups="drop") %>%
@@ -1853,7 +1919,8 @@ pkg.env$output_hazard_frame <- function(
     categorical_features,
     continuous_features,
     df_o,
-    groups
+    groups,
+    is_baseline_model=FALSE
     )
 {
   "
@@ -1889,12 +1956,25 @@ pkg.env$output_hazard_frame <- function(
   }
   else{
 
+    if(is_baseline_model){
+
+      df_o_long <- df_o %>%
+          reshape2::melt(id.vars="DP_o") %>%
+          mutate(variable=0) %>%
+          left_join(groups[,c("covariate", "group_i")], by=c("variable" = "covariate")) %>%
+        mutate(DP_o = DP_o +1) #to get correct DP_i
+
+        colnames(df_o_long) <- c("DP_o", "covariate", "df_o", "group_o")
+
+
+    }else{
+
     df_o_long <- df_o %>%
       reshape2::melt(id.vars="DP_o") %>%
       left_join(groups[,c("covariate", "group_o")], by=c("variable" = "covariate")) %>%
       mutate(DP_o = DP_o +1) #to get correct
 
-    colnames(df_o_long) <- c("DP_o", "covariate", "df_o", "group_o")
+    colnames(df_o_long) <- c("DP_o", "covariate", "df_o", "group_o")}
   }
 
 
@@ -1973,7 +2053,7 @@ pkg.env$update_hazard_frame <- function(
     left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
     mutate(AP_o = ceiling(AP_i*conversion_factor),
            DP_rev_o =   floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1) %>%
-    filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parrallelogram in the end of the development time
+    filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parallelogram in the end of the development time
     mutate(DP_o = max_DP_rev_o-DP_rev_o +1) %>%
     group_by(AP_o,group_o) %>%
     summarize(latest_I = sum(I), DP_o_max = max(DP_o), .groups="drop") %>%
@@ -2131,10 +2211,20 @@ pkg.env$df.2.fcst.nn.pp <- function(data,
 
   Xc=as.matrix.data.frame(tmp)
 
-  X=pkg.env$model.matrix.creator(data= newdata,
-                                 select_columns = categorical_features)
+  if(!is.null(categorical_features)){
 
-  return(cbind(X,Xc))
+    X=pkg.env$model.matrix.creator(data= newdata,
+                                   select_columns = categorical_features)
+
+    out <- cbind(X,Xc)
+
+    }else{
+
+    out <- Xc
+
+    }
+
+  return(out)
 
 }
 
@@ -2161,12 +2251,23 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
   }
 
 
+  if(!is.null(categorical_features)){
 
-  X=pkg.env$model.matrix.creator(data= newdata,
-                                 select_columns = categorical_features,
-                                 remove_first_dummy = T)
+    X=pkg.env$model.matrix.creator(data= newdata,
+                                   select_columns = categorical_features,
+                                   remove_first_dummy = T)
+  }
 
-  if(!is.null(Xc)){X <- cbind(X,Xc)}
+
+  if(!is.null(Xc)){
+
+    if(!is.null(categorical_features)){
+
+    X <- cbind(X,Xc)}else{
+
+      X <- Xc
+
+    }}
 
   ds_train_fcst <- xgboost::xgb.DMatrix(as.matrix.data.frame(X), label=rep(1, dim(X)[1]))
 
@@ -3191,6 +3292,198 @@ survival_information<-function(x,
   return(crps)
 
 }
+
+
+pkg.env$complete_lt_predictions_i <- function(dt,max_dp){
+
+  "
+  Add the missing combinations of AP_i and DP_i to the long format output long_tr_input to create a triangle data.frame.
+  "
+
+  seq1_main <- unique(dt$AP_i)
+  seq2_main <- unique(dt$DP_i)
+
+  complete_seq <- 1:max_dp
+
+  diff1<-setdiff(complete_seq, seq1_main)
+  diff2<-setdiff(complete_seq, seq2_main)
+
+
+  if(length(diff1)==0){
+
+    if(length(diff2)==0){
+
+      return(NULL)
+
+    }else{
+
+      return(CJ(seq1_main,diff2))
+
+    }
+
+  }else{
+
+    if(length(diff2)==0){
+
+      return(CJ(diff1,seq2_main))
+
+    }else{
+
+      return(CJ(diff1,diff2))
+
+    }
+
+
+  }
+
+
+}
+
+
+pkg.env$complete_lt_predictions_o <- function(dt,max_dp){
+
+  "
+  Add the missing combinations of AP_o and DP_o to the long format output long_tr_output to create a triangle data.frame.
+  "
+
+  seq1_main <- unique(dt$AP_o)
+  seq2_main <- unique(dt$DP_o)
+
+  complete_seq <- 1:max_dp
+
+  diff1<-setdiff(complete_seq, seq1_main)
+  diff2<-setdiff(complete_seq, seq2_main)
+
+
+  if(length(diff1)==0){
+
+    if(length(diff2)==0){
+
+      return(NULL)
+
+    }else{
+
+      return(CJ(seq1_main,diff2))
+
+    }
+
+  }else{
+
+    if(length(diff2)==0){
+
+      return(CJ(diff1,seq2_main))
+
+    }else{
+
+      return(CJ(diff1,diff2))
+
+    }
+
+
+  }
+
+
+}
+
+pkg.env$find_lt_input <- function(dt,max_dp){
+
+  "
+  Return the lower triangular output in a data.frame format (input granularity).
+  "
+
+
+  dt <- as.data.table(dt)
+
+  dt<-dt[,.(value=sum(IBNR,na.rm=TRUE)),by=.(AP_i,DP_i)]
+
+  add_up <- pkg.env$complete_lt_predictions_i(dt,max_dp)
+
+  if(!is.null(add_up)){
+
+    colnames(add_up) <- c("AP_i","DP_i")
+
+    add_up[["value"]] <- 0
+
+    dt <- rbind(dt,add_up)
+
+  }
+
+  dt.w<-dcast(dt, AP_i ~ DP_i , value.var = "value") %>%
+    as.data.frame()
+
+  rownames(dt.w) <- dt.w$AP_i
+  dt.w <- dt.w[,-1]
+
+  for(i in 1:max_dp){
+
+    for(j in 1:max_dp){
+
+      if((i+j-1) <= (max_dp)){
+
+        dt.w[i,j]<-NA
+
+      }
+
+    }
+
+  }
+
+  return(dt.w)
+
+}
+
+
+pkg.env$find_lt_output <- function(dt,
+                                   max_dp,
+                                   cut_point){
+
+
+  "
+  Return the lower triangular output in a data.frame format (output granularity).
+  "
+
+  dt <- as.data.table(dt)
+
+  dt<-dt[,.(value=sum(IBNR,na.rm=TRUE)),by=.(AP_o,DP_o)]
+
+  add_up <- pkg.env$complete_lt_predictions_o(dt,max_dp)
+
+  if(!is.null(add_up)){
+
+    colnames(add_up) <- c("AP_o","DP_o")
+
+    add_up[["value"]] <- 0
+
+    dt <- rbind(dt,add_up)
+
+  }
+
+  dt.w<-dcast(dt, AP_o ~ DP_o , value.var = "value") %>%
+    as.data.frame()
+
+  rownames(dt.w) <- dt.w$AP_o
+  dt.w <- dt.w[,-1]
+
+
+
+  for(i in 1:max_dp){
+
+    for(j in 1:max_dp){
+
+      if((i+j-1) <= (max_dp)){
+
+        if(is.na(dt.w[i,j]) | dt.w[i,j]==0){dt.w[i,j]<-NA}
+
+      }
+
+    }
+
+  }
+
+  return(dt.w[1:cut_point,])
+
+}
+
 
 
 

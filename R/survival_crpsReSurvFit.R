@@ -87,7 +87,10 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
                                     user_data_set= NULL){
 
 
-  hazard_frame <- ReSurvFit$hazard_frame
+  hazard_frame <- ReSurvFit$hazard_frame %>%
+    select(-DP_i) %>%
+    rename(dev_f_i = f_i,
+           cum_dev_f_i = cum_f_i)
 
   hazard_frame <- data.table(hazard_frame)
 

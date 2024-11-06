@@ -41,9 +41,7 @@ Individual claims data. It contains the following columns:
 \itemize{
 \item{\code{claim_number}: Policy ID.}
 \item{\code{claim_type}: Type of claim. It can be either 0 or 1.}
-\item{\code{AT}: Accident period in continuous time.}
 \item{\code{AP}: Accident period}
-\item{\code{RT}: Reporting period in continuous time.}
 \item{\code{RP}: Reporting period.}
 }
 }

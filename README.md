@@ -10,7 +10,7 @@ The package is based on the approach illustrated in *Hiabu M., Hofman E., and Pi
 
 ## Installation
 
-The developer version of the package can be installed from GitHub.
+The developers version of the package can be installed from GitHub.
 
 ```
 devtools::install_github('https://github.com/edhofman/ReSurv')
