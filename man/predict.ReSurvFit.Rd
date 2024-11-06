@@ -40,7 +40,7 @@ Predictions for the \code{ReSurvFit} model. It includes
 \item{\code{DP_i}: Development period, \code{input_time_granularity}.}
 \item{\code{f_i}: Predicted development factors, \code{input_time_granularity}.}
 \item{\code{group_i}: Group code, \code{input_time_granularity}. This associates to each feature combination an identifier.}
-\item{\code{I_expected}: Expected counts, \code{input_time_granularity}.}
+\item{\code{expected_counts}: Expected counts, \code{input_time_granularity}.}
 \item{\code{IBNR}: Predicted IBNR claim counts, \code{input_time_granularity}.}
 }
 \item{\code{output_granularity}: \code{data.frame}. Predictions for each feature combination in long format for \code{output_time_granularity}.}
@@ -49,7 +49,7 @@ Predictions for the \code{ReSurvFit} model. It includes
 \item{\code{DP_o}: Development period, \code{output_time_granularity}.}
 \item{\code{f_o}: Predicted development factors, \code{output_time_granularity}.}
 \item{\code{group_o}: Group code, \code{output_time_granularity}. This associates to each feature combination an identifier.}
-\item{\code{I_expected}: Expected counts, \code{output_time_granularity}.}
+\item{\code{expected_counts}: Expected counts, \code{output_time_granularity}.}
 \item{\code{IBNR}: Predicted IBNR claim counts, \code{output_time_granularity}.}
 }
 }
@@ -58,11 +58,7 @@ Predictions for the \code{ReSurvFit} model. It includes
 \item{\code{input_granularity}: \code{data.frame}. Predicted lower triangle for \code{input_time_granularity}.}
 \item{\code{output_granularity}: \code{data.frame}. Predicted lower triangle for \code{output_time_granularity}.}
 }
-\item{\code{predicted_counts}: Predicted total frequencies.}
-\itemize{
-\item{\code{input_granularity}: \code{numeric}. Predicted lower triangle for \code{input_time_granularity}.}
-\item{\code{output_granularity}: \code{numeric}. Predicted lower triangle for \code{output_time_granularity}.}
-}
+\item{\code{predicted_counts}: \code{numeric}. Predicted total frequencies.}
 \item{\code{grouping_method}: \code{character}. Chosen grouping method.}
 
 }
