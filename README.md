@@ -35,16 +35,6 @@ There is a one-to-one relationship between development factors and hazard rates 
 
 `ReSurv` extends COX, NN, and XGB to account for ties in left-truncated and right-censored observations.
 
-## Further reading material 
-
-Visit the package [vignettes](https://github.com/edhofman/ReSurv/tree/main/vignettes) for learning:
-
-* [Synthetic data genration](https://github.com/edhofman/ReSurv/blob/main/vignettes/simulate_individual_data.Rmd).
-* [Bayesian Hyperparameters tuning, Snoek (2012)](https://github.com/edhofman/ReSurv/blob/main/vignettes/hp_tuning.Rmd).
-* [Hiabu et al. (2023) replication code](https://github.com/edhofman/ReSurv/blob/main/vignettes/Manuscript_replication_material.Rmd).
-
-The full replication code the main manuscript can be found at [the GitHub folder](https://github.com/gpitt71/resurv-replication-code).
-
 ## References 
 
 - *Chen, T., & Guestrin, C. (2016, August). Xgboost: A scalable tree boosting system. In Proceedings of the 22nd acm sigkdd international conference on knowledge discovery and data mining (pp. 785-794).*

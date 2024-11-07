@@ -16,7 +16,7 @@
 #'
 #' Currently, the implementation allows to optimize the partial likelihood (concerning the proportional effects) using one of the following statistical learning approaches:
 #' \itemize{
-#' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{COX}}
+#' \item{\href{https://github.com/therneau/survival}{COX}}
 #' \item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
 #' \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
 #' }
@@ -114,7 +114,7 @@ ReSurv <- function(IndividualDataPP,
 #'
 #' Currently, the implementation allows to optimize the partial likelihood (concerning the proportional effects) using one of the following statistical learning approaches:
 #' \itemize{
-#' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{COX}}
+#' \item{\href{https://github.com/therneau/survival}{COX}}
 #' \item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
 #' \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
 #' }
@@ -213,7 +213,7 @@ ReSurv.default <- function(IndividualDataPP,
 #'
 #' Currently, the implementation allows to optimize the partial likelihood (concerning the proportional effects) using one of the following statistical learning approaches:
 #' \itemize{
-#' \item{\href{https://cran.r-project.org/web/packages/survival/vignettes/survival.pdf}{COX}}
+#' \item{\href{https://github.com/therneau/survival}{COX}}
 #' \item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
 #' \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
 #' }
