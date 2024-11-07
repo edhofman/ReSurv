@@ -1,6 +1,6 @@
 Package: ReSurv
 Type: Package
-Title: Machine learning models for predicting IBNR claim counts
+Title: Machine Learning Models for Predicting IBNR Claim Counts
 Version: 1.0.0
 Authors@R:
     c(person(given = "Emil",
