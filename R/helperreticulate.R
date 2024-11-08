@@ -1,11 +1,22 @@
 #'@import reticulate
 
 if(!("pyresurv"%in%virtualenv_list())){
-virtualenv_create(envname = "pyresurv",packages = c("scipy",
-                                                 "numpy",
-                                                 "torch",
-                                                 "torchtuples",
-                                                 "shap"))}
+
+
+  packages_list <- c("pip",
+                     "scipy",
+                     "numpy",
+                     "torch",
+                     "torchtuples",
+                     "shap")
+
+  if(grepl("ubuntu",tolower(Sys.info()[["sysname"]])) | grepl("debian",tolower(Sys.info()[["sysname"]])) ){
+    packages_list <- c("venv",packages_list)
+  }
+
+virtualenv_create(envname = "pyresurv",
+                  packages = packages_list,
+                  force = TRUE)}
 use_virtualenv("pyresurv")
 
 # global reference to scipy (will be initialized in .onLoad)

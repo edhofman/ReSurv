@@ -3,3 +3,4 @@
 ^README\.Rmd$
 ^\.github$
 ^_rhub\.yml$
+^docs$
