@@ -3,21 +3,34 @@
 if(!("pyresurv"%in%virtualenv_list())){
 
 
-  packages_list <- c("pip",
-                     "scipy",
-                     "numpy",
-                     "torch",
-                     "torchtuples",
-                     "shap")
+  is_py <- grepl("python", tolower(system("python --version", intern = TRUE)))
 
-  if(grepl("ubuntu",tolower(Sys.info()[["sysname"]])) | grepl("debian",tolower(Sys.info()[["sysname"]])) ){
-    packages_list <- c("venv",packages_list)
-  }
+  if(!is_py){
 
-virtualenv_create(envname = "pyresurv",
-                  packages = packages_list,
-                  force = TRUE)}
-use_virtualenv("pyresurv")
+    message("No Python environmet found. Please install manually to use the NN models.")
+
+  }else{
+
+    packages_list <- c("pip",
+                       "scipy",
+                       "numpy",
+                       "torch",
+                       "torchtuples",
+                       "shap")
+
+    if(grepl("ubuntu",tolower(Sys.info()[["sysname"]])) | grepl("debian",tolower(Sys.info()[["sysname"]])) ){
+      packages_list <- c("venv",packages_list)
+    }
+
+  virtualenv_create(envname = "pyresurv",
+                    packages = packages_list,
+                    force = TRUE)
+
+  use_virtualenv("pyresurv")}
+}
+
+
+
 
 # global reference to scipy (will be initialized in .onLoad)
 torch <- NULL
