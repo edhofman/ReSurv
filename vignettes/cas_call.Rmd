@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-```{r instancepackage eval=FALSE, include=FALSE}
+```{r eval=FALSE, include=TRUE}
 library(ReSurv)
 library(reticulate)
 use_virtualenv("pyresurv")

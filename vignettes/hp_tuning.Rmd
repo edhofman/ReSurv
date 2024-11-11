@@ -11,7 +11,7 @@ vignette: >
 
 ---
 
-```{r setup eval=FALSE, include=FALSE}
+```{r eval=FALSE, include=TRUE}
 knitr::opts_chunk$set(echo = TRUE)
 
 library(ReSurv)
