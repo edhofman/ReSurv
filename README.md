@@ -22,6 +22,16 @@ There is a one-to-one relationship between development factors and hazard rates 
 
 ## Installation
 
+### Developer Version
+
+The developers version of the package can be installed from GitHub.
+
+```
+devtools::install_github('https://github.com/edhofman/ReSurv')
+```
+
+### Python Dependencies
+
 For using the NN models we suggest to install a virtual environment using
 
 ```
@@ -38,7 +48,7 @@ library(ReSurv)
 reticulate::use_virtualenv('pyresurv')
 ```
 
-### Managing Multiple Package Dependencies
+#### Managing Multiple Package Dependencies
 
 This section is taken from the guidelines of the R package [reticulate](https://rstudio.github.io/reticulate/articles/python_dependencies.html) for handling the case of multiple packages in your session that used isolated-package-environments.
 The most straightforward solution would be installing a dedicated environment for both.
@@ -48,15 +58,6 @@ envname <- "./venv"
 ReSurv::install_pyresurv(envname = envname)
 pysparklyr::install_pyspark(envname = envname)
 
-```
-
-
-### Developer Version
-
-The developers version of the package can be installed from GitHub.
-
-```
-devtools::install_github('https://github.com/edhofman/ReSurv')
 ```
 
 
