@@ -26,12 +26,12 @@ For using the NN models we suggest to install a virtual environment using
 
 ```
 install_pyresurv()
-
 ```
+
 
 The default name of the virtual environment is `"pyresurv"`.
 
-We then suggest refresh the R session an to import the `ReSurv` package in `R` using 
+We then suggest to refresh the R session and to import the `ReSurv` package in `R` using 
 
 ```
 library(ReSurv)
