@@ -26,7 +26,11 @@ if(!("pyresurv"%in%virtualenv_list())){
                     packages = packages_list,
                     force = TRUE)
 
-  use_virtualenv("pyresurv")}
+  use_virtualenv("pyresurv")
+
+
+
+  }
 }
 
 
