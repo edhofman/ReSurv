@@ -8,21 +8,6 @@
 The package is based on the approach illustrated in *Hiabu M., Hofman E., and Pittarello G. (2023)* and estimates feature dependent development factors using individual reserving data. 
 
 
-## Installation
-
-The developers version of the package can be installed from GitHub.
-
-```
-devtools::install_github('https://github.com/edhofman/ReSurv')
-```
-
-We suggest to import the package in `R` using 
-
-```
-library(ReSurv)
-reticulate::use_virtualenv('pyresurv')
-```
-
 ## Available Machine Learning (ML) models
 
 There is a one-to-one relationship between development factors and hazard rates (*Hiabu et al. (2023)*). The package implements extends the following machine learning algorithms for proportional hazard models:
@@ -34,6 +19,48 @@ There is a one-to-one relationship between development factors and hazard rates 
 * eXtreme Gradient Boosting (XGB, *Chen et al. (2016)*).
 
 `ReSurv` extends COX, NN, and XGB to account for ties in left-truncated and right-censored observations.
+
+## Installation
+
+### Developer Version
+
+The developers version of the package can be installed from GitHub.
+
+```
+devtools::install_github('https://github.com/edhofman/ReSurv')
+```
+
+### Python Dependencies
+
+For using the NN models we suggest to install a virtual environment using
+
+```
+install_pyresurv()
+```
+
+
+The default name of the virtual environment is `"pyresurv"`.
+
+We then suggest to refresh the R session and to import the `ReSurv` package in `R` using 
+
+```
+library(ReSurv)
+reticulate::use_virtualenv("pyresurv")
+```
+
+#### Managing Multiple Package Dependencies
+
+This section is taken from the guidelines of the R package [reticulate](https://rstudio.github.io/reticulate/articles/python_dependencies.html) for handling the case of multiple packages in your session that used isolated-package-environments.
+The most straightforward solution would be installing a dedicated environment for both.
+
+```
+envname <- "./venv"
+ReSurv::install_pyresurv(envname = envname)
+pysparklyr::install_pyspark(envname = envname)
+
+```
+
+
 
 ## References 
 
