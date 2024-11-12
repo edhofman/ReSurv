@@ -1,11 +1,11 @@
 ---
-title: "Hyperparameters tuning"
+title: "Hyperparameters Tuning"
 author: "Gabriele Pittarello"
 date: "`r Sys.Date()`"
 bibliography: '`r system.file("references.bib", package="ReSurv")`'
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Hyperparameters tuning}
+  %\VignetteIndexEntry{Hyperparameters Tuning}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 
@@ -16,9 +16,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(ReSurv)
 library(reticulate)
-use_virtualenv('pyresurv')
+use_virtualenv("pyresurv")
 
 ```
+
 
 # Introduction 
 
@@ -26,25 +27,29 @@ This vignette shows how to tune the hyperparameters of the machine learning algo
 For illustrative purposes, we will simulate daily claim notifications from one of the scenarios introduced in @hiabu23 (scenario Alpha). 
 
 ```{r eval=FALSE, include=TRUE}
-input_data0 <- data_generator(random_seed = 1964,
-                              scenario=0,
-                              time_unit = 1/360,
-                              years = 4,
-                              period_exposure = 200)
+input_data_0 <- data_generator(
+  random_seed = 1964,
+  scenario = 0,
+  time_unit = 1 / 360,
+  years = 4,
+  period_exposure = 200
+)
 ```
 
 The counts data are then pre-processed using the `IndividualDataPP` function.
 
 ```{r eval=FALSE, include=TRUE}
-individual_data <- IndividualDataPP(data = input_data0,
-                                  id=NULL,
-                                  categorical_features = c("claim_type"),
-                                  continuous_features = "AP",
-                                  accident_period="AP",
-                                  calendar_period="RP",
-                                  input_time_granularity = "days",
-                                  output_time_granularity = "quarters",
-                                  years=4)
+individual_data <- IndividualDataPP(
+  data = input_data_0,
+  id = NULL,
+  categorical_features = "claim_type",
+  continuous_features = "AP",
+  accident_period = "AP",
+  calendar_period = "RP",
+  input_time_granularity = "days",
+  output_time_granularity = "quarters",
+  years = 4
+)
 ```
 
 
@@ -77,24 +82,28 @@ In `ReSurv`, we have our own implementation of a standard K-Fold cross-validatio
 
 ```{r eval=FALSE, include=TRUE}
 
-resurv.cv.xgboost <- ReSurvCV(IndividualDataPP=individual_data,
-                               model="XGB",
-                               hparameters_grid=list(booster="gbtree",
-                                             eta=c(.001,.01,.2,.3),
-                                             max_depth=c(3,6,8),
-                                             subsample=c(1),
-                                             alpha=c(0,.2,1),
-                                             lambda=c(0,.2,1),
-                                             min_child_weight=c(.5,1)),
-                               print_every_n = 1L,
-                               nrounds=500,
-                               verbose=F,
-                               verbose.cv=T,
-                               early_stopping_rounds = 100,
-                               folds=5,
-                               parallel=T,
-                               ncores=2,
-                               random_seed=1)
+resurv_cv_xgboost <- ReSurvCV(
+  IndividualDataPP = individual_data,
+  model = "XGB",
+  hparameters_grid = list(
+    booster = "gbtree",
+    eta = c(.001, .01, .2, .3),
+    max_depth = c(3, 6, 8),
+    subsample = c(1),
+    alpha = c(0, .2, 1),
+    lambda = c(0, .2, 1),
+    min_child_weight = c(.5, 1)
+  ),
+  print_every_n = 1L,
+  nrounds = 500,
+  verbose = FALSE,
+  verbose.cv = TRUE,
+  early_stopping_rounds = 100,
+  folds = 5,
+  parallel = T,
+  ncores = 2,
+  random_seed = 1
+)
 
 ```
 
@@ -107,14 +116,15 @@ In order to use the `ParBayesianOptimization` package, we first need to specify 
 
 ```{r eval=FALSE, include=TRUE}
 
-bounds <- list(num_layers = c(2L,10L),
-               num_nodes = c(2L,10L),
-               optim=c(1L,2L),
-               activation = c(1L,2L),
-               lr=c(.005,0.5),
-               xi=c(0,0.5),
-               eps = c(0,0.5)
-               )
+bounds <- list(
+  num_layers = c(2L, 10L),
+  num_nodes = c(2L, 10L),
+  optim = c(1L, 2L),
+  activation = c(1L, 2L),
+  lr = c(.005, 0.5),
+  xi = c(0, 0.5),
+  eps = c(0, 0.5)
+)
 
 ```
 
@@ -130,47 +140,46 @@ The score metric we inspect is the negative (partial) likelihood. The likelihood
 
 ```{r eval=FALSE, include=TRUE}
 
-obj_func <- function(num_layers, 
-                     num_nodes, 
-                     optim, 
+obj_func <- function(num_layers,
+                     num_nodes,
+                     optim,
                      activation,
-                     lr, 
-                     xi, 
+                     lr,
+                     xi,
                      eps) {
-
-  optim = switch(optim, 
-                 "Adam", 
-                 "SGD")
-  activation = switch(activation, "LeakyReLU","SELU")
-  batch_size=as.integer(5000)
-  number_layers=as.integer(num_layers)
-  num_nodes=as.integer(num_nodes)
+  optim = switch(optim, "Adam", "SGD")
+  activation = switch(activation, "LeakyReLU", "SELU")
+  batch_size = as.integer(5000)
+  number_layers = as.integer(num_layers)
+  num_nodes = as.integer(num_nodes)
   
-  deepsurv_cv <- ReSurvCV(IndividualDataPP=individual_data,
-                    model="NN",
-                    hparameters_grid=list(num_layers = num_layers,
-                                         num_nodes = num_nodes,
-                                         optim=optim,
-                                         activation = activation,
-                                         lr=lr,
-                                         xi=xi,
-                                         eps = eps,
-                                         tie = "Efron",
-                                         batch_size = batch_size,
-                                         early_stopping = 'TRUE',
-                                         patience  = 20
-                    ),
-                    epochs=as.integer(300),
-                    num_workers = 0,      
-                    verbose=F,
-                    verbose.cv=T,
-                    folds=3,
-                    parallel=F,
-                    random_seed = as.integer(Sys.time()))
+  deepsurv_cv <- ReSurvCV(
+    IndividualDataPP = individual_data,
+    model = "NN",
+    hparameters_grid = list(
+      num_layers = num_layers,
+      num_nodes = num_nodes,
+      optim = optim,
+      activation = activation,
+      lr = lr,
+      xi = xi,
+      eps = eps,
+      tie = "Efron",
+      batch_size = batch_size,
+      early_stopping = 'TRUE',
+      patience  = 20
+    ),
+    epochs = as.integer(300),
+    num_workers = 0,
+    verbose = FALSE,
+    verbose.cv = TRUE,
+    folds = 3,
+    parallel = FALSE,
+    random_seed = as.integer(Sys.time())
+  )
   
-
+  
   lst <- list(
-    
     Score = -deepsurv_cv$out.cv.best.oos$test.lkh,
     
     train.lkh = deepsurv_cv$out.cv.best.oos$train.lkh
@@ -187,12 +196,12 @@ As a last step, we use the `bayesOpt` function to perform the optimization.
 ```{r eval=FALSE, include=TRUE}
 
 bayes_out <- bayesOpt(
-    FUN = obj_func
-    , bounds = bounds
-    , initPoints = 50
-    , iters.n = 1000
-    , iters.k = 50
-    , otherHalting = list(timeLimit = 18000)
+  FUN = obj_func,
+  bounds = bounds,
+  initPoints = 50,
+  iters.n = 1000,
+  iters.k = 50,
+  otherHalting = list(timeLimit = 18000)
   )
   
 
@@ -229,12 +238,14 @@ In a similar fashion, we can optimize the gradient boosting parameters. We first
 
 ```{r eval=FALSE, include=TRUE}
 
-bounds <- list(eta = c(0, 1),
-               max_depth = c(1L, 25L),
-               min_child_weight = c(0, 50),
-               subsample = c(0.51, 1),
-               lambda = c(0, 15),
-               alpha = c(0, 15))
+bounds <- list(
+  eta = c(0, 1),
+  max_depth = c(1L, 25L),
+  min_child_weight = c(0, 50),
+  subsample = c(0.51, 1),
+  lambda = c(0, 15),
+  alpha = c(0, 15)
+)
 
 ```
 
@@ -242,29 +253,35 @@ bounds <- list(eta = c(0, 1),
 Secondly, we define an objective function.
 
 ```{r eval=FALSE, include=TRUE}
-# Function must take the hyper-parameters as inputs
-obj_func <- function(eta, max_depth, min_child_weight, subsample, lambda, alpha) {
-  
-  xgbcv <- ReSurvCV(IndividualDataPP=individual_data,
-                    model="XGB",
-                    hparameters_grid=list(booster="gbtree",
-                                          eta=eta,
-                                          max_depth=max_depth,
-                                          subsample=subsample,
-                                          alpha=lambda,
-                                          lambda=alpha,
-                                          min_child_weight=min_child_weight),
-                    print_every_n = 1L,
-                    nrounds=500,
-                    verbose=F,
-                    verbose.cv=T,
-                    early_stopping_rounds = 30,
-                    folds=3,
-                    parallel=F,
-                    random_seed = as.integer(Sys.time()))
+obj_func <- function(eta,
+                     max_depth,
+                     min_child_weight,
+                     subsample,
+                     lambda,
+                     alpha) {
+  xgbcv <- ReSurvCV(
+    IndividualDataPP = individual_data,
+    model = "XGB",
+    hparameters_grid = list(
+      booster = "gbtree",
+      eta = eta,
+      max_depth = max_depth,
+      subsample = subsample,
+      alpha = lambda,
+      lambda = alpha,
+      min_child_weight = min_child_weight
+    ),
+    print_every_n = 1L,
+    nrounds = 500,
+    verbose = FALSE,
+    verbose.cv = TRUE,
+    early_stopping_rounds = 30,
+    folds = 3,
+    parallel = FALSE,
+    random_seed = as.integer(Sys.time())
+  )
   
   lst <- list(
-    
     Score = -xgbcv$out.cv.best.oos$test.lkh,
     train.lkh = xgbcv$out.cv.best.oos$train.lkh
   )
@@ -281,19 +298,27 @@ Lastly, we perform the optimization in a parallel setting using the `DoParallel`
 
 library(DoParallel)
 
-cl <- makeCluster( parallel::detectCores()  )
+cl <- makeCluster(parallel::detectCores())
 registerDoParallel(cl)
 
-clusterEvalQ(cl, {library("ReSurv")} )
+clusterEvalQ(cl, {
+  library("ReSurv")
+})
 
 bayes_out <- bayesOpt(
   FUN = obj_func
-  , bounds = bounds
-  , initPoints = length(bounds) + 20
-  , iters.n = 1000
-  , iters.k = 50
-  , otherHalting = list(timeLimit = 18000)
-  , parallel = TRUE
+  ,
+  bounds = bounds
+  ,
+  initPoints = length(bounds) + 20
+  ,
+  iters.n = 1000
+  ,
+  iters.k = 50
+  ,
+  otherHalting = list(timeLimit = 18000)
+  ,
+  parallel = TRUE
 )
 
 ```

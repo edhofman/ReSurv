@@ -45,7 +45,7 @@ We then suggest to refresh the R session and to import the `ReSurv` package in `
 
 ```
 library(ReSurv)
-reticulate::use_virtualenv('pyresurv')
+reticulate::use_virtualenv("pyresurv")
 ```
 
 #### Managing Multiple Package Dependencies

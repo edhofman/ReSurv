@@ -1,10 +1,10 @@
 ---
-title: "2024 Reserving Call Paper Program on Technology and the Reserving Actuary"
+title: "Claim Counts Prediction Using Individual Data"
 author: "Gabriele Pittarello"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{2024 Reserving Call Paper Program on Technology and the Reserving Actuary}
+  %\VignetteIndexEntry{Claim Counts Prediction Using Individual Data}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -23,7 +23,9 @@ library(ggplot2)
 ```
 
 
-In this vignette we show a pipeline for predicting individual claim counts using the `ReSurv` pacakge. This vignette contains the code to replicate our 
+In this vignette we show a pipeline for predicting individual claim counts using the `ReSurv` package. 
+
+This vignette was created for the *2024 Reserving Call Paper Program on Technology and the Reserving Actuary* of the Casualty Actuarial Society (CAS) and the CAS Reserves Working Group. We would like to thank the team of reviewers that provided feedback that improved our package.
 
 # Installation
 
@@ -35,6 +37,33 @@ devtools::install_github("edhofman/resurv")
 library(ReSurv)
 packageVersion("ReSurv")
 
+```
+
+
+To handle the Python dependencies for *the first package installation*, we suggest to create a dedicated virtual environment. The remaining part of this Section can be disregard from users that are not interested in using our models based on Neural Networks.
+
+```{r eval=FALSE, include=TRUE}
+ReSurv::install_pyresurv()
+```
+
+The default name of the virtual environment is `"pyresurv"`.
+
+We then suggest to refresh the R session and to import the `ReSurv` package in R using 
+
+```{r eval=FALSE, include=TRUE}
+library(ReSurv)
+reticulate::use_virtualenv("pyresurv")
+
+```
+
+## Managing Multiple Package Dependencies
+
+For the case of multiple packages using isolated-package-environments we suggest the following procedure. Below an example for `pysparklyr`.
+
+```{r eval=FALSE, include=TRUE}
+envname <- "./venv"
+ReSurv::install_pyresurv(envname = envname)
+pysparklyr::install_pyspark(envname = envname)
 ```
 
 # Data Simulation
