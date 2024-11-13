@@ -21,13 +21,6 @@
 #'
 #' @import SynthETIC
 #'
-#' @examples
-#' ## Generate four years of daily data for scenario Alpha.
-#' input_data <- data_generator(random_seed = 7,
-#'                               scenario='alpha',
-#'                               time_unit = 1/360,
-#'                               years = 4,
-#'                               period_exposure = 200)
 #'
 #'
 #'

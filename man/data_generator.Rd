@@ -50,17 +50,6 @@ This function generates the monthly individual claims data in the accompanying m
 This simple function allows to simulate from a sand-box to test out the \code{ReSurv} approach.
 Some parameters of the simulation can be changed.
 }
-\examples{
-## Generate four years of daily data for scenario Alpha.
-input_data <- data_generator(random_seed = 7,
-                              scenario='alpha',
-                              time_unit = 1/360,
-                              years = 4,
-                              period_exposure = 200)
-
-
-
-}
 \references{
 Avanzi, B., Taylor, G., Wang, M., & Wong, B. (2021). SynthETIC: an individual insurance claim simulator with feature control. Insurance: Mathematics and Economics, 100, 296-308.
 
