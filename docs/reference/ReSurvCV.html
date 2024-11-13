@@ -34,19 +34,19 @@ Conversely, the parameters for the models run are provided separately as argumen
     <span class="caret"></span>
   </a>
   <ul class="dropdown-menu" role="menu"><li>
-      <a href="../articles/cas_call.html">2024 Reserving Call Paper Program on Technology and the Reserving Actuary</a>
+      <a href="../articles/cas_call.html">Claim Counts Prediction Using Individual Data</a>
     </li>
     <li>
-      <a href="../articles/hp_tuning.html">Hyperparameters tuning</a>
+      <a href="../articles/hp_tuning.html">Hyperparameters Tuning</a>
     </li>
     <li>
-      <a href="../articles/Manuscript_replication_material.html">A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving</a>
+      <a href="../articles/Manuscript_replication_material.html">A Machine Learning Approach Based On Survival Analysis For IBNR Frequencies In Non-Life Reserving</a>
     </li>
     <li>
-      <a href="../articles/simulate_individual_data.html">Simulate individual data</a>
+      <a href="../articles/simulate_individual_data.html">Simulate Individual Data</a>
     </li>
     <li>
-      <a href="../articles/variables_importance.html">Exploring the variables importance</a>
+      <a href="../articles/variables_importance.html">Exploring The Variables Importance</a>
     </li>
   </ul></li>
       </ul><ul class="nav navbar-nav navbar-right"><li>
@@ -170,47 +170,6 @@ Conversely, the parameters for the models run are provided separately as argumen
     <p>Munir, H., Emil, H., &amp; Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.</p>
     </div>
 
-    <div id="ref-examples">
-    <h2>Examples</h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co">## Not run</span></span></span>
-<span class="r-in"><span><span class="va">input_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="data_generator.html">data_generator</a></span><span class="op">(</span>random_seed <span class="op">=</span> <span class="fl">1964</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">individual_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="IndividualDataPP.html">IndividualDataPP</a></span><span class="op">(</span><span class="va">input_data</span>,</span></span>
-<span class="r-in"><span>                                  id<span class="op">=</span><span class="st">"claim_number"</span>,</span></span>
-<span class="r-in"><span>                                  continuous_features<span class="op">=</span><span class="cn">NULL</span>,</span></span>
-<span class="r-in"><span>                                  categorical_features<span class="op">=</span><span class="st">"claim_type"</span>,</span></span>
-<span class="r-in"><span>                                  accident_period<span class="op">=</span><span class="st">"AP"</span>,</span></span>
-<span class="r-in"><span>                                  calendar_period<span class="op">=</span><span class="st">"RP"</span>,</span></span>
-<span class="r-in"><span>                                  input_time_granularity <span class="op">=</span> <span class="st">"months"</span>,</span></span>
-<span class="r-in"><span>                                  output_time_granularity <span class="op">=</span> <span class="st">"quarters"</span>,</span></span>
-<span class="r-in"><span>                                  years<span class="op">=</span><span class="fl">4</span>,</span></span>
-<span class="r-in"><span>                                  continuous_features_spline<span class="op">=</span><span class="cn">NULL</span>,</span></span>
-<span class="r-in"><span>                                  calendar_period_extrapolation<span class="op">=</span><span class="cn">FALSE</span><span class="op">)</span></span></span>
-<span class="r-wrn co"><span class="r-pr">#&gt;</span> <span class="warning">Warning: </span>Some calendar periods are missing in the data</span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">resurv.cv.xgboost</span> <span class="op">&lt;-</span> <span class="fu">ReSurvCV</span><span class="op">(</span>IndividualDataPP<span class="op">=</span><span class="va">individual_data</span>,</span></span>
-<span class="r-in"><span>                              model<span class="op">=</span><span class="st">"XGB"</span>,</span></span>
-<span class="r-in"><span>                              hparameters_grid<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>booster<span class="op">=</span><span class="st">"gbtree"</span>,</span></span>
-<span class="r-in"><span>                              eta<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">.001</span>,<span class="fl">.01</span>,<span class="fl">.2</span>,<span class="fl">.3</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>                              max_depth<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>,<span class="fl">6</span>,<span class="fl">8</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>                              subsample<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>                              alpha<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>,<span class="fl">.2</span>,<span class="fl">1</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>                              lambda<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>,<span class="fl">.2</span>,<span class="fl">1</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>                               min_child_weight<span class="op">=</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">.5</span>,<span class="fl">1</span><span class="op">)</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>                               print_every_n <span class="op">=</span> <span class="fl">1L</span>,</span></span>
-<span class="r-in"><span>                               nrounds<span class="op">=</span><span class="fl">1L</span>, <span class="co">##set to one to run quickly</span></span></span>
-<span class="r-in"><span>                               verbose<span class="op">=</span><span class="cn">FALSE</span>,</span></span>
-<span class="r-in"><span>                               verbose.cv<span class="op">=</span><span class="cn">TRUE</span>,</span></span>
-<span class="r-in"><span>                               early_stopping_rounds <span class="op">=</span> <span class="fl">100L</span>,</span></span>
-<span class="r-in"><span>                               folds<span class="op">=</span><span class="fl">5L</span>,</span></span>
-<span class="r-in"><span>                               parallel<span class="op">=</span><span class="cn">TRUE</span>,</span></span>
-<span class="r-in"><span>                               ncores<span class="op">=</span><span class="fl">2L</span>,</span></span>
-<span class="r-in"><span>                               random_seed<span class="op">=</span><span class="fl">1L</span><span class="op">)</span></span></span>
-<span class="r-msg co"><span class="r-pr">#&gt;</span> Loading required package: parallel</span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span></span></span>
-</code></pre></div>
-    </div>
   </div>
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
     <nav id="toc" data-toggle="toc" class="sticky-top"><h2 data-toc-skip>Contents</h2>

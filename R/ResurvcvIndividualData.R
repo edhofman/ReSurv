@@ -33,40 +33,6 @@
 #' @import tidyverse
 #' @import xgboost
 #'
-#' @examples
-#' ## Not run
-#' input_data <- data_generator(random_seed = 1964)
-#'
-#' individual_data <- IndividualDataPP(input_data,
-#'                                   id="claim_number",
-#'                                   continuous_features=NULL,
-#'                                   categorical_features="claim_type",
-#'                                   accident_period="AP",
-#'                                   calendar_period="RP",
-#'                                   input_time_granularity = "months",
-#'                                   output_time_granularity = "quarters",
-#'                                   years=4,
-#'                                   continuous_features_spline=NULL,
-#'                                   calendar_period_extrapolation=FALSE)
-#'
-#' resurv.cv.xgboost <- ReSurvCV(IndividualDataPP=individual_data,
-#'                               model="XGB",
-#'                               hparameters_grid=list(booster="gbtree",
-#'                               eta=c(.001,.01,.2,.3),
-#'                               max_depth=c(3,6,8),
-#'                               subsample=c(1),
-#'                               alpha=c(0,.2,1),
-#'                               lambda=c(0,.2,1),
-#'                                min_child_weight=c(.5,1)),
-#'                                print_every_n = 1L,
-#'                                nrounds=1L, ##set to one to run quickly
-#'                                verbose=FALSE,
-#'                                verbose.cv=TRUE,
-#'                                early_stopping_rounds = 100L,
-#'                                folds=5L,
-#'                                parallel=TRUE,
-#'                                ncores=2L,
-#'                                random_seed=1L)
 #'
 #'
 #' @references
