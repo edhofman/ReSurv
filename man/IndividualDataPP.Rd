@@ -124,6 +124,28 @@ The conversion factor is computed as
 where \eqn{{\nu}^i} and \eqn{{\nu}^o} are the fraction of a year corresponding to \code{input_time_granularity} and \code{output_time_granularity}. \eqn{{\nu}^i} and \eqn{{\nu}^o} take values \code{1/360, 1/12, 1/4, 1/2, 1} for \code{"days", "months", "quarters", "semesters", "years"} respectively.
 We will have \code{RP_o} = \code{AP_o} + \code{DP_o}.
 }
+\examples{
+
+input_data_0 <- data_generator(
+random_seed = 1964,
+scenario = "alpha",
+time_unit = 1,
+years = 2,
+period_exposure = 100)
+
+individual_data <- IndividualDataPP(data = input_data_0,
+categorical_features = "claim_type",
+continuous_features = "AP",
+accident_period = "AP",
+calendar_period = "RP",
+input_time_granularity = "years",
+output_time_granularity = "years",
+years = 2)
+
+
+
+
+}
 \references{
 Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 }

@@ -52,7 +52,7 @@
 #' @export
 #' @method predict ReSurvFit
 predict.ReSurvFit <- function(object,
-                              newdata=NULL,
+                              newdata = NULL,
                               grouping_method = "probability",
                               check_value = 1.85,
                               ...){

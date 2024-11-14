@@ -135,15 +135,15 @@ print.summaryReSurvPredict <-
 
 plot.ReSurvPredict <-function (x,
                                granularity = "input",
-                               group_code=1,
-                               color_par= "royalblue",
-                               linewidth_par=2.5,
-                               ylim_par=NULL,
-                               ticks_by_par=NULL,
-                               base_size_par=NULL,
-                               title_par=NULL,
-                               x_text_par=NULL,
-                               plot.title.size_par=NULL,
+                               group_code = 1,
+                               color_par = "royalblue",
+                               linewidth_par = 2.5,
+                               ylim_par = NULL,
+                               ticks_by_par = NULL,
+                               base_size_par = NULL,
+                               title_par = NULL,
+                               x_text_par = NULL,
+                               plot.title.size_par = NULL,
                                ...){
 
   if(granularity=="input"){

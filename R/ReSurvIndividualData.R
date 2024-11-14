@@ -64,6 +64,33 @@
 #' \item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
 #' }
 #'
+#'
+#'
+#'@examples
+#'
+#' input_data_0 <- data_generator(
+#' random_seed = 1964,
+#' scenario = "alpha",
+#' time_unit = 1,
+#' years = 4,
+#' period_exposure = 100)
+#'
+#' individual_data <- IndividualDataPP(data = input_data_0,
+#' categorical_features = "claim_type",
+#' continuous_features = "AP",
+#' accident_period = "AP",
+#' calendar_period = "RP",
+#' input_time_granularity = "years",
+#' output_time_granularity = "years",
+#' years=4)
+#'
+#'
+#' resurv_fit_cox <- ReSurv(individual_data,
+#' hazard_model = "COX")
+#'
+#'
+#'
+#'
 #' @import reticulate
 #' @import tidyverse
 #' @import xgboost
@@ -83,13 +110,13 @@
 #'
 #' @export
 ReSurv <- function(IndividualDataPP,
-                   hazard_model="COX",
-                   tie='efron',
-                   baseline="spline",
-                   continuous_features_scaling_method="minmax",
-                   random_seed=1,
-                   hparameters=list(),
-                   percentage_data_training=.8,
+                   hazard_model = "COX",
+                   tie = "efron",
+                   baseline = "spline",
+                   continuous_features_scaling_method = "minmax",
+                   random_seed = 1,
+                   hparameters = list(),
+                   percentage_data_training = .8,
                    grouping_method = "exposure",
                    check_value = 1.85){
 
@@ -168,6 +195,34 @@ ReSurv <- function(IndividualDataPP,
 #' @import rpart
 #'
 #'
+#'
+#'
+#'@examples
+#'
+#' input_data_0 <- data_generator(
+#' random_seed = 1964,
+#' scenario = "alpha",
+#' time_unit = 1,
+#' years = 4,
+#' period_exposure = 100)
+#'
+#' individual_data <- IndividualDataPP(data = input_data_0,
+#' categorical_features = "claim_type",
+#' continuous_features = "AP",
+#' accident_period = "AP",
+#' calendar_period = "RP",
+#' input_time_granularity = "years",
+#' output_time_granularity = "years",
+#' years=4)
+#'
+#'
+#' resurv_fit_cox <- ReSurv(individual_data,
+#' hazard_model = "COX")
+#'
+#'
+#'
+#'
+#'
 #' @references
 #' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
 #'
@@ -179,13 +234,13 @@ ReSurv <- function(IndividualDataPP,
 #'
 #' @export
 ReSurv.default <- function(IndividualDataPP,
-                           hazard_model="COX",
-                           tie='efron',
-                           baseline="spline",
-                           continuous_features_scaling_method="minmax",
-                           random_seed=1,
-                           hparameters=list(),
-                           percentage_data_training=.8,
+                           hazard_model = "COX",
+                           tie = "efron",
+                           baseline = "spline",
+                           continuous_features_scaling_method = "minmax",
+                           random_seed = 1,
+                           hparameters = list(),
+                           percentage_data_training = .8,
                            grouping_method = "exposure",
                            check_value = 1.85){
 
@@ -266,6 +321,34 @@ ReSurv.default <- function(IndividualDataPP,
 #' @import rpart
 #'
 #'
+#'
+#'
+#'@examples
+#'
+#' input_data_0 <- data_generator(
+#' random_seed = 1964,
+#' scenario = "alpha",
+#' time_unit = 1,
+#' years = 4,
+#' period_exposure = 100)
+#'
+#' individual_data <- IndividualDataPP(data = input_data_0,
+#' categorical_features = "claim_type",
+#' continuous_features = "AP",
+#' accident_period = "AP",
+#' calendar_period = "RP",
+#' input_time_granularity = "years",
+#' output_time_granularity = "years",
+#' years=4)
+#'
+#'
+#' resurv_fit_cox <- ReSurv(individual_data,
+#' hazard_model = "COX")
+#'
+#'
+#'
+#'
+#'
 #' @references
 #' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
 #'
@@ -277,13 +360,13 @@ ReSurv.default <- function(IndividualDataPP,
 #'
 #' @export
 ReSurv.IndividualDataPP <- function(IndividualDataPP,
-                                  hazard_model="COX",
-                                  tie='efron',
-                                  baseline="spline",
-                                  continuous_features_scaling_method="minmax",
-                                  random_seed=1,
-                                  hparameters=list(),
-                                  percentage_data_training=.8,
+                                  hazard_model = "COX",
+                                  tie = "efron",
+                                  baseline = "spline",
+                                  continuous_features_scaling_method = "minmax",
+                                  random_seed = 1,
+                                  hparameters = list(),
+                                  percentage_data_training = .8,
                                   grouping_method = "exposure",
                                   check_value = 1.85
 ){

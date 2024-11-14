@@ -92,6 +92,32 @@ Currently, the implementation allows to optimize the partial likelihood (concern
 \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
 }
 }
+\examples{
+
+input_data_0 <- data_generator(
+random_seed = 1964,
+scenario = "alpha",
+time_unit = 1,
+years = 4,
+period_exposure = 100)
+
+individual_data <- IndividualDataPP(data = input_data_0,
+categorical_features = "claim_type",
+continuous_features = "AP",
+accident_period = "AP",
+calendar_period = "RP",
+input_time_granularity = "years",
+output_time_granularity = "years",
+years=4)
+
+
+resurv_fit_cox <- ReSurv(individual_data,
+hazard_model = "COX")
+
+
+
+
+}
 \references{
 Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 

@@ -35,6 +35,7 @@
 #'
 #'
 #'
+#'
 #' @references
 #' Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 #'
@@ -46,14 +47,14 @@ ReSurvCV <- function(IndividualDataPP,
                      random_seed,
                      continuous_features_scaling_method="minmax",
                      print_every_n = 1L,
-                     nrounds= NULL,
+                     nrounds = NULL,
                      early_stopping_rounds = NULL,
-                     epochs=1,
-                     parallel=F,
+                     epochs = 1,
+                     parallel = FALSE,
                      ncores = 1,
-                     num_workers  =0,
-                     verbose=F,
-                     verbose.cv=F){
+                     num_workers  = 0,
+                     verbose = FALSE,
+                     verbose.cv = FALSE){
 
   UseMethod("ReSurvCV")
 
@@ -87,6 +88,11 @@ ReSurvCV <- function(IndividualDataPP,
 #'
 #' For XGB the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{booster}, \code{eta}, \code{max_depth}, \code{subsample}, \code{alpha}, \code{lambda}, \code{min_child_weight}. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}. For NN the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{num_layers}, \code{optim}, \code{activation}, \code{lr}, \code{xi}, \code{eps}, \code{tie}, \code{batch_size}, \code{early_stopping}, \code{patience}, \code{node} train.lkh test.lkh. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}.
 #'
+#'
+#'
+#'
+#'
+#'
 #' @references
 #' Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 #'
@@ -101,11 +107,11 @@ ReSurvCV.default <- function(IndividualDataPP,
                              nrounds= NULL,
                              early_stopping_rounds = NULL,
                              epochs=1,
-                             parallel=F,
+                             parallel= FALSE,
                              ncores = 1,
                              num_workers  =0,
-                             verbose = F,
-                             verbose.cv=F){
+                             verbose = FALSE,
+                             verbose.cv= FALSE){
 
   message('The object provided must be of class IndividualDataPP')
 
@@ -140,6 +146,8 @@ ReSurvCV.default <- function(IndividualDataPP,
 #' For XGB the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{booster}, \code{eta}, \code{max_depth}, \code{subsample}, \code{alpha}, \code{lambda}, \code{min_child_weight}. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}. For NN the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{num_layers}, \code{optim}, \code{activation}, \code{lr}, \code{xi}, \code{eps}, \code{tie}, \code{batch_size}, \code{early_stopping}, \code{patience}, \code{node} train.lkh test.lkh. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}.
 #'
 #'
+#'
+#'
 #' @export
 ReSurvCV.IndividualDataPP <- function(IndividualDataPP,
                                   model,
@@ -151,11 +159,11 @@ ReSurvCV.IndividualDataPP <- function(IndividualDataPP,
                                   nrounds= NULL,
                                   early_stopping_rounds = NULL,
                                   epochs=NULL,
-                                  parallel=F,
+                                  parallel= FALSE,
                                   ncores = 1,
                                   num_workers = 0,
-                                  verbose = F,
-                                  verbose.cv=F){
+                                  verbose = FALSE,
+                                  verbose.cv= FALSE){
 
 
   set.seed(random_seed)

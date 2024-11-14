@@ -21,6 +21,14 @@
 #'
 #' @import SynthETIC
 #'
+#' @examples
+#' input_data_0 <- data_generator(
+#' random_seed = 1964,
+#' scenario = "alpha",
+#' time_unit = 1,
+#' years = 2,
+#' period_exposure = 100)
+#'
 #'
 #'
 #'
@@ -41,10 +49,10 @@
 data_generator <- function(ref_claim = 200000,
                            time_unit = 1/360,
                            years = 4,
-                           random_seed=1964,
-                           period_exposure= 200,
-                           period_frequency=0.2,
-                           scenario=1){
+                           random_seed = 1964,
+                           period_exposure = 200,
+                           period_frequency = 0.2,
+                           scenario = 1){
 
   set.seed(random_seed)
 

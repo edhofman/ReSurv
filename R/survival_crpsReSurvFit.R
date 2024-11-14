@@ -23,7 +23,7 @@
 #'
 #' @export
 survival_crps <- function(ReSurvFit,
-                          user_data_set= NULL){
+                          user_data_set = NULL){
 
   UseMethod("survival_crps")
 
@@ -54,7 +54,7 @@ survival_crps <- function(ReSurvFit,
 #'
 #' @export
 survival_crps.default <- function(ReSurvFit,
-                                  user_data_set= NULL){
+                                  user_data_set = NULL){
 
   message('The object provided must be of class ReSurvFit')
 
@@ -84,7 +84,7 @@ survival_crps.default <- function(ReSurvFit,
 #'
 #' @export
 survival_crps.ReSurvFit <- function(ReSurvFit,
-                                    user_data_set= NULL){
+                                    user_data_set = NULL){
 
 
   hazard_frame <- ReSurvFit$hazard_frame %>%

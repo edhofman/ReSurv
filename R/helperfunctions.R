@@ -974,7 +974,7 @@ pkg.env$model.matrix.creator <- function(data,
   #individual_data$training.data
   X <- data %>%
     dummy_cols(select_columns = select_columns, #individual_data$categorical_features
-               remove_selected_columns = T,
+               remove_selected_columns = TRUE,
                remove_first_dummy = remove_first_dummy)
 
   tmp.cond=as.logical(apply(pkg.env$vgrepl(pattern=select_columns,
@@ -1761,8 +1761,8 @@ pkg.env$predict_o <- function(
            DP_rev_o = ceiling(max_dp_i*conversion_factor)- ceiling((DP_i+(AP_i-1)%%(1/conversion_factor))*conversion_factor)+1) %>%
     #we can consider re-adding it in the future: filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parallelogram in the end of the development time
     group_by(AP_o, DP_rev_o, group_o) %>%
-    summarize(I_expected = sum(I_expected,na.rm=T),
-              IBNR = sum(IBNR, na.rm=T), .groups="drop") %>%
+    summarize(I_expected = sum(I_expected,na.rm=TRUE),
+              IBNR = sum(IBNR, na.rm=TRUE), .groups="drop") %>%
     select(AP_o, group_o, DP_rev_o, I_expected, IBNR)
 
   return(expected)
@@ -1798,7 +1798,7 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
   latest_cumulative_o <- lazy_dt(latest_cumulative) %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
     group_by(AP_i, group_o, DP_max_rev) %>%
-    summarize(latest_I = sum(latest_I, na.rm=T), .groups = "drop")
+    summarize(latest_I = sum(latest_I, na.rm=TRUE), .groups = "drop")
 
 
   #For probability approach to grouping method we assume equal exposure for each accident period
@@ -2241,7 +2241,7 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
 
     X=pkg.env$model.matrix.creator(data= newdata,
                                    select_columns = categorical_features,
-                                   remove_first_dummy = T)
+                                   remove_first_dummy = TRUE)
   }
 
 
@@ -2265,7 +2265,7 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
 pkg.env$benchmark_id <- function(X,
                                  Y,
                                  newdata.mx,
-                                 remove_first_dummy=F
+                                 remove_first_dummy=FALSE
 ){
   "
   Find benchmark value used in baseline calculation.
@@ -2279,7 +2279,7 @@ pkg.env$benchmark_id <- function(X,
     unlist() %>%
     unname()
 
-  if(remove_first_dummy==T){
+  if(remove_first_dummy==TRUE){
     newdata.mx <- data.frame(newdata.mx[,colnames(newdata.mx) %in% names(X)])
   }
 
@@ -2590,7 +2590,7 @@ pkg.env$fit_xgboost <- function(datads_pp,
                                                              min_child_weight=.2),
                                                  print_every_n = NULL,
                                                  nrounds=10,
-                                                 verbose=F,
+                                                 verbose=FALSE,
                                                  early_stopping_rounds = 500)){
 
 
@@ -2604,7 +2604,7 @@ pkg.env$fit_xgboost <- function(datads_pp,
                             verbose= hparameters$verbose,
                             print_every_n = hparameters$print_every_n,
                             early_stopping_rounds = hparameters$early_stopping_rounds,
-                            maximize = F)
+                            maximize = FALSE)
 
   return(out)
 
@@ -2626,12 +2626,12 @@ pkg.env$xgboost_cv <- function(IndividualDataPP,
                                hparameters.f,
                                out,
                                verbose.cv=FALSE,
-                               parallel=F,
+                               parallel=FALSE,
                                ncores=1,
                                random_seed){
 
   "Function to perform K-fold cross-validation with xgboost"
-  if(parallel == T){
+  if(parallel == TRUE){
     # handle UNIx-operated systems seperatly?.Platform$OS.type
     require(parallel)
 
@@ -2651,7 +2651,7 @@ pkg.env$xgboost_cv <- function(IndividualDataPP,
                                                            kfolds=kfolds,
                                                            print_every_n=print_every_n,
                                                            nrounds=nrounds,
-                                                           verbose=F,
+                                                           verbose=FALSE,
                                                            early_stopping_rounds=early_stopping_rounds,
                                                            hparameters.f=hparameters.f))
     stopCluster(cl)
@@ -2743,7 +2743,7 @@ pkg.env$deep_surv_cv <- function(IndividualDataPP,
 
   "Function to perform K-fold cross-validation with xgboost"
 
-  if(parallel == T){
+  if(parallel == TRUE){
     # handle UNIx-operated systems seperatly?.Platform$OS.type
     require(parallel)
 
