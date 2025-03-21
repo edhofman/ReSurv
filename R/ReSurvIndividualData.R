@@ -118,7 +118,8 @@ ReSurv <- function(IndividualDataPP,
                    hparameters = list(),
                    percentage_data_training = .8,
                    grouping_method = "exposure",
-                   check_value = 1.85){
+                   check_value = 1.85,
+                   eta=0.5){
 
   UseMethod("ReSurv")
 
@@ -242,7 +243,8 @@ ReSurv.default <- function(IndividualDataPP,
                            hparameters = list(),
                            percentage_data_training = .8,
                            grouping_method = "exposure",
-                           check_value = 1.85){
+                           check_value = 1.85,
+                           eta=0.5){
 
   message('The object provided must be of class IndividualDataPP')
 
@@ -368,7 +370,8 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
                                   hparameters = list(),
                                   percentage_data_training = .8,
                                   grouping_method = "exposure",
-                                  check_value = 1.85
+                                  check_value = 1.85,
+                                  eta=0.5
 ){
 
 
@@ -790,6 +793,7 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
   #Add development and relevant survival values to the hazard_frame
   hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
                                                     # Om.df=Om.df,
+                                                    eta_old=eta,
                                                     categorical_features = IndividualDataPP$categorical_features,
                                                     continuous_features = IndividualDataPP$continuous_features,
                                                     calendar_period_extrapolation = IndividualDataPP$calendar_period_extrapolation)

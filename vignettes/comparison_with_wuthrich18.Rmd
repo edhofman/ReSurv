@@ -1,0 +1,136 @@
+---
+title: "Comparison with Wuetrich (2018)"
+author: "Gabriele Pittarello"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Comparison with Wuetrich (2018)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: '`r system.file("references.bib", package="ReSurv")`'
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ReSurv)
+library(ggplot2)
+```
+
+```{r}
+
+input_data <- data_generator(
+  ref_claim = 200000,
+  time_unit = 1 / 4,
+  years = 10,
+  random_seed=1,
+  period_exposure  = 12000,
+  period_frequency  = .08,
+  scenario=5
+)
+
+
+```
+
+```{r}
+hist(input_data$RP-input_data$AP)
+```
+
+```{r}
+sum(input_data$RP>max(input_data$AP))
+```
+
+```{r}
+# hparameters_xgb <- list(
+#   params = list(
+#     booster = "gbtree",
+#     eta = 0.9611239,
+#     subsample = 0.62851,
+#     alpha = 5.836211,
+#     lambda = 15,
+#     min_child_weight = 29.18158,
+#     max_depth = 1
+#   ),
+#   print_every_n = 0,
+#   nrounds = 3000,
+#   verbose = FALSE,
+#   early_stopping_rounds = 500
+# )
+
+individual_data <- IndividualDataPP(data = input_data,
+                                    categorical_features = "business_use",
+                                    id="claim_number",
+                                    continuous_features = c("property_value"),
+                                    accident_period = "AP",
+                                    calendar_period = "RP",
+                                    input_time_granularity = "quarters",
+                                    output_time_granularity = "years",
+                                    years = 10)
+
+# resurv_fit_xgb <- ReSurv(individual_data,
+#                          hazard_model = "XGB",
+#                          hparameters = hparameters_xgb)
+
+
+```
+
+
+```{r eval=FALSE, include=TRUE}
+
+resurv_fit_cox <- ReSurv(individual_data,
+                         eta = 0.5,
+                     hazard_model = "COX")
+
+```
+
+```{r}
+hist(resurv_fit_cox$hazard_frame$cum_f_i)
+```
+
+
+```{r}
+resurv_fit_predict <- predict(resurv_fit_cox,
+                              lower_triangular_output = FALSE)
+```
+
+
+```{r}
+hist(resurv_fit_predict$long_triangle_format_out$input_granularity$f_i)
+```
+
+
+```{r}
+summary(resurv_fit_predict)
+```
+
+
+```{r}
+input_data2 <- data_generator(
+  ref_claim = 200000,
+  time_unit = 1 / 360,
+  years = 10,
+  random_seed=1,
+  period_exposure  = 120,
+  period_frequency  = .01,
+  scenario=5
+)
+
+individual_data2 <- IndividualDataPP(data = input_data2,
+                                    categorical_features = "business_use",
+                                    continuous_features = c("age"),
+                                    accident_period = "AP",
+                                    calendar_period = "RP",
+                                    input_time_granularity = "days",
+                                    output_time_granularity = "years",
+                                    years = 10)
+
+resurv_fit_predict <- predict(resurv_fit_cox,newdata = individual_data2)
+
+```
+
+```{r}
+summary(resurv_fit_predict)
+```
+
+
+

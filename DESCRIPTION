@@ -27,6 +27,7 @@ Depends: tidyverse
 Imports: 
   stats,
   dplyr,
+  actuar,
   dtplyr,
   fastDummies,
   forecast,

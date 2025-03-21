@@ -3,6 +3,7 @@
 #' This script contains the utils functions that are used in ReSurv.
 #'
 #' @importFrom fastDummies dummy_cols
+#' @importFrom actuar rztpois rtrgamma
 #' @importFrom bshazard bshazard
 #' @import survival
 #' @importFrom stats runif pnorm predict
@@ -139,20 +140,40 @@ notidel_param_1 <- function(claim_size,
 }
 
 
+## Internal functions for W18 comparison
+
+notification_delay_scenario5 <- function(x) {
+  pv <- as.numeric(x[['property_value']])/10
+  bu <- x[['business_use']]
+
+
+
+  # out <- rweibull(1,shape = 1 + 1 / pv, scale=1 - (1 + (bu == "Y")) / 10)
+  out <- rtrgamma(
+    1,
+    shape1 = 1 + 1 / pv,
+    shape2 = 1 - (1 + (bu == "Y")) / 10,
+    rate = .2
+  )
+
+  return(out)
+}
+
+
 
 
 ## Data generator ----
 
 pkg.env$check_scenario <- function(scenario){
 
-  available_scenarios <- c(0,1,2,3,4)
-  available_scenario_char <- c('alpha','beta','gamma','delta','epsilon')
+  available_scenarios <- c(0,1,2,3,4,5)
+  available_scenario_char <- c('alpha','beta','gamma','delta','epsilon','zeta')
 
   if(is.numeric(scenario)){
 
     tmp <- scenario %in% available_scenarios
 
-    if(!tmp){stop("Scenario must be one of 'alpha','beta','gamma','delta','epsilon'.")}
+    if(!tmp){stop("Scenario must be one of 'alpha','beta','gamma','delta','epsilon', 'zeta'.")}
   }
 
 
@@ -160,7 +181,7 @@ pkg.env$check_scenario <- function(scenario){
 
     tmp <- scenario %in% available_scenario_char
 
-    if(!tmp){stop("Scenario must be one of 'alpha','beta','gamma','delta','epsilon'.")}
+    if(!tmp){stop("Scenario must be one of 'alpha','beta','gamma','delta','epsilon', 'zeta'.")}
 
     input.pos <- which(scenario==available_scenario_char)
 
@@ -171,6 +192,22 @@ pkg.env$check_scenario <- function(scenario){
   return(scenario)
 
 }
+
+
+# Superimposed inflation:
+# 1) With respect to occurrence "time" (continuous scale)
+SI_occurrence <- function(occurrence_time, claim_size) {
+  if (occurrence_time <= 20 / 4 / time_unit) {1}
+  else {1 - 0.4*max(0, 1 - claim_size/(0.25 * ref_claim))}
+}
+# 2) With respect to payment "time" (continuous scale)
+# -> compounding by user-defined time unit
+SI_payment <- function(payment_time, claim_size) {
+  period_rate <- (1 + 0.30)^(time_unit) - 1
+  beta <- period_rate * max(0, 1 - claim_size/ref_claim)
+  (1 + beta)^payment_time
+}
+
 
 pkg.env$scenario0_simulator <- function(ref_claim,
                                         time_unit,
@@ -636,6 +673,77 @@ pkg.env$scenario4_simulator <- function(ref_claim,
 
 
 }
+
+
+
+## Wuethrich 18 comparisons
+
+pkg.env$scenario5_simulator <- function(ref_claim=200000,
+                                        time_unit=1/4,
+                                        years=10,
+                                        random_seed,
+                                        yearly_exposure=120000,
+                                        yearly_frequency=0.08){
+
+
+
+  I <- years / time_unit
+  E <- c(rep(yearly_exposure, I))
+  lambda <- c(rep(yearly_frequency, I))
+  scenario=5
+
+  #Frequency simulation
+  n_vector <- claim_frequency(I = I, E = E, freq = lambda)
+  occurrence_times <- claim_occurrence(frequency_vector = n_vector)
+  claim_sizes <- claim_size(frequency_vector = n_vector)
+
+  n_of_claims <- length(unlist(claim_sizes))
+
+  age_range <- 50:55
+  probabilties_age <- rep(.01,length(age_range))
+  # probabilties_age[age_range >= 40 & age_range <= 45] <- .2
+  # probabilties_age[age_range >= 20 & age_range <= 30] <- .1
+  # probabilties_age[age_range >= 30 & age_range <= 39] <- .15
+  # probabilties_age[age_range > 45 & age_range <= 55] <- .3
+
+  probabilties_age <- probabilties_age/sum(probabilties_age)
+
+  covariates_dataset <- data.frame(
+    "claim_number"=1:n_of_claims,
+    "age" = sample(age_range,n_of_claims,replace=TRUE,prob=probabilties_age),
+    "property_value"= rlnorm(n_of_claims, meanlog = 3.034513, sdlog = 0.4087569),
+    "business_use" = sample(c("Y","N"),n_of_claims,replace = TRUE)
+  )
+
+  rdelay = apply(FUN = notification_delay_scenario5 ,
+                 covariates_dataset,
+                 MARGIN = 1)
+
+  # browser()
+
+  rdelay = pmin(rdelay, years / time_unit)
+
+
+  dt_dates <- data.frame(
+    claim_number=1:n_of_claims,
+    AP=ceiling(unlist(occurrence_times)),
+    RP=ceiling(unlist(occurrence_times)+rdelay))
+
+
+  dt <- merge(dt_dates,covariates_dataset,by.x="claim_number",by.y="claim_number",all=TRUE)
+
+
+
+  return(dt)
+
+
+
+
+}
+
+
+
+
 
 ## Checks ----
 
@@ -1229,6 +1337,9 @@ pkg.env$hazard_data_frame <- function(hazard,
   Convert hazard matrix to dataframe and add grouping variables.
 
   "
+
+  continuous_features_group=unique(c("AP_i",continuous_features))
+
   #Calculate input development factors and corresponding survival probabilities
   hazard_frame_tmp <- hazard %>%
     # left_join(Om.df, "DP_rev_i") %>%
@@ -1236,7 +1347,7 @@ pkg.env$hazard_data_frame <- function(hazard,
     # mutate(dev_f_i = (2*Om+(Om+1)*hazard)/(2*Om-(Om-1)*hazard) ) %>%
     replace_na(list(dev_f_i =1)) %>%
     mutate(dev_f_i = ifelse(dev_f_i<0,1,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
-    group_by(pick(all_of(categorical_features), AP_i)) %>%
+    group_by(pick(all_of(c(categorical_features, continuous_features_group)))) %>%
     arrange(DP_rev_i) %>%
     mutate(cum_dev_f_i = cumprod(dev_f_i)) %>%
     mutate(S_i = ifelse(cum_dev_f_i==0,0,1/cum_dev_f_i), # to handle the ifelse statement from above
@@ -1244,7 +1355,7 @@ pkg.env$hazard_data_frame <- function(hazard,
            S_i_lag = lag(S_i, default = 1)) %>%
     select(-c(expg, baseline, hazard))
 
-  continuous_features_group=unique(c("AP_i",continuous_features))
+  # continuous_features_group=unique(c("AP_i",continuous_features))
 
   hazard_frame <- hazard %>%
     left_join(hazard_frame_tmp, c(categorical_features,
@@ -1424,7 +1535,8 @@ pkg.env$latest_observed_values_i <- function(data_reserve,
 
 
 
-  } else{ #Very similiar to above, expect we now also take the continuous features into account
+  } else{
+    #Very similiar to above, expect we now also take the continuous features into account
 
     if(( (length(continuous_features)==1 & "AP_i" %in% continuous_features) |
          (length(continuous_features)==1 & "RP_i" %in% continuous_features) |
@@ -1507,7 +1619,7 @@ pkg.env$latest_observed_values_i <- function(data_reserve,
 
     observed_dp_rev_i_tmp <- observed_dp_rev_i %>%  left_join(groups, by=c(time_features, "covariate")) %>%
       select(AP_i, all_of(time_features), group_i, DP_rev_i, DP_i, I) %>%
-      inner_join(groups[,c(time_features, "group_i")], by =c(time_features, "group_i")) #filter only relevant combinations
+      inner_join(groups[,c(time_features, "group_i"), drop = FALSE], by =c(time_features, "group_i")) #filter only relevant combinations
 
 
   }
