@@ -159,21 +159,36 @@ notification_delay_scenario5 <- function(x) {
   return(out)
 }
 
+notification_delay_scenario6 <- function(x) {
+  ap <- as.numeric(x[['AP']])
+  bu <- x[['business_use']]
 
+
+
+  # out <- rweibull(1,shape = 1 + 1 / pv, scale=1 - (1 + (bu == "Y")) / 10)
+  out <- rtrgamma(
+    1,
+    shape1 = 1 + 1 / ap + sin(ap)/(ap^2)+cos(ap)/(ap^3),
+    shape2 = 1 - (1 + (bu == "Y")) / 10 + (1-(bu == "N"))/100,
+    rate = .2
+  )
+
+  return(out)
+}
 
 
 ## Data generator ----
 
 pkg.env$check_scenario <- function(scenario){
 
-  available_scenarios <- c(0,1,2,3,4,5)
-  available_scenario_char <- c('alpha','beta','gamma','delta','epsilon','zeta')
+  available_scenarios <- c(0,1,2,3,4,5,6)
+  available_scenario_char <- c('alpha','beta','gamma','delta','epsilon','zeta','eta')
 
   if(is.numeric(scenario)){
 
     tmp <- scenario %in% available_scenarios
 
-    if(!tmp){stop("Scenario must be one of 'alpha','beta','gamma','delta','epsilon', 'zeta'.")}
+    if(!tmp){stop("Scenario must be one of 'alpha','beta','gamma','delta','epsilon', 'zeta','eta'.")}
   }
 
 
@@ -181,7 +196,7 @@ pkg.env$check_scenario <- function(scenario){
 
     tmp <- scenario %in% available_scenario_char
 
-    if(!tmp){stop("Scenario must be one of 'alpha','beta','gamma','delta','epsilon', 'zeta'.")}
+    if(!tmp){stop("Scenario must be one of 'alpha','beta','gamma','delta','epsilon', 'zeta','eta'.")}
 
     input.pos <- which(scenario==available_scenario_char)
 
@@ -740,6 +755,67 @@ pkg.env$scenario5_simulator <- function(ref_claim=200000,
 
 
 }
+
+pkg.env$scenario6_simulator <- function(ref_claim=200000,
+                                        time_unit=1/4,
+                                        years=10,
+                                        random_seed,
+                                        yearly_exposure=120000,
+                                        yearly_frequency=0.08){
+
+
+
+  I <- years / time_unit
+  E <- c(rep(yearly_exposure, I))
+  lambda <- c(rep(yearly_frequency, I))
+  scenario=5
+
+  #Frequency simulation
+  n_vector <- claim_frequency(I = I, E = E, freq = lambda)
+  occurrence_times <- claim_occurrence(frequency_vector = n_vector)
+  claim_sizes <- claim_size(frequency_vector = n_vector)
+
+  n_of_claims <- length(unlist(claim_sizes))
+
+  age_range <- 50:55
+  probabilties_age <- rep(.01,length(age_range))
+  # probabilties_age[age_range >= 40 & age_range <= 45] <- .2
+  # probabilties_age[age_range >= 20 & age_range <= 30] <- .1
+  # probabilties_age[age_range >= 30 & age_range <= 39] <- .15
+  # probabilties_age[age_range > 45 & age_range <= 55] <- .3
+
+  probabilties_age <- probabilties_age/sum(probabilties_age)
+
+  covariates_dataset <- data.frame(
+    "claim_number"=1:n_of_claims,
+    "AP" = ceiling(unlist(occurrence_times)),
+    "business_use" = sample(c("Y","N"),n_of_claims,replace = TRUE)
+  )
+
+  rdelay = apply(FUN = notification_delay_scenario6 ,
+                 covariates_dataset,
+                 MARGIN = 1)
+
+  rdelay = pmin(rdelay, years / time_unit)
+
+
+  dt_dates <- data.frame(
+    claim_number=1:n_of_claims,
+    # AP=ceiling(unlist(occurrence_times)), (we have it already in the covariates.)
+    RP=ceiling(unlist(occurrence_times)+rdelay))
+
+
+  dt <- merge(dt_dates,covariates_dataset,by.x="claim_number",by.y="claim_number",all=TRUE)
+
+
+
+  return(dt)
+
+
+
+
+}
+
 
 
 

@@ -84,6 +84,9 @@ data_generator <- function(ref_claim = 200000,
   if(scenario == 5){ return(do.call(pkg.env$scenario5_simulator,parameters)
   )}
 
+  if(scenario == 6){ return(do.call(pkg.env$scenario6_simulator,parameters)
+  )}
+
 }
 
 
