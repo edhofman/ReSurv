@@ -8,6 +8,7 @@
   object,
   newdata = NULL,
   grouping_method = "probability",
+  lower_triangular_output = TRUE,
   check_value = 1.85,
   ...
 )
@@ -23,6 +24,8 @@
 \item{\code{"probability"}}
 }
 Default is \code{"exposure"}.}
+
+\item{lower_triangular_output}{\code{logical}, if set to \code{TRUE} we add the predicted lower triangle in input and output granularity to the \code{predict.ReSurvFit} output.}
 
 \item{check_value}{\code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.}
 

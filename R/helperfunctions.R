@@ -734,7 +734,7 @@ pkg.env$scenario5_simulator <- function(ref_claim=200000,
                  covariates_dataset,
                  MARGIN = 1)
 
-  # browser()
+
 
   rdelay = pmin(rdelay, years / time_unit)
 
@@ -2311,6 +2311,34 @@ pkg.env$spline_hp <- function(hparameters,IndividualDataPP){
   }
 }
 
+
+simplified_df_2_fcst<- function(IndividualDataPP,
+                                hazard_model){
+
+  cont_f <- IndividualDataPP$continuous_features
+  cat_f <- IndividualDataPP$categorical_features
+  columns_for_grouping <- unique(c(cont_f,cat_f,"AP_i"))
+
+  tmp <- as.data.table(IndividualDataPP$training.data)
+
+  out <- tmp[,.(.N),by=columns_for_grouping][,..columns_for_grouping]
+
+  l4 <- list()
+
+  l4$DP_rev_i <- min(IndividualDataPP$training.data[,'DP_rev_i']):max(IndividualDataPP$training.data[,'DP_rev_i'])
+
+  l4<-do.call(CJ, c(l4, sorted = FALSE))
+
+  out<-as.data.frame(setkey(out[,c(k=1,.SD)],k)[l4[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL])
+
+
+
+  return(out)
+
+
+}
+
+
 create.df.2.fcst <- function(IndividualDataPP,
                              hazard_model){
 
@@ -2585,7 +2613,72 @@ pkg.env$create.om.df<-function(training.data,
 
 }
 
+pkg.env$simplified_fill_data_frame<-function(data,
+                                  continuous_features,
+                                  categorical_features,
+                                  years,
+                                  input_time_granularity,
+                                  conversion_factor){
 
+
+  #Take the features unique values
+  tmp.ls <- data %>%
+    filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1))
+
+  setDT(tmp.ls)
+
+  cols <- c(categorical_features,
+            continuous_features)
+
+
+  tmp.ls <- tmp.ls[,.(.N),by=cols][,.(DP_i=1:max(data$DP_i)),by=cols]
+
+
+  #Take only the training data
+  tmp.existing <- data %>%
+    filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1)) %>%
+    select(all_of(continuous_features),
+           all_of(categorical_features),
+           AP_i,
+           DP_i) %>%
+    unique() %>%
+    as.data.frame()
+
+
+  tmp.missing <- dplyr::setdiff(x=tmp.ls,y=tmp.existing)
+
+  if(dim(tmp.missing)[1]==0){
+    return(NULL)
+  }else{
+
+    max_dp_i = pkg.env$maximum.time(years,input_time_granularity)
+    tmp.missing<- tmp.missing %>%
+      mutate(DP_rev_i = pkg.env$maximum.time(years,input_time_granularity) - DP_i+1,
+             TR_i = AP_i-1, #just setting truncation to max year simulated. and accounting for
+             I=0)%>%
+      filter(DP_rev_i > TR_i) %>%
+      mutate(
+        DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+        AP_o = ceiling(AP_i*conversion_factor)
+      ) %>%
+      mutate(TR_o= AP_o-1) %>%
+      mutate(across(all_of(categorical_features),
+                    as.factor)) %>%
+      select(all_of(categorical_features),
+             all_of(continuous_features),
+             AP_i,
+             AP_o,
+             DP_i,
+             DP_rev_i,
+             DP_rev_o,
+             TR_i,
+             TR_o,
+             I) %>%
+      as.data.frame()
+
+    return(tmp.missing)
+
+  }}
 
 pkg.env$fill_data_frame<-function(data,
                                   continuous_features,
@@ -2593,6 +2686,7 @@ pkg.env$fill_data_frame<-function(data,
                                   years,
                                   input_time_granularity,
                                   conversion_factor){
+
 
   #Take the features unique values
   tmp.ls <- data %>%

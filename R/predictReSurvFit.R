@@ -58,7 +58,7 @@ predict.ReSurvFit <- function(object,
                               lower_triangular_output = TRUE,
                               check_value = 1.85,
                               ...) {
-  # browser()
+
   if (!is.null(newdata)) {
     pkg.env$check.newdata(newdata = newdata,
                           pastdata = object$IndividualDataPP)
@@ -76,6 +76,7 @@ predict.ReSurvFit <- function(object,
   }
 
 
+
   is_baseline_model <- is.null(c(idata$categorical_features, idata$continuous_features))
 
   hazard_frame <- object$hazard_frame %>%
@@ -90,7 +91,20 @@ predict.ReSurvFit <- function(object,
     calendar_period_extrapolation = idata$calendar_period_extrapolation
   )
 
+  if(object$simplifier){
 
+    missing.obsevations <- pkg.env$simplified_fill_data_frame(
+      data = idata$full.data,
+      continuous_features = idata$continuous_features,
+      categorical_features =
+        idata$categorical_features,
+      years = idata$years,
+      input_time_granularity =
+        idata$input_time_granularity,
+      conversion_factor = idata$conversion_factor
+    )
+
+  }else{
   missing.obsevations <- pkg.env$fill_data_frame(
     data = idata$full.data,
     continuous_features = idata$continuous_features,
@@ -102,6 +116,8 @@ predict.ReSurvFit <- function(object,
     conversion_factor = idata$conversion_factor
   )
 
+
+  }
 
   latest_observed <- pkg.env$latest_observed_values_i(
     data_reserve = bind_rows(idata$training.data, missing.obsevations),

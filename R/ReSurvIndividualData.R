@@ -119,7 +119,8 @@ ReSurv <- function(IndividualDataPP,
                    percentage_data_training = .8,
                    grouping_method = "exposure",
                    check_value = 1.85,
-                   eta=0.5){
+                   eta=0.5,
+                   simplifier=FALSE){
 
   UseMethod("ReSurv")
 
@@ -244,7 +245,8 @@ ReSurv.default <- function(IndividualDataPP,
                            percentage_data_training = .8,
                            grouping_method = "exposure",
                            check_value = 1.85,
-                           eta=0.5){
+                           eta=0.5,
+                           simplifier=FALSE){
 
   message('The object provided must be of class IndividualDataPP')
 
@@ -371,7 +373,8 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
                                   percentage_data_training = .8,
                                   grouping_method = "exposure",
                                   check_value = 1.85,
-                                  eta=0.5
+                                  eta=0.5,
+                                  simplifier=FALSE
 ){
 
 
@@ -379,8 +382,14 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
   formula_ct <- as.formula(IndividualDataPP$string_formula_i)
 
+  if(simplifier){
+
+    newdata <- simplified_df_2_fcst(IndividualDataPP=IndividualDataPP,
+                                     hazard_model=hazard_model)
+
+  }else{
   newdata <- create.df.2.fcst(IndividualDataPP=IndividualDataPP,
-                              hazard_model=hazard_model)
+                              hazard_model=hazard_model)}
 
 
   # logical: check if we work with a baseline model
@@ -807,7 +816,7 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
   out=list(model.out=list(data=X,
                           model.out=model.out),
-           # Om.df=Om.df,
+           simplifier=simplifier,
            is_lkh=is_lkh,
            os_lkh=os_lkh,
            hazard_frame = out_hz_frame,

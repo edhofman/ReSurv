@@ -14,7 +14,9 @@
   hparameters = list(),
   percentage_data_training = 0.8,
   grouping_method = "exposure",
-  check_value = 1.85
+  check_value = 1.85,
+  eta = 0.5,
+  simplifier = FALSE
 )
 }
 \arguments{
