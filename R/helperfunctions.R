@@ -143,21 +143,42 @@ notidel_param_1 <- function(claim_size,
 ## Internal functions for W18 comparison
 
 notification_delay_scenario5 <- function(x) {
-  pv <- as.numeric(x[['property_value']])/10
-  bu <- x[['business_use']]
+  pv <- as.numeric(x[['property_value']]) / 10
+  bu <- x[['business_use']] # "Y" or "N"
 
+  a <- 1 + 1 / pv
+  d <- 1 - (1 + (bu == "Y")) / 10
 
+  # Target mean
+  target_mean <- 850
 
-  # out <- rweibull(1,shape = 1 + 1 / pv, scale=1 - (1 + (bu == "Y")) / 10)
-  out <- rtrgamma(
-    1,
-    shape1 = 1 + 1 / pv,
-    shape2 = 1 - (1 + (bu == "Y")) / 10,
-    rate = .2
-  )
+  # Compute required rate
+  num <- gamma(a + 1 / d)
+  denom <- target_mean * gamma(a)
+  rate <- (num / denom)^d
 
+  out <- rtrgamma(1, shape1 = a, shape2 = d, rate = rate)
   return(out)
 }
+
+# notification_delay_scenario5 <- function(x) {
+#   pv <- as.numeric(x[['property_value']])/10 #rlnorm(meanlog = 3.034513, sdlog = 0.4087569),
+#   bu <- x[['business_use']] # either Y or N
+#
+#
+#
+#   # out <- rweibull(1,shape = 1 + 1 / pv, scale=1 - (1 + (bu == "Y")) / 10)
+#   out <- rtrgamma(
+#     1,
+#     shape1 = 1 + 1 / pv,
+#     shape2 = 1 - (1 + (bu == "Y")) / 10,
+#     rate = .2
+#   )
+#
+#   return(out)
+# }
+
+
 
 notification_delay_scenario6 <- function(x) {
   ap <- as.numeric(x[['AP']])
@@ -689,7 +710,11 @@ pkg.env$scenario4_simulator <- function(ref_claim,
 
 }
 
-
+generate_proportions <- function(I) {
+       raw <- rexp(I, rate = runif(I, min = 0.1, max = 2))  # exponential with varying rates → irregular
+       proportions <- raw / sum(raw)
+       return(proportions)
+   }
 
 ## Wuethrich 18 comparisons
 

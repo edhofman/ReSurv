@@ -89,8 +89,8 @@ mw18_datapp_y <- function(data,
                           development_time,
                           dt_counts,
                           max_dp = 40){
-  
- out<-  pivot_wider(data,
+ 
+ out<-  pivot_wider(data[order(DP),],
                 names_from = development_time,
                 values_from = dt_counts,
                 names_prefix = "DP") 
@@ -109,73 +109,282 @@ mw18_datapp_y <- function(data,
 
 ```{r}
 #first check: is data sparse enough?
+  fit_proportional_model <- function(data,
+                                     max_dp){
 
-fit_proportional_model <- function(data,
-                                max_dp){
-  
-  
-  out <- list()
-  
-  counts_at_diagonal <- list()
-  
-  predictions_at_runoff <- list()
-  
-  for (i in 2:max_dp) {
 
-    proportions_ap <- rep(NA,(max_dp-1))
-    
-    zero_at_diagonal <- data[[paste0("DP", (max_dp - i + 1))]] == 0 # take them all here and just filer afterwards.
-    
-    at_diagonal <- data[["AP"]] ==(max_dp - (max_dp - i))
-    
-    counts_unfiltered <- sum(data[AP < (max_dp - (max_dp - i)), ][[paste0("DP", (max_dp -
-                                                                                           i + 1))]])
-    
-    counts_at_diagonal[[paste0("AP",i)]] <- sum(data[AP == (max_dp - (max_dp - i)), ][[paste0("DP", (max_dp -
-                                                                                           i + 1))]])
-    
-    predicted_cumulatives <- NA
-    
-    if (sum(zero_at_diagonal & (!at_diagonal)) > 0) {
-      
-      j = (max_dp - i + 1)
-      
-      tmp <- data[zero_at_diagonal& (AP < (max_dp - j + 1)),][[paste0("DP", j+1)]]
-      
-      proportions_ap[j+1] <- sum(tmp)/counts_unfiltered
-      
-      
-      if(i>2){
-      
-      for (j in (max_dp - i + 1 +1):(max_dp-1)) {
-        
+    out <- list()
+
+    counts_at_diagonal <- list()
+
+    predictions_at_runoff <- list()
+
+    lt<-(matrix(NA,nrow=max_dp,ncol=max_dp))
+
+    colnames(lt) <- paste0("DP",1:max_dp)
+
+    for (i in 2:max_dp) {
+
+      proportions_ap <- rep(NA,(max_dp-1))
+
+      zero_at_diagonal <- data[[paste0("DP", (max_dp - i + 1))]] == 0 # take them all here and just filer afterwards.
+
+      at_diagonal <- data[["AP"]] ==(max_dp - (max_dp - i))
+
+      counts_unfiltered <- sum(data[AP < (max_dp - (max_dp - i)), ][[paste0("DP", (max_dp -
+                                                                                     i + 1))]])
+
+      counts_at_diagonal[[paste0("AP",i)]] <- sum(data[AP == (max_dp - (max_dp - i)), ][[paste0("DP", (max_dp -
+                                                                                                         i + 1))]])
+
+      predicted_cumulatives <- NA
+
+      if (sum(zero_at_diagonal & (!at_diagonal)) > 0) {
+
+        j = (max_dp - i + 1)
+
         tmp <- data[zero_at_diagonal& (AP < (max_dp - j + 1)),][[paste0("DP", j+1)]]
-        tmp_1 <- data[zero_at_diagonal& (AP < (max_dp - j + 1)),][[paste0("DP", j)]]
-        
-        proportions_ap[j+1] <- sum(tmp)/sum(tmp_1)
-        
-        
-      }}
+
+        proportions_ap[j+1] <- sum(tmp)/counts_unfiltered
+
+
+        if(i>2){
+
+          for (j in (max_dp - i + 1 +1):(max_dp-1)) {
+
+            tmp <- data[zero_at_diagonal& (AP < (max_dp - j + 1)),][[paste0("DP", j+1)]]
+            tmp_1 <- data[zero_at_diagonal& (AP < (max_dp - j + 1)),][[paste0("DP", j)]]
+
+
+
+            prop_tmp <-  sum(tmp)/sum(tmp_1)
+
+            if(is.infinite(prop_tmp)){prop_tmp<-1}
+
+            proportions_ap[j+1] <-prop_tmp
+
+          }}
+
+
+      }
+
+
+      out[[paste0("AP",i)]] <- proportions_ap
+
+      vector_of_predictions <- cumprod(c(counts_at_diagonal[[paste0("AP",i)]],proportions_ap[!is.na(proportions_ap)]))
+
+      lt[i,!is.na(proportions_ap)]<-vector_of_predictions[-1]
+
+      predictions_at_runoff[[paste0("AP",i)]]<- counts_at_diagonal[[paste0("AP",i)]]*last(cumprod(proportions_ap[!is.na(proportions_ap)]))
+
+
+
     }
-    
-    
-    out[[paste0("AP",i)]] <- proportions_ap
-    
-    predictions_at_runoff[[paste0("AP",i)]]<- counts_at_diagonal[[paste0("AP",i)]]*last(cumprod(proportions_ap[!is.na(proportions_ap)]))
-    
+
+    lt <- as.data.frame.matrix(cbind(AP=1:max_dp,
+                                     lt))
+
+    total_out <- list(proportions=out,
+                      lower_triangle=lt,
+                      counts_at_diagonal=counts_at_diagonal,
+                      predictions_at_runoff=predictions_at_runoff)
+
+    return(total_out)
   }
-  
-  total_out <- list(proportions=out,
-                    counts_at_diagonal=counts_at_diagonal,
-                    predictions_at_runoff=predictions_at_runoff)
-  
-  return(total_out)
-}
+
 
 ```
 
 
 ```{r}
+
+
+bounds <- list(number_of_neurons = c(1L, 2L, 5L, 10L),
+               number_of_layers = c(1L, 2L))
+
+
+nn_model_cv <- function(data,
+                        number_of_neurons,
+                        number_of_layers,
+                        categorical_features,
+                        max_dp,
+                        continuous_features) {
+  
+  
+  
+    y_data_columns <- paste0("DP", 1:max_dp)
+    x_cat <- dummy_cols(data[,..categorical_features],
+                      select_columns=categorical_features,
+                      remove_first_dummy=F)[,-1]
+  
+  
+    x_data <- cbind(x_cat,
+                  data[,..continuous_features])
+  
+    y_data <- data[,..y_data_columns]
+    
+    loss<-val_loss <-NULL
+    
+    
+    sequence_trials <- sample(1:(max_dp-1), 10, replace = FALSE)
+    
+    for(j in sequence_trials){
+    
+    train_set <- (data[['AP']] < (max_dp - j + 1))
+    
+    tmp <- y_data[train_set,][[paste0("DP", j+1)]]
+    
+    tmp_1 <- y_data[train_set,][[paste0("DP", j)]]
+    
+    cond_positive_denominator <- tmp_1 >0
+    
+    if (sum(cond_positive_denominator) > 0) {
+      ytgt = tmp / sqrt(tmp_1)
+      wtrain = sqrt(tmp_1)
+      
+      features <- layer_input(shape = dim(x_data)[2], name = "main_model_il")
+      net <- features
+      
+      if (number_of_layers > 0) {
+        net <- net %>%
+          layer_dense(
+            units = number_of_neurons,
+            activation = 'tanh',
+            use_bias = FALSE,
+            name = "main_model_hl"
+          )
+      }
+      
+      if (number_of_layers > 1) {
+        net <- net %>%
+          layer_dense(
+            units = number_of_neurons,
+            activation = 'tanh',
+            use_bias = FALSE,
+            name = "main_model_hl_2"
+          )
+      }
+      
+      net <- net %>%
+        layer_dense (units = 1,
+                     activation = k_exp,
+                     name = "main_model_ol")
+      
+      
+      volumes <- layer_input(shape = c(1), name = "weights_il")
+      
+      offset <- volumes %>%
+        layer_dense(
+          units = 1,
+          activation = 'linear',
+          use_bias = FALSE ,
+          trainable = FALSE ,
+          weights = list(array(1, dim = c(1 , 1))),
+          name = "weights_ol"
+        )
+      
+      merged <- list(net, offset) %>%
+        layer_multiply()
+      model <- keras_model(inputs = list (features , volumes), outputs = merged)
+      model %>% compile (loss = 'mse', optimizer = 'rmsprop')
+      
+      dat.X <- as.matrix.data.frame(x_data[train_set, ][cond_positive_denominator, ])
+      dat.W <- as.matrix(wtrain[cond_positive_denominator])
+      dat.Y <- as.matrix(ytgt[cond_positive_denominator])
+      
+      
+      my_batch_size = eval(parse(text = (paste0(
+        as.integer(max(floor(length(
+          ytgt
+        ) / 10), 2)), "L"
+      ))))
+      
+      if (j == (max_dp - 1)) {
+        my_val_split = 0L
+      } else{
+        my_val_split = 0.30
+      }
+      
+      
+      fit <- model %>% fit(
+        list(apply(dat.X, MARGIN = 2, as.numeric), dat.W),
+        dat.Y,
+        epochs = 80 ,
+        verbose = 0,
+        batch_size = my_batch_size,
+        validation_split = my_val_split
+      )
+      
+      
+      loss <- c(loss,last(fit$metrics$loss))
+      val_loss <- c(val_loss,last(fit$metrics$val_loss))
+      
+    }
+    
+    
+  
+  
+    }
+    
+    
+    out.cv = data.frame(
+        number_of_neurons=number_of_neurons,
+        number_of_layers = number_of_layers,
+        loss=mean(loss),
+        val_loss=mean(val_loss)
+      )
+
+    
+    best.out.cv = out.cv%>%
+      filter(val_loss==min(val_loss))
+    
+    out <- list(
+      out.cv=out.cv,
+      out.cv.best=best.out.cv)
+    
+    return(out)
+    
+    }
+
+
+
+scoringFunction <- function(number_of_neurons,
+                            number_of_layers){
+  
+  
+  
+  categorical_features = "claim_type"
+  continuous_features = NULL
+  development_period = "DP"
+  accident_period = "AP"
+  id_col = "claim_number"
+  max_dp = max(input_data$AP)
+
+  cv_out <- nn_model_cv(data=dt_target,
+              number_of_neurons=number_of_neurons,
+              number_of_layers=number_of_layers,
+              categorical_features=categorical_features,
+              max_dp=max_dp,
+              continuous_features=NULL)
+  
+  
+  lst <- list(
+    Score = cv_out$out.cv.best$val_loss,
+    train_loss = cv_out$out.cv.best$loss
+  )
+  
+  return(lst)
+  
+  
+}
+
+
+# bayes_out <- bayesOpt(FUN = scoringFunction,
+#                       bounds = bounds,
+#                       initPoints = 3,
+#                       iters.n = 10,
+#                       iters.k = 2,
+#                       otherHalting = list(timeLimit = 1200))
 
 nn_model_fit_and_predict <- function(data,
                                      max_dp,
@@ -207,86 +416,111 @@ nn_model_fit_and_predict <- function(data,
     
     cond_positive_denominator <- tmp_1 >0
     
-    ytgt = tmp / sqrt(tmp_1)
-    wtrain = sqrt(tmp_1)
-    
-    features <- layer_input(shape=dim(x_data)[2],
-                            name = "main_model_il")
-    net <- features
-    
-    if (number_of_neurons > 0) {
-      net <- net %>%
-        layer_dense(
-          units = number_of_neurons,
-          activation = 'tanh',
-          use_bias = FALSE,
-          name = "main_model_hl"
-        )
-    } 
+    if (sum(cond_positive_denominator) > 0) {
+      ytgt = tmp / sqrt(tmp_1)
+      wtrain = sqrt(tmp_1)
+      
+      features <- layer_input(shape = dim(x_data)[2], name = "main_model_il")
+      net <- features
+      
+      if (number_of_neurons > 0) {
+        net <- net %>%
+          layer_dense(
+            units = number_of_neurons,
+            activation = 'tanh',
+            use_bias = FALSE,
+            name = "main_model_hl"
+          )
+      }
       net <- net %>%
         layer_dense (units = 1,
                      activation = k_exp,
                      name = "main_model_ol")
-    
-    
-    volumes <- layer_input(shape =c(1),
-                           name = "weights_il")
-    
-    offset <- volumes %>%
-      layer_dense( units = 1, activation = 'linear', 
-                    use_bias =FALSE , 
-                    trainable =FALSE ,
-                    weights = list(array(1, dim =c(1 ,1))),
-                   name = "weights_ol")
-     
-    merged <- list(net,
-                   offset ) %>%
-       layer_multiply()
-     model <- keras_model(inputs = list (features , 
-                                         volumes), outputs = merged)
-     model %>% compile (loss = 'mse', 
-                        optimizer = 'rmsprop')
-     
-     dat.X <- as.matrix.data.frame(x_data[train_set,][cond_positive_denominator,])
-     dat.W <- as.matrix(wtrain[cond_positive_denominator])
-     dat.Y <- as.matrix(ytgt[cond_positive_denominator])
-     
-     fit <- model %>% fit(
-       list(apply(dat.X,MARGIN = 2,as.numeric), dat.W),
-       dat.Y,
-       epochs = 500 ,
-       verbose = 0,
-       batch_size = eval(parse(text=(paste0(as.integer(max(floor(length(ytgt)/10),1)),"L")))),
-       validation_split = 0.1
-     )
-     
-
-     tmp_3 <- y_data[!train_set,][[paste0("DP", j)]]
-     
-     cond_positive_denominator_test <- tmp_3 >0
-     
-     x_test <- as.matrix.data.frame(apply(x_data[!train_set,],2,as.numeric))
-     
-     w_test = as.matrix(sqrt(tmp_3))
-
-     pred <- as.vector(model %>% predict(list(x_test, 
-                                              w_test)))*w_test
-     
-     tmp_4 <- output_frame[!train_set,][[paste0("DP", j)]]
-     w_test_1 = as.matrix(sqrt(tmp_4))
-     
-     pred1 <- as.vector(model %>% predict(list(x_test, 
-                                              w_test_1)))*w_test_1
-     
-  
-     pred1[is.na(pred1)] <- tmp_3[is.na(pred1)] #if the nn fits something negative you just put df to one
-    
-     
-    eval(parse(text=paste0("output_frame[!train_set,DP",j+1,":=pred1]")))
-    eval(parse(text=paste0("output_frame_score_diagonal[!train_set,DP",j+1,":=pred]")))
-
-    
-  }
+      
+      
+      volumes <- layer_input(shape = c(1), name = "weights_il")
+      
+      offset <- volumes %>%
+        layer_dense(
+          units = 1,
+          activation = 'linear',
+          use_bias = FALSE ,
+          trainable = FALSE ,
+          weights = list(array(1, dim = c(1 , 1))),
+          name = "weights_ol"
+        )
+      
+      merged <- list(net, offset) %>%
+        layer_multiply()
+      model <- keras_model(inputs = list (features , volumes), outputs = merged)
+      model %>% compile (loss = 'mse', optimizer = 'rmsprop')
+      
+      dat.X <- as.matrix.data.frame(x_data[train_set, ][cond_positive_denominator, ])
+      dat.W <- as.matrix(wtrain[cond_positive_denominator])
+      dat.Y <- as.matrix(ytgt[cond_positive_denominator])
+      
+      
+      my_batch_size = eval(parse(text = (paste0(
+        as.integer(max(floor(length(
+          ytgt
+        ) / 10), 2)), "L"
+      ))))
+      
+      if (j == (max_dp - 1)) {
+        my_val_split = 0L
+      } else{
+        my_val_split = 0.1
+      }
+      
+      
+      fit <- model %>% fit(
+        list(apply(dat.X, MARGIN = 2, as.numeric), dat.W),
+        dat.Y,
+        epochs = 500 ,
+        verbose = 0,
+        batch_size = my_batch_size,
+        validation_split = my_val_split
+      )
+      
+      
+      tmp_3 <- y_data[!train_set, ][[paste0("DP", j)]]
+      
+      cond_positive_denominator_test <- tmp_3 > 0
+      
+      x_test <- as.matrix.data.frame(apply(x_data[!train_set, ], 2, as.numeric))
+      
+      w_test = as.matrix(sqrt(tmp_3))
+      
+      pred <- as.vector(model %>% predict(list(x_test, w_test))) * w_test
+      
+      tmp_4 <- output_frame[!train_set, ][[paste0("DP", j)]]
+      w_test_1 = as.matrix(sqrt(tmp_4))
+      
+      pred1 <- as.vector(model %>% predict(list(x_test, w_test_1))) * w_test_1
+      
+      
+      pred1[is.na(pred1)] <- tmp_3[is.na(pred1)] #if the nn fits something negative you just put df to one
+      
+    }else{
+        
+      pred1 <- pred <- y_data[!train_set, ][[paste0("DP", j)]]
+      
+      }
+      
+      
+      eval(parse(text = paste0(
+        "output_frame[!train_set,DP", j + 1, ":=pred1]"
+      )))
+      eval(parse(
+        text = paste0(
+          "output_frame_score_diagonal[!train_set,DP",
+          j + 1,
+          ":=pred]"
+        )
+      ))
+      
+      
+    }
   
   out <- list(score_total=(output_frame),
               score_diagonal=(output_frame_score_diagonal))
@@ -316,10 +550,37 @@ library(keras)
 input_data <- data_generator(
   random_seed = 1,
   scenario = 1,
-  time_unit = 1 / 4,
-  years = 8,
-  period_exposure  = 2000
+  time_unit =  1 / 360,
+  years = 4,
+  period_exposure  = 200
 )
+
+
+individual_data_y <- IndividualDataPP(input_data,
+                                      id = "claim_number",
+                                      continuous_features = "AP_i",
+                                      categorical_features = "claim_type",
+                                      accident_period = "AP",
+                                      calendar_period = "RP",
+                                      input_time_granularity = "days",
+                                      output_time_granularity = "months",
+                                      years = 4,
+                                      continuous_features_spline = NULL,
+                                      calendar_period_extrapolation = FALSE)
+
+
+
+input_data <- individual_data_y$training.data
+setDT(input_data)
+
+input_data[,DP_o := max(DP_rev_o)-DP_rev_o +1]
+
+input_data<-input_data[,.SD,.SDcols = c("claim_number", "claim_type",  "AP_o", "DP_o")]
+
+setnames(input_data, c("AP_o", "DP_o"),c("AP","DP"))
+
+input_data[,RP:=(DP+AP-1)]
+
 
 ```
 
@@ -337,7 +598,7 @@ max_dp=max(input_data$AP)
 
 ```{r}
 setDT(input_data)
-input_data[,DP:=pmin(RP-AP+1,max_dp)]
+# input_data[,DP:=pmin(RP-AP+1,max_dp)]
 
 vec1 <- sort(unique(input_data$DP))
 vec2 <- 1:max_dp
@@ -529,6 +790,47 @@ are_cal_q <- sum(score_diagonal$abs_ave2_diag) / sum(score_diagonal$I)
 (sum(out_nn$score_diagonal$DP96)+sum(unlist(out_pm$predictions_at_runoff)))/sum(dt_target$DP96)
 # 1.154278
 ```
+
+
+
+```{r}
+
+input_data <- data_generator(
+     random_seed = 1,
+     scenario = 5,
+     time_unit =  1 / 360,
+     years = 4,
+     period_exposure  = 200)
+
+sum(input_data$RP>1440)/dim(input_data)[1]
+
+hist(input_data$RP-input_data$AP+1)
+
+individual_data <- IndividualDataPP(
+    input_data,
+    categorical_features = c("business_use"),
+    continuous_features = c("property_value","AP","age"),
+    accident_period = "AP",
+    calendar_period = "RP",
+    input_time_granularity = "days",
+    output_time_granularity = "years",
+    years = 4
+)
+
+resurv_fit_cox <- ReSurv(individual_data,
+                     hazard_model = "COX",
+                     simplifier = T)
+
+
+resurv_fit_predict_y <- predict(resurv_fit_cox)
+
+summary(resurv_fit_predict_y)
+
+```
+
+
+
+
 
 ## resurv 
 
@@ -937,7 +1239,32 @@ summary(resurv_fit_predict)
 
 setDT(input_data)
 
-cl_data <- input_data[,.N,by=.(AP,RP)][RP<=40,DP:=RP-AP+1]
+cl_data <- input_data[,.N,by=.(AP,RP)][,DP:=RP-AP+1]
+
+vec1 <- sort(unique(cl_data$DP))
+vec2 <- 1:max(cl_data$AP)
+
+v3 <- setdiff(union(vec1, vec2), intersect(vec1, vec2))
+
+if(length(v3)!=0){
+  
+  extra_data <- tail(cl_data, 1)
+
+# Duplicate the last row length(v3) times
+extra_data <- extra_data[rep(1, length(v3))]
+
+# Assign the DP column
+extra_data[, DP := v3]
+
+extra_data[, N := 0]
+  cl_data <- rbind(cl_data,
+                        extra_data)
+  
+}
+
+cl_data<-cl_data[DP<=1440]
+
+
 
 library(ChainLadder)
 
