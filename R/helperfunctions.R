@@ -1763,7 +1763,7 @@ pkg.env$predict_i <- function(hazard_data_frame,
                               min_DP_rev_i
 ){
   "
-  Calculate expected incremential claim number on input scale.
+  Calculate expected incremental claim number on input scale.
   Grouping is used when doing granularity increased development factors in i_to_o_development_factor
    "
 
@@ -1998,6 +1998,7 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
   Group input development factor to output.
 
   "
+
   max_dp_i <-pkg.env$maximum.time(years,input_time_granularity)
   # Add output groupings to relevant frames
   hazard_data_frame <- lazy_dt(hazard_data_frame) %>%
@@ -2029,6 +2030,7 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
 
   }
 
+  # browser()
 
   # #select relevant hazard value group and add output variables, and other variables to help with grouping
   grouped_hazard_0 <- hazard_data_frame %>%

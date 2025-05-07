@@ -304,7 +304,7 @@ In this Section we show the usage of the `ReSurv` method for the estimation of o
 ```{r eval=FALSE, include=TRUE}
 
 resurv_fit_cox <- ReSurv(individual_data,
-                     hazard_model = "COX")
+                     hazard_model = "COX",simplifier = TRUE)
 
 ```
 

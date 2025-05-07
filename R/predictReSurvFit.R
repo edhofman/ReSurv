@@ -263,7 +263,6 @@ predict.ReSurvFit <- function(object,
   )
 
 
-
   development_factor_o <- pkg.env$i_to_o_development_factor(
     hazard_data_frame = hazard_frame_grouped$hazard_group,
     expected_i = expected_i,
