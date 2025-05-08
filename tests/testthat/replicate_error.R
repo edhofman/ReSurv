@@ -184,6 +184,6 @@ score_diagonal <- resurv_fit_cox2$IndividualDataPP$full.data  %>%
   group_by(AP_o, DP_rev_o) %>%
   reframe(abs_ave2_diag = abs(sum(I_cum_hat) - sum(I_cum)), I = sum(I))
 
-are_cal_q <- sum(score_diagonal$abs_ave2_diag) / sum(score_diagonal$I)
+are_cal_q2 <- sum(score_diagonal$abs_ave2_diag) / sum(score_diagonal$I)
 
 

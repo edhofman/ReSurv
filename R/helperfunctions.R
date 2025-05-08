@@ -2070,6 +2070,7 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
       1/S_ultimate_i * latest_I) ) %>% #handle special ultimate cases
     mutate(U = ifelse(DP_max_rev ==min_DP_rev_i , latest_I, U))  %>%
     mutate(U = ifelse(gm=="probability", 1 ,U)) %>%
+    mutate(U = ifelse(latest_I==0,0,U))%>%
     mutate(exposure_expected = U*(S_i)) %>%  #in theory one could say U*S_i- ifelse(DP_max_rev==DP_rev_i-1, latest_I, U*S_i_lead ), but this might lead to negative expected as we are not sure latest equal the same as distribution estimate
     select(AP_i, group_o, DP_rev_o, DP_rev_i, exposure_expected)
 
@@ -2105,7 +2106,9 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
 
   output_dev_factor <- grouped_hazard_2 %>%
     group_by(DP_rev_o, group_o) %>%
-    summarise(dev_f_o = (sum(observed)+  sum(exposure_combined))/sum(exposure_combined),.groups="drop" ) %>%
+    summarise(dev_f_o = ifelse(sum(exposure_combined)==0,
+                               1,
+                               (sum(observed)+  sum(exposure_combined))/sum(exposure_combined)),.groups="drop" ) %>%
     as.data.table() %>%
     dcast(DP_rev_o ~group_o, value.var="dev_f_o")
 
