@@ -117,7 +117,7 @@ ReSurv <- function(IndividualDataPP,
                    random_seed = 1,
                    hparameters = list(),
                    percentage_data_training = .8,
-                   grouping_method = "exposure",
+                   grouping_method = "probability",
                    check_value = 1.85,
                    eta=0.5,
                    simplifier=FALSE){

@@ -2101,7 +2101,8 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
   grouped_hazard_2 <- grouped_hazard_1 %>%
     group_by(AP_i, DP_rev_o, group_o) %>%
     summarize(observed = sum(I_combined), .groups="drop") %>%
-    left_join(exposures_combined, by=c("AP_i", "group_o", "DP_rev_o"))
+    left_join(exposures_combined, by=c("AP_i", "group_o", "DP_rev_o"))%>%
+    mutate(observed=ifelse(latest_I==0,0,observed))
 
 
   output_dev_factor <- grouped_hazard_2 %>%

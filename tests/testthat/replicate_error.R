@@ -1,6 +1,6 @@
 library(ReSurv)
 
-input_data <- data_generator(random_seed = 7,
+input_data <- data_generator(random_seed = 1,
                              scenario = "alpha",
                              time_unit = 1 / 360,
                              years = 4,
@@ -19,10 +19,14 @@ individual_data <- IndividualDataPP(data = input_data,
 #when simplifier is set to T, I ease the computations both for fitting and predicting.
 #  aka, there is an if cycle in ReSurv and another one in ReSurv.predict.
 resurv_fit_cox <- ReSurv(individual_data,
-                         hazard_model = "COX",simplifier = TRUE)
+                         hazard_model = "COX",
+                         grouping_method="probability",
+                         simplifier = TRUE)
 
 resurv_fit_cox2 <- ReSurv(individual_data,
-                         hazard_model = "COX",simplifier = FALSE)
+                         hazard_model = "COX",
+                         grouping_method="probability",
+                         simplifier = FALSE)
 
 
 pr1 <- predict(resurv_fit_cox)
