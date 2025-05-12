@@ -91,6 +91,9 @@ predict.ReSurvFit <- function(object,
     calendar_period_extrapolation = idata$calendar_period_extrapolation
   )
 
+
+  # browser()
+
   if(object$simplifier){
 
     missing.obsevations <- pkg.env$simplified_fill_data_frame(
@@ -127,6 +130,10 @@ predict.ReSurvFit <- function(object,
     calendar_period_extrapolation = idata$calendar_period_extrapolation
   )
 
+
+
+  # browser()
+
   max_DP <- max(bind_rows(idata$training.data, missing.obsevations)$DP_rev_o)
 
 
@@ -153,6 +160,10 @@ predict.ReSurvFit <- function(object,
     groups = hazard_frame_grouped$groups,
     is_baseline_model = is_baseline_model
   )
+
+
+
+  # browser()
 
   if (idata$conversion_factor != 1) {
     development_periods <- distinct(select(data.frame(idata$training), AP_i, AP_o))
@@ -344,9 +355,25 @@ predict.ReSurvFit <- function(object,
   ))
 
 
+  d1 <- as.data.table(hazard_frame_grouped$hazard_group[,unique(c(idata$continuous_features,
+                                                                  idata$categorical_features,
+                                                                  "group_i",
+                                                                  "DP_rev_i"))])[!duplicated(group_i)]
+
+  d2 <- as.data.table(hazard_frame_grouped$groups[,c("group_i",
+                                                     "group_o")])
+
+  d3 <- merge(d1,d2,by=c("group_i"))
+
+  rm(list = c(
+    "d1",
+    "d2"
+  ))
+
 
   out = list(
     ReSurvFit = object,
+    groups_encoding=d3,
     # I removed these two (save memory)
     # df_output = as.data.frame(df_o),
     # df_input = as.data.frame(df_i),
@@ -357,6 +384,7 @@ predict.ReSurvFit <- function(object,
     predicted_counts = sum(long_tr_input$IBNR, na.rm = T),
     grouping_method = grouping_method
   )
+
 
   if (lower_triangular_output) {
     ltr_input <- pkg.env$find_lt_input(long_tr_input, max_dp_i)

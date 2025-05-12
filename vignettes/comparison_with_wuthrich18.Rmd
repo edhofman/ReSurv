@@ -108,7 +108,6 @@ mw18_datapp_y <- function(data,
 ```
 
 ```{r}
-#first check: is data sparse enough?
   fit_proportional_model <- function(data,
                                      max_dp){
 
@@ -191,6 +190,7 @@ mw18_datapp_y <- function(data,
 
     return(total_out)
   }
+
 
 
 ```

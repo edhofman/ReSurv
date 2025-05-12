@@ -23,6 +23,7 @@
 #'
 #' @export
 survival_crps <- function(ReSurvFit,
+                          user_hazard_frame=NULL,
                           user_data_set = NULL){
 
   UseMethod("survival_crps")
@@ -54,6 +55,7 @@ survival_crps <- function(ReSurvFit,
 #'
 #' @export
 survival_crps.default <- function(ReSurvFit,
+                                  user_hazard_frame=NULL,
                                   user_data_set = NULL){
 
   message('The object provided must be of class ReSurvFit')
@@ -84,13 +86,19 @@ survival_crps.default <- function(ReSurvFit,
 #'
 #' @export
 survival_crps.ReSurvFit <- function(ReSurvFit,
+                                    user_hazard_frame=NULL,
                                     user_data_set = NULL){
 
 
-  hazard_frame <- ReSurvFit$hazard_frame %>%
-    select(-DP_i) %>%
-    rename(dev_f_i = f_i,
-           cum_dev_f_i = cum_f_i)
+  if (is.null(user_hazard_frame)) {
+    hazard_frame <- ReSurvFit$hazard_frame %>%
+      select(-DP_i) %>%
+      rename(dev_f_i = f_i, cum_dev_f_i = cum_f_i)
+  } else{
+    hazard_frame<- user_hazard_frame%>%
+      select(-DP_i) %>%
+      rename(dev_f_i = f_i, cum_dev_f_i = cum_f_i)
+  }
 
   hazard_frame <- data.table(hazard_frame)
 
@@ -148,7 +156,11 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
            TR_i,
            TR_o,
            I) %>%
-    as.data.table()}else{
+    as.data.table()
+
+
+
+    }else{
 
       tmp_cond= colnames(ReSurvFit$IndividualDataPP$starting.data) %in% colnames(user_data_set)
 
@@ -199,6 +211,7 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
 
   # Save the different curves
+
   hazard_list<- split(hazard_frame, hazard_frame$ix_group)
 
   hazard_list<-lapply(hazard_list, function(x) x[order(DP_rev_i),
@@ -208,7 +221,6 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
                                                    x.vals=diff(c(0,DP_rev_i)))])
 
 
-  # browser()
   test_for_crps = merge(test_for_crps,
                         tmp_unq_grp,
                         by=c(categorical_features, continuous_features),
