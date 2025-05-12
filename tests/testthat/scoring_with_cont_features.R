@@ -45,6 +45,24 @@ resurv.fit <- ReSurv(individual_data,
 
 resurv.fit.predict <- predict(resurv.fit)
 
+
+
+## Error one
+### here it happens sometimes (?)
+
+sum(resurv.fit.predict$long_triangle_format_out$output_granularity$IBNR)
+sum(resurv.fit.predict$long_triangle_format_out$input_granularity$IBNR,na.rm=T)
+
+
+### Below I wrote the code to fix the are tot / are cal.. We have the problem that
+### we do not save the continuous features in resurv.fit.predict$long_triangle_format_out$xxxxxxxxx_granularity.
+### I then added an encoder output:
+
+# cfs <- c("age","property_value","group_o")
+# encoder <- resurv.fit.predict$groups_encoding[,..cfs]
+
+### One should think a bit how to score.. It can be tricky.
+
 conversion_factor <- individual_data$conversion_factor
 
 max_dp_i <- 1440
