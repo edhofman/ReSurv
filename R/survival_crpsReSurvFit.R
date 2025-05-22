@@ -90,6 +90,7 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
                                     user_data_set = NULL){
 
 
+  # browser()
   if (is.null(user_hazard_frame)) {
     hazard_frame <- ReSurvFit$hazard_frame %>%
       select(-DP_i) %>%
@@ -131,6 +132,8 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
   # Elaborate features on the test set
   if(is.null(user_data_set)){
 
+    # browser()
+
     # in case the test set is not available we do not compute it and return NULL
     if(dim(test_for_crps)[1]==0){
       warning('No test set available in your data to compute the Survival CRPS')
@@ -164,7 +167,7 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
       tmp_cond= colnames(ReSurvFit$IndividualDataPP$starting.data) %in% colnames(user_data_set)
 
-      tmp_training_set = ReSurvFit$IndividualDataPP$starting.data[,tmp_cond]
+      tmp_training_set = as.data.table(ReSurvFit$IndividualDataPP$starting.data)[,..tmp_cond]
 
       # Simple rbind (full starting data and new data to compute CRPS)
       tmp_fdata = rbind(tmp_training_set,
