@@ -3654,4 +3654,443 @@ pkg.env$find_lt_output <- function(dt,
 
 
 
+manually_extract_info_for_scoring_cont <- function(ReSurvFit,
+                                                   hazard_model,
+                                                   IndividualDataPP,
+                                                   tie = "efron",
+                                                   baseline = "spline",
+                                                   continuous_features_scaling_method = "minmax",
+                                                   random_seed = 1,
+                                                   hparameters = list(),
+                                                   percentage_data_training = .8,
+                                                   grouping_method = "exposure",
+                                                   check_value = 1.85,
+                                                   eta=0.5,
+                                                   simplifier=TRUE){
+
+
+  set.seed(random_seed)
+
+  formula_ct <- as.formula(IndividualDataPP$string_formula_i)
+
+
+    cont_f <- IndividualDataPP$continuous_features
+    cat_f <- IndividualDataPP$categorical_features
+    columns_for_grouping <- unique(c(cont_f,cat_f,"AP_i"))
+
+    tmp <- as.data.table(IndividualDataPP$full.data)
+
+    out <- tmp[,.(.N),by=columns_for_grouping][,..columns_for_grouping]
+
+    l4 <- list()
+
+    l4$DP_rev_i <- min(IndividualDataPP$full.data[,'DP_rev_i']):max(IndividualDataPP$full.data[,'DP_rev_i'])
+
+    l4<-do.call(CJ, c(l4, sorted = FALSE))
+
+    newdata<-as.data.frame(setkey(out[,c(k=1,.SD)],k)[l4[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL])
+
+
+
+  # logical: check if we work with a baseline model
+  is_baseline_model = is.null(c(IndividualDataPP$categorical_features,
+                                IndividualDataPP$continuous_features))
+
+
+  if(hazard_model=="COX"){
+    browser()
+    data=IndividualDataPP$training.data
+
+    X=data %>%
+      select(c(IndividualDataPP$continuous_features,IndividualDataPP$categorical_features))
+
+    Y=IndividualDataPP$full.data[,c("DP_rev_i", "I", "TR_i")]
+
+    cox <- coxph(formula_ct, data=data, ties="efron")
+    cox_lp <- predict(cox,newdata=newdata,'lp',reference='zero')
+
+    cox_training_lp <- predict(cox,newdata=newdata %>% arrange(DP_rev_i) %>% as.data.frame(),'lp',reference='zero')
+
+
+    model.out <- list(cox=cox,
+                      cox_lp=cox_lp,
+                      expg = exp(cox_lp))
+
+    ## NEW BASELINE COMPUTATION (RESURV)
+
+      scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
+
+      Xc_tmp_bsln <- IndividualDataPP$full.data %>%
+        reframe(across(all_of(IndividualDataPP$continuous_features),
+                       scaler))
+
+
+      if(!is.null(IndividualDataPP$categorical_features)){
+
+
+        X_tmp_bsln <- pkg.env$model.matrix.creator(data= IndividualDataPP$full.data,
+                                                   select_columns = IndividualDataPP$categorical_features,
+                                                   remove_first_dummy=T)
+
+
+        X_tmp_bsln=cbind(X_tmp_bsln,Xc_tmp_bsln)
+
+      }else{
+
+        X_tmp_bsln= Xc_tmp_bsln
+
+      }
+
+
+
+    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+                                  model.out = model.out,
+                                  X=X_tmp_bsln,
+                                  Y=Y)
+
+    browser()
+
+    bsln <- data.frame(baseline=bsln,
+                       DP_rev_i=sort(as.integer(unique(IndividualDataPP$training.data$DP_rev_i))))
+
+    ### make it relative
+
+
+      newdata.bs <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$full.data,
+                                            newdata=newdata,
+                                            continuous_features=IndividualDataPP$continuous_features,
+                                            categorical_features=IndividualDataPP$categorical_features)
+
+      benchmark_id <- pkg.env$benchmark_id(X = X_tmp_bsln,
+                                           Y =Y ,
+                                           newdata.mx = newdata.bs,
+                                           remove_first_dummy=T)
+
+
+
+
+
+
+
+
+    pred_relative <- cox_lp-cox_lp[benchmark_id]
+
+    ###
+
+    hazard_frame <- cbind(newdata, exp(pred_relative))
+    colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
+
+
+
+    is_lkh <- pkg.env$evaluate_lkh_cox(X_train=X,
+                                       Y_train=Y,
+                                       model=model.out)
+
+
+    os_lkh <- NULL
+
+
+  }
+
+  if(hazard_model=="NN"){
+
+
+    Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
+
+    training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
+
+    if(is_baseline_model){
+
+      X <- data.frame(intercept_1 = rep(1,dim(Y)[1]))
+
+    }else{
+
+      scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
+
+      Xc <- IndividualDataPP$training.data %>%
+        reframe(across(all_of(IndividualDataPP$continuous_features),
+                       scaler))
+
+      if(!is.null(IndividualDataPP$categorical_features)){
+
+        X <- pkg.env$model.matrix.creator(data= IndividualDataPP$training.data,
+                                          select_columns = IndividualDataPP$categorical_features)
+
+        X = cbind(X,Xc)
+
+
+      }else{
+
+
+        X <- Xc
+
+      }
+
+    }
+
+    datads_pp = pkg.env$deep_surv_pp(X=X,
+                                     Y=Y,
+                                     training_test_split = training_test_split)
+
+    hparameters <- pkg.env$nn_hparameter_nodes_grid(hparameters)
+
+    hparameters <- list(params=as.list.data.frame(hparameters),
+                        verbose=hparameters$verbose,
+                        epochs = hparameters$epochs,
+                        num_workers = hparameters$num_workers)
+
+
+    model.out <- pkg.env$fit_deep_surv(datads_pp,
+                                       params=hparameters$params,
+                                       verbose = hparameters$verbose,
+                                       epochs = hparameters$epochs,
+                                       num_workers = hparameters$num_workers,
+                                       seed = random_seed)
+
+
+    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+                                  model.out = model.out,
+                                  X=X,
+                                  Y=Y)
+
+    if(is_baseline_model){
+
+      newdata.mx <- data.frame(intercept_1= rep(1,dim(newdata)[1]))
+
+    }else{
+
+      newdata.mx <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
+                                            newdata=newdata,
+                                            continuous_features=IndividualDataPP$continuous_features,
+                                            categorical_features=IndividualDataPP$categorical_features)}
+
+
+
+    x_fc= reticulate::np_array(as.matrix(newdata.mx), dtype = "float32")
+
+
+    beta_ams <- model.out$predict(input=x_fc,
+                                  num_workers=hparameters$num_workers)
+
+    #make to hazard relative to initial model, to have similiar interpretation as standard cox
+
+    benchmark_id <- pkg.env$benchmark_id(X = X,
+                                         Y =Y ,
+                                         newdata.mx = newdata.mx
+    )
+
+    pred_relative <- beta_ams - beta_ams[benchmark_id]
+
+    expg <- exp(pred_relative)
+    hazard_frame <- cbind(newdata,expg)
+    bsln <- data.frame(baseline=bsln,
+                       DP_rev_i=sort(as.integer(unique(IndividualDataPP$training.data$DP_rev_i))))
+
+
+
+    if(!inherits(datads_pp$lkh_eval_data$data_train,"data.frame")){
+
+
+      is_lkh <- pkg.env$evaluate_lkh_nn(X_train=as.data.frame(datads_pp$lkh_eval_data$data_train),
+                                        Y_train=datads_pp$lkh_eval_data$y_train,
+                                        model=model.out)
+
+      os_lkh <- pkg.env$evaluate_lkh_nn(X_train=as.data.frame(datads_pp$lkh_eval_data$data_val),
+                                        Y_train=datads_pp$lkh_eval_data$y_val,
+                                        model=model.out)
+
+
+    }else{
+
+      is_lkh <- pkg.env$evaluate_lkh_nn(X_train=datads_pp$lkh_eval_data$data_train,
+                                        Y_train=datads_pp$lkh_eval_data$y_train,
+                                        model=model.out)
+
+      os_lkh <- pkg.env$evaluate_lkh_nn(X_train=datads_pp$lkh_eval_data$data_val,
+                                        Y_train=datads_pp$lkh_eval_data$y_val,
+                                        model=model.out)
+
+    }
+
+
+
+
+  }
+
+  if(hazard_model == "XGB"){
+
+    Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
+
+    training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
+
+    if(is_baseline_model){
+
+      X= data.frame(intercept_1 = rep(1,dim(Y)[1]))
+
+    }else{
+
+      scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
+
+      Xc <- IndividualDataPP$training.data %>%
+        reframe(across(all_of(IndividualDataPP$continuous_features),
+                       scaler))
+
+
+      if(!is.null(IndividualDataPP$categorical_features)){
+
+        X <- pkg.env$model.matrix.creator(data= IndividualDataPP$training.data,
+                                          select_columns = IndividualDataPP$categorical_features,
+                                          remove_first_dummy=T)
+
+        X=cbind(X,Xc)
+      }else{
+
+
+        X <- Xc
+
+
+      }
+
+    }
+
+
+
+    datads_pp <- pkg.env$xgboost_pp(X=X,
+                                    Y=Y,
+                                    training_test_split=training_test_split)
+
+    model.out <- pkg.env$fit_xgboost(datads_pp,
+                                     hparameters=hparameters)
+
+    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+                                  model.out = model.out,
+                                  X=X,
+                                  Y=Y)
+
+
+    if(is_baseline_model){
+
+      newdata.mx <- xgboost::xgb.DMatrix(as.matrix(rep(1, dim(newdata)[1])))
+
+    }else{
+
+      newdata.mx <- pkg.env$df.2.fcst.xgboost.pp(data=IndividualDataPP$training.data,
+                                                 newdata=newdata,
+                                                 continuous_features=IndividualDataPP$continuous_features,
+                                                 categorical_features=IndividualDataPP$categorical_features)
+    }
+
+    pred <- predict(model.out,newdata.mx)
+
+
+
+    if(is_baseline_model){
+
+      newdata.bs <- data.frame(intercept_1 = rep(1, dim(newdata)[1]))
+
+      benchmark_id <- pkg.env$benchmark_id(X = X,
+                                           Y =Y ,
+                                           newdata.mx = newdata.bs,
+                                           remove_first_dummy=F)
+
+    }else{
+      #make to hazard relative to initial model, to have similiar interpretation as standard cox
+      newdata.bs <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
+                                            newdata=newdata,
+                                            continuous_features=IndividualDataPP$continuous_features,
+                                            categorical_features=IndividualDataPP$categorical_features)
+
+      benchmark_id <- pkg.env$benchmark_id(X = X,
+                                           Y =Y ,
+                                           newdata.mx = newdata.bs,
+                                           remove_first_dummy=T)}
+
+
+    pred_relative <- pred - pred[benchmark_id]
+
+    expg <- exp(pred_relative)
+
+    hazard_frame <- cbind(newdata,expg)
+
+    bsln <- data.frame(baseline=bsln,
+                       DP_rev_i=sort(as.integer(unique(IndividualDataPP$training.data$DP_rev_i))))
+
+    # compute the likelihood of the fitted model (upper triangle)
+    is_lkh <- pkg.env$evaluate_lkh_xgb(X_train=X,
+                                       Y_train=Y,
+                                       dset='is',
+                                       samples_cn=datads_pp$samples_cn,
+                                       model=model.out)
+
+    os_lkh <- pkg.env$evaluate_lkh_xgb(X_train=X,
+                                       Y_train=Y,
+                                       dset='os',
+                                       samples_cn=datads_pp$samples_cn,
+                                       model=model.out)
+
+  }
+
+  ##################################################################################
+
+
+  hazard_frame <- hazard_frame %>%
+    full_join(bsln,
+              by="DP_rev_i") %>%
+    as.data.frame() %>%
+    replace_na(list(baseline=0))
+
+  hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
+
+
+
+
+  #Add development and relevant survival values to the hazard_frame
+  hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
+                                                    # Om.df=Om.df,
+                                                    eta_old=eta,
+                                                    categorical_features = IndividualDataPP$categorical_features,
+                                                    continuous_features = IndividualDataPP$continuous_features,
+                                                    calendar_period_extrapolation = IndividualDataPP$calendar_period_extrapolation)
+
+
+  out_hz_frame <-  hazard_frame_updated %>%
+    mutate(DP_i=pkg.env$maximum.time(IndividualDataPP$years, IndividualDataPP$input_time_granularity)-DP_rev_i+1) %>%
+    relocate(DP_i, .after =  AP_i) %>%
+    rename(f_i=dev_f_i,
+           cum_f_i=cum_dev_f_i)
+
+  out=list(model.out=list(data=X,
+                          model.out=model.out),
+           simplifier=simplifier,
+           is_lkh=is_lkh,
+           os_lkh=os_lkh,
+           hazard_frame = out_hz_frame,
+           hazard_model = hazard_model,
+           IndividualDataPP = IndividualDataPP)
+
+  class(out) <- c('ReSurvFit')
+
+  return(out)
+
+
+
+
+
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
 

@@ -12,6 +12,7 @@
 #' Default is \code{"exposure"}.
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #' @param lower_triangular_output \code{logical}, if set to \code{TRUE} we add the predicted lower triangle in input and output granularity to the \code{predict.ReSurvFit} output.
+#' @param groups_encoding_output \code{logical}, if set to \code{TRUE} we add a \code{data.table} containing the groups encoding to the \code{predict.ReSurvFit} output.
 #' @param ... Additional arguments to pass to the predict function.
 #'
 #'
@@ -56,6 +57,7 @@ predict.ReSurvFit <- function(object,
                               newdata = NULL,
                               grouping_method = "probability",
                               lower_triangular_output = TRUE,
+                              groups_encoding_output =FALSE,
                               check_value = 1.85,
                               ...) {
 
@@ -355,25 +357,11 @@ predict.ReSurvFit <- function(object,
   ))
 
 
-  d1 <- as.data.table(hazard_frame_grouped$hazard_group[,unique(c(idata$continuous_features,
-                                                                  idata$categorical_features,
-                                                                  "group_i",
-                                                                  "DP_rev_i"))])[!duplicated(group_i)]
 
-  d2 <- as.data.table(hazard_frame_grouped$groups[,c("group_i",
-                                                     "group_o")])
-
-  d3 <- merge(d1,d2,by=c("group_i"))
-
-  rm(list = c(
-    "d1",
-    "d2"
-  ))
 
 
   out = list(
     ReSurvFit = object,
-    groups_encoding=d3,
     # I removed these two (save memory)
     # df_output = as.data.frame(df_o),
     # df_input = as.data.frame(df_i),
@@ -384,6 +372,23 @@ predict.ReSurvFit <- function(object,
     predicted_counts = sum(long_tr_input$IBNR, na.rm = T),
     grouping_method = grouping_method
   )
+
+
+  if(groups_encoding_output){
+
+    d1 <- as.data.table(hazard_frame_grouped$hazard_group[,unique(c(idata$continuous_features,
+                                                                    idata$categorical_features,
+                                                                    "group_i",
+                                                                    "DP_rev_i"))])[!duplicated(group_i)]
+
+    d2 <- as.data.table(hazard_frame_grouped$groups[,c("group_i",
+                                                       "group_o")])
+
+    d3 <- merge(d1,d2,by=c("group_i"))
+
+    out[['groups_encoding']] <- lower_triangle
+
+  }
 
 
   if (lower_triangular_output) {

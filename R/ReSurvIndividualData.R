@@ -397,13 +397,6 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
                                 IndividualDataPP$continuous_features))
 
 
-  # create data frame of occurrencies to weight development factors
-  # Om.df <-   pkg.env$create.om.df(training.data=IndividualDataPP$training.data,
-                                  # input_time_granularity=IndividualDataPP$input_time_granularity,
-                                  # years=IndividualDataPP$years)
-
-
-
   if(hazard_model=="COX"){
 
     data=IndividualDataPP$training.data
@@ -416,17 +409,6 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
     model.out <- pkg.env$fit_cox_model(data=data,
                                        formula_ct=formula_ct,
                                        newdata=newdata)
-
-    # tmp <- pkg.env$spline_hp(hparameters,IndividualDataPP)
-
-
-    ## OLD BASELINE COMPUTATION (BRESLOW)
-    # bs_hazard <- basehaz( model.out$cox, centered=FALSE) %>%
-    #   mutate(hazard = hazard-lag(hazard,default=0))
-    #
-    #
-    # bsln <- data.frame(baseline=bs_hazard$hazard,
-    #                    DP_rev_i=ceiling(bs_hazard$time))  #$hazard
 
     ## NEW BASELINE COMPUTATION (RESURV)
 
@@ -575,11 +557,7 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
                                        seed = random_seed)
 
 
-
-    # bsln <- model.out$compute_baseline_hazards(
-    #   input = datads_pp$x_train,
-    #   target = datads_pp$y_train,
-    #   batch_size = hparameters$batch_size)
+    # browser()
 
     bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
                                   model.out = model.out,
@@ -776,28 +754,6 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
 
 
-  #return(hazard_frame)
-
-  #need placeholder for latest i mirror cl behaviour
-
-  # hazard_cl <- (sapply(seq_along(hz_names_i$time),
-  #                      pkg.env$hazard_f,
-  #                      enter= hz_names_i$enter,
-  #                      time=hz_names_i$time,
-  #                      exit=hz_names_i$exit,
-  #                      event=hz_names_i$event))
-
-
-
-
-  ############################################################
-  #check
-
-  #hazard_q <- matrix(nrow=max_DP, ncol=(ncol(hazard)-1)*IndividualDataPP$conversion_factor)
-  #eta_o <- c()
-
-
-  ############################################################
 
   #Add development and relevant survival values to the hazard_frame
   hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
