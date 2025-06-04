@@ -173,7 +173,7 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
     max_dp_i =  pkg.env$maximum.time(tmp$years,tmp$input_time_granularity)
 
-    unique_baseline <- resurv.fit$hazard_frame %>%
+    unique_baseline <- ReSurvFit$hazard_frame %>%
       group_by(DP_i) %>%
       summarise(baseline = unique(baseline)) %>%
       mutate(DP_rev_i = max_dp_i - DP_i+1)
@@ -265,7 +265,7 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
       max_dp_i =  pkg.env$maximum.time(tmp$years,tmp$input_time_granularity)
 
-      unique_baseline <- resurv.fit$hazard_frame %>%
+      unique_baseline <- ReSurvFit$hazard_frame %>%
         group_by(DP_i) %>%
         summarise(baseline = unique(baseline)) %>%
         mutate(DP_rev_i = max_dp_i - DP_i+1)
@@ -350,7 +350,7 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
       max_dp_i =  pkg.env$maximum.time(tmp$years,tmp$input_time_granularity)
 
-      unique_baseline <- resurv.fit$hazard_frame %>%
+      unique_baseline <- ReSurvFit$hazard_frame %>%
         group_by(DP_i) %>%
         summarise(baseline = unique(baseline)) %>%
         mutate(DP_rev_i = max_dp_i - DP_i+1)
