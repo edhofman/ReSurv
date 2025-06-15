@@ -484,6 +484,10 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
     }else{
 
+      browser()
+
+
+
       tmp_cond= colnames(ReSurvFit$IndividualDataPP$starting.data) %in% colnames(user_data_set)
 
       tmp_training_set = as.data.table(ReSurvFit$IndividualDataPP$starting.data)[,..tmp_cond]
@@ -492,12 +496,31 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
       tmp_fdata = rbind(tmp_training_set,
                         user_data_set)
 
+
+
+      conversion_factor= ReSurvFit$IndividualDataPP$conversion_factor
+      continuous_features=ReSurvFit$IndividualDataPP$continuous_features
+      categorical_features=ReSurvFit$IndividualDataPP$categorical_features
+
+      # find groups
+      setDT(hazard_frame)
+      hazard_frame <- hazard_frame[,
+                                   ix_group:=.GRP,
+                                   by=c(categorical_features,
+                                        continuous_features)]
+
+      # find unique combinations of groups
+      tmp_unq_grp <- data.table(unique(data.frame(hazard_frame)[c(categorical_features,
+                                                                  continuous_features,
+                                                                  'ix_group')]))
+
+
       # Process the data
       tmp_idata = IndividualDataPP(tmp_fdata,
                                  continuous_features=continuous_features,
                                  categorical_features=categorical_features,
                                  accident_period=ReSurvFit$IndividualDataPP$accident_period,
-                                 calendar_period="CM",
+                                 calendar_period=ReSurvFit$IndividualDataPP$calendar_period,
                                  input_time_granularity=ReSurvFit$IndividualDataPP$input_time_granularity,
                                  output_time_granularity=ReSurvFit$IndividualDataPP$output_time_granularity,
                                  years=ReSurvFit$IndividualDataPP$years,
@@ -506,6 +529,11 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
       test_for_crps = tmp_idata$full.data %>%
         filter(DP_rev_i <= TR_i)
+
+      max_dp_i =  pkg.env$maximum.time(ReSurvFit$IndividualDataPP$years,ReSurvFit$IndividualDataPP$input_time_granularity)
+
+
+      calendar_period_extrapolation=ReSurvFit$IndividualDataPP$calendar_period_extrapolation
 
       test_for_crps=test_for_crps%>%
         mutate(
