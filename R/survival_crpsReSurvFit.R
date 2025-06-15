@@ -451,15 +451,17 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
   # Elaborate features on the test set
   if(is.null(user_data_set)){
 
-    # browser()
 
-    # in case the test set is not available we do not compute it and return NULL
-    if(dim(test_for_crps)[1]==0){
-      warning('No test set available in your data to compute the Survival CRPS')
-      return(NULL)
-    }
+    # Simplify the code and save useful attributes
+    categorical_features <- ReSurvFit$IndividualDataPP$categorical_features
+    continuous_features <- ReSurvFit$IndividualDataPP$continuous_features
+    max_dp_i =  pkg.env$maximum.time(ReSurvFit$IndividualDataPP$years,
+                                     ReSurvFit$IndividualDataPP$input_time_granularity)
+    conversion_factor =ReSurvFit$IndividualDataPP$conversion_factor
+    calendar_period_extrapolation = ReSurvFit$IndividualDataPP$calendar_period_extrapolation
 
-    test_for_crps=test_for_crps%>%
+    test_for_crps=ReSurvFit$IndividualDataPP$full.data %>%
+      filter(DP_rev_i <= TR_i)%>%
     mutate(
       DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
       AP_o = ceiling(AP_i*conversion_factor)
@@ -480,12 +482,26 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
            I) %>%
     as.data.table()
 
+    # in case the test set is not available we do not compute it and return NULL
+    if(dim(test_for_crps)[1]==0){
+      warning('No test set available in your data to compute the Survival CRPS')
+      return(NULL)
+    }
+
+    # find groups
+    setDT(hazard_frame)
+    hazard_frame <- hazard_frame[,
+                                 ix_group:=.GRP,
+                                 by=c(categorical_features,
+                                      continuous_features)]
+
+    tmp_unq_grp <- data.table(unique(data.frame(hazard_frame)[c(categorical_features,
+                                                                continuous_features,
+                                                                'ix_group')]))
+
 
 
     }else{
-
-      browser()
-
 
 
       tmp_cond= colnames(ReSurvFit$IndividualDataPP$starting.data) %in% colnames(user_data_set)
