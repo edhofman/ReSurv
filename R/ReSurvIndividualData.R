@@ -502,7 +502,7 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
   }
 
   if(hazard_model=="NN"){
-
+    # browser()
 
     Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
 
@@ -573,7 +573,8 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
     newdata.mx <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
                                           newdata=newdata,
                                           continuous_features=IndividualDataPP$continuous_features,
-                                          categorical_features=IndividualDataPP$categorical_features)}
+                                          categorical_features=IndividualDataPP$categorical_features)
+    }
 
 
 

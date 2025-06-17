@@ -339,7 +339,7 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
       x_fc= reticulate::np_array(as.matrix(newdata.mx), dtype = "float32")
 
-      beta_ams <- ReSurvFit$model.out$predict(input=x_fc)
+      beta_ams <- ReSurvFit$model.out$model.out$predict(input=x_fc)
 
 
       expg <- exp(beta_ams)

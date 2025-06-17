@@ -2433,12 +2433,15 @@ pkg.env$df.2.fcst.nn.pp <- function(data,
 
   tmp <- newdata[continuous_features]
 
+  setDT(tmp)
+  setDT(data)
+
   for(cft in continuous_features){
 
-    mnv <- min(data[cft])
-    mxv <- max(data[cft])
+    mnv <- min(data[[cft]])
+    mxv <- max(data[[cft]])
 
-    tmp[,cft] <-2*(tmp[,cft]-mnv)/(mxv-mnv)-1
+    tmp[[cft]] <-2*(tmp[[cft]]-mnv)/(mxv-mnv)-1
 
   }
 
