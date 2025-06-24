@@ -1068,8 +1068,6 @@ vec2 <- 1:max_dp
 
 v3 <- setdiff(union(vec1, vec2), intersect(vec1, vec2))
 
-
-
 ```
 
 

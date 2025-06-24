@@ -726,34 +726,51 @@ pkg.env$scenario5_simulator <- function(ref_claim=200000,
                                         yearly_frequency=0.08){
 
 
-
   I <- years / time_unit
-  E <- c(rep(yearly_exposure, I))
+  E <- c(rep(floor(yearly_exposure), I))
   lambda <- c(rep(yearly_frequency, I))
   scenario=5
 
-  #Frequency simulation
-  n_vector <- claim_frequency(I = I, E = E, freq = lambda)
-  occurrence_times <- claim_occurrence(frequency_vector = n_vector)
-  claim_sizes <- claim_size(frequency_vector = n_vector)
+  #Frequency simulation -- business use 0
+  # n_vector <- claim_frequency(I = I, E = E, freq = lambda)
+  # occurrence_times <- claim_occurrence(frequency_vector = n_vector)
 
+
+  #Decreasing the exposure, and hence lowering the claims occurred -- business use 1
+  E_1 <- c(rep(floor(yearly_exposure), I)) + round(seq(from = 0, by = -.1, length = I))# now adjusted for days: monthly code was seq(from = 0, by = -100, length = I)
+  #Frequency simulation
+  n_vector_0 <- claim_frequency(I = I, E = E, freq = lambda)
+  n_vector_1 <- claim_frequency(I = I, E = E_1, freq = lambda)
+  occurrence_times_0 <- claim_occurrence(frequency_vector = n_vector_0)
+  occurrence_times_1 <- claim_occurrence(frequency_vector = n_vector_1)
+
+
+  claim_sizes <- claim_size(frequency_vector = c(n_vector_0,n_vector_1))
   n_of_claims <- length(unlist(claim_sizes))
+
+  bu_covariates_dataset <- data.frame(
+    "claim_number"=1:n_of_claims,
+    "business_use" = c(rep("Y",sum(n_vector_0)),
+                       rep("N",sum(n_vector_1)))
+
+    )
+
 
   age_range <- 50:55
   probabilties_age <- rep(.01,length(age_range))
-  # probabilties_age[age_range >= 40 & age_range <= 45] <- .2
-  # probabilties_age[age_range >= 20 & age_range <= 30] <- .1
-  # probabilties_age[age_range >= 30 & age_range <= 39] <- .15
-  # probabilties_age[age_range > 45 & age_range <= 55] <- .3
 
   probabilties_age <- probabilties_age/sum(probabilties_age)
 
   covariates_dataset <- data.frame(
     "claim_number"=1:n_of_claims,
     "age" = sample(age_range,n_of_claims,replace=TRUE,prob=probabilties_age),
-    "property_value"= rlnorm(n_of_claims, meanlog = 3.034513, sdlog = 0.4087569),
-    "business_use" = sample(c("Y","N"),n_of_claims,replace = TRUE)
+    "property_value"= rlnorm(n_of_claims, meanlog = 3.034513, sdlog = 0.4087569)#,
+    # "business_use" = sample(c("Y","N"),n_of_claims,replace = TRUE)
   )
+
+  covariates_dataset <-merge(covariates_dataset,
+                             bu_covariates_dataset,
+                             by="claim_number")
 
   rdelay = apply(FUN = notification_delay_scenario5 ,
                  covariates_dataset,
@@ -766,8 +783,10 @@ pkg.env$scenario5_simulator <- function(ref_claim=200000,
 
   dt_dates <- data.frame(
     claim_number=1:n_of_claims,
-    AP=ceiling(unlist(occurrence_times)),
-    RP=ceiling(unlist(occurrence_times)+rdelay))
+    AP=ceiling(c(unlist(occurrence_times_0),
+                 unlist(occurrence_times_1))),
+    RP=ceiling(c(unlist(occurrence_times_0),
+                 unlist(occurrence_times_1))+rdelay))
 
 
   dt <- merge(dt_dates,covariates_dataset,by.x="claim_number",by.y="claim_number",all=TRUE)
