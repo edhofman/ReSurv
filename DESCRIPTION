@@ -1,6 +1,6 @@
 Package: ReSurv
 Type: Package
-Title: Machine Learning Models For Predicting Claim Counts
+Title: Machine Learning Models for Predicting Claim Counts
 Version: 1.0.0
 Authors@R:
     c(person(given = "Emil",
@@ -17,7 +17,7 @@ Authors@R:
              email="mh@math.ku.dk",
              role = c("aut", "cph"),
              comment = c(ORCID = "0000-0001-5846-667X")))
-Description: Prediction of claim counts using the feature based development factors introduced in the manuscript <doi:10.48550/arXiv.2312.14549>. 
+Description: Prediction of claim counts using the feature based development factors introduced in the manuscript Hiabu M., Hofman E. and Pittarello G. (2023) <doi:10.48550/arXiv.2312.14549>. 
              Implementation of Neural Networks, Extreme Gradient Boosting, 
              and Cox model with splines to optimise the partial log-likelihood of proportional hazard models.
 URL: https://github.com/edhofman/ReSurv
@@ -27,6 +27,7 @@ Depends: tidyverse
 Imports: 
   stats,
   dplyr,
+  actuar,
   dtplyr,
   fastDummies,
   forecast,
@@ -47,7 +48,9 @@ SystemRequirements: Python (>= 3.8.0)
 Encoding: UTF-8
 LazyData: true
 Suggests: 
-  knitr,
-  rmarkdown
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0)
 VignetteBuilder: knitr, rmarkdown
 RoxygenNote: 7.3.2
+Config/testthat/edition: 3

@@ -15,11 +15,11 @@
   nrounds = NULL,
   early_stopping_rounds = NULL,
   epochs = 1,
-  parallel = F,
+  parallel = FALSE,
   ncores = 1,
   num_workers = 0,
-  verbose = F,
-  verbose.cv = F
+  verbose = FALSE,
+  verbose.cv = FALSE
 )
 }
 \arguments{

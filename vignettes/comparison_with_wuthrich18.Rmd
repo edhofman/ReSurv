@@ -1,0 +1,1729 @@
+---
+title: "Comparison with Wuetrich (2018)"
+author: "Gabriele Pittarello"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Comparison with Wuetrich (2018)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: '`r system.file("references.bib", package="ReSurv")`'
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+library(ReSurv)
+# library(ggplot2)
+library(data.table)
+library(fastDummies)
+
+```
+
+
+In this vignette, we compare our approach with Wuethrich (2018). We first define some functions that we use to implement the approach from Wuethrich (2018).
+
+
+
+```{r}
+# Preprocess covariates
+## utils
+MinMaxScaler <- function(x, na.rm = TRUE) {
+  "MinMax Scaler"
+  return(2*(x- min(x)) /(max(x)-min(x))-1)
+}
+## Aggregate in triangles
+
+data_wrapper <- function(data,
+                         categorical_features=NULL,
+                         continuous_features=NULL,
+                         development_period,
+                         accident_period){
+  
+  out <- data[,.(dt_count = .N), by = c(categorical_features,
+                         continuous_features,
+                         development_period,
+                         accident_period)]
+  
+  return(out)
+  
+  
+}
+
+
+## actual preprocessing
+mw18_datapp_x <- function(data,
+                          continuous_features=NULL,
+                          categorical_features=NULL) {
+  
+  # browser()
+  
+  out <- data 
+  
+  if (!is.null(categorical_features)) {
+    # out_cat=apply(eval(parse(text=paste0("data[,.(",categorical_features,")]"))),2,as.factor)
+    
+    out[, (categorical_features) := lapply(.SD, as.factor), .SDcols = categorical_features]
+    
+    # out_cat=apply(eval(parse(text=paste0("data[,.(",categorical_features,")]"))),2,as.factor)
+    
+  }
+  
+  if (!is.null(continuous_features)) {
+    # out_cont=apply(eval(parse(text=paste0("data[,.(",continuous_features,")]"))),2,MinMaxScaler)
+    
+    out[, (continuous_features) := lapply(.SD, MinMaxScaler), .SDcols = continuous_features]
+  }
+  
+  to_keep <- c(categorical_features,
+               continuous_features)
+  
+  return(out[,..to_keep])
+  
+}
+
+# Preprocess targets
+mw18_datapp_y <- function(data,
+                          development_time,
+                          dt_counts,
+                          max_dp = 40){
+ 
+ out<-  pivot_wider(data[order(DP),],
+                names_from = development_time,
+                values_from = dt_counts,
+                names_prefix = "DP") 
+ 
+ setDT(out)
+ 
+ out[is.na(out)] <- 0
+ 
+ dp_columns = paste0("DP",1:max_dp)
+ 
+ return(out)
+  
+}
+
+```
+
+```{r}
+  fit_proportional_model <- function(data,
+                                     max_dp){
+
+
+    out <- list()
+
+    counts_at_diagonal <- list()
+
+    predictions_at_runoff <- list()
+
+    lt<-(matrix(NA,nrow=max_dp,ncol=max_dp))
+
+    colnames(lt) <- paste0("DP",1:max_dp)
+
+    for (i in 2:max_dp) {
+
+      proportions_ap <- rep(NA,(max_dp-1))
+
+      zero_at_diagonal <- data[[paste0("DP", (max_dp - i + 1))]] == 0 # take them all here and just filer afterwards.
+
+      at_diagonal <- data[["AP"]] ==(max_dp - (max_dp - i))
+
+      counts_unfiltered <- sum(data[AP < (max_dp - (max_dp - i)), ][[paste0("DP", (max_dp -
+                                                                                     i + 1))]])
+
+      counts_at_diagonal[[paste0("AP",i)]] <- sum(data[AP == (max_dp - (max_dp - i)), ][[paste0("DP", (max_dp -
+                                                                                                         i + 1))]])
+
+      predicted_cumulatives <- NA
+
+      if (sum(zero_at_diagonal & (!at_diagonal)) > 0) {
+
+        j = (max_dp - i + 1)
+
+        tmp <- data[zero_at_diagonal& (AP < (max_dp - j + 1)),][[paste0("DP", j+1)]]
+
+        proportions_ap[j+1] <- sum(tmp)/counts_unfiltered
+
+
+        if(i>2){
+
+          for (j in (max_dp - i + 1 +1):(max_dp-1)) {
+
+            tmp <- data[zero_at_diagonal& (AP < (max_dp - j + 1)),][[paste0("DP", j+1)]]
+            tmp_1 <- data[zero_at_diagonal& (AP < (max_dp - j + 1)),][[paste0("DP", j)]]
+
+
+
+            prop_tmp <-  sum(tmp)/sum(tmp_1)
+
+            if(is.infinite(prop_tmp)){prop_tmp<-1}
+
+            proportions_ap[j+1] <-prop_tmp
+
+          }}
+
+
+      }
+
+
+      out[[paste0("AP",i)]] <- proportions_ap
+
+      vector_of_predictions <- cumprod(c(counts_at_diagonal[[paste0("AP",i)]],proportions_ap[!is.na(proportions_ap)]))
+
+      lt[i,!is.na(proportions_ap)]<-vector_of_predictions[-1]
+
+      predictions_at_runoff[[paste0("AP",i)]]<- counts_at_diagonal[[paste0("AP",i)]]*last(cumprod(proportions_ap[!is.na(proportions_ap)]))
+
+
+
+    }
+
+    lt <- as.data.frame.matrix(cbind(AP=1:max_dp,
+                                     lt))
+
+    total_out <- list(proportions=out,
+                      lower_triangle=lt,
+                      counts_at_diagonal=counts_at_diagonal,
+                      predictions_at_runoff=predictions_at_runoff)
+
+    return(total_out)
+  }
+
+
+
+```
+
+
+```{r}
+
+
+bounds <- list(number_of_neurons = c(1L, 2L, 5L, 10L),
+               number_of_layers = c(1L, 2L))
+
+
+nn_model_cv <- function(data,
+                        number_of_neurons,
+                        number_of_layers,
+                        categorical_features,
+                        max_dp,
+                        continuous_features) {
+  
+  
+  
+    y_data_columns <- paste0("DP", 1:max_dp)
+    x_cat <- dummy_cols(data[,..categorical_features],
+                      select_columns=categorical_features,
+                      remove_first_dummy=F)[,-1]
+  
+  
+    x_data <- cbind(x_cat,
+                  data[,..continuous_features])
+  
+    y_data <- data[,..y_data_columns]
+    
+    loss<-val_loss <-NULL
+    
+    
+    sequence_trials <- sample(1:(max_dp-1), 10, replace = FALSE)
+    
+    for(j in sequence_trials){
+    
+    train_set <- (data[['AP']] < (max_dp - j + 1))
+    
+    tmp <- y_data[train_set,][[paste0("DP", j+1)]]
+    
+    tmp_1 <- y_data[train_set,][[paste0("DP", j)]]
+    
+    cond_positive_denominator <- tmp_1 >0
+    
+    if (sum(cond_positive_denominator) > 0) {
+      ytgt = tmp / sqrt(tmp_1)
+      wtrain = sqrt(tmp_1)
+      
+      features <- layer_input(shape = dim(x_data)[2], name = "main_model_il")
+      net <- features
+      
+      if (number_of_layers > 0) {
+        net <- net %>%
+          layer_dense(
+            units = number_of_neurons,
+            activation = 'tanh',
+            use_bias = FALSE,
+            name = "main_model_hl"
+          )
+      }
+      
+      if (number_of_layers > 1) {
+        net <- net %>%
+          layer_dense(
+            units = number_of_neurons,
+            activation = 'tanh',
+            use_bias = FALSE,
+            name = "main_model_hl_2"
+          )
+      }
+      
+      net <- net %>%
+        layer_dense (units = 1,
+                     activation = k_exp,
+                     name = "main_model_ol")
+      
+      
+      volumes <- layer_input(shape = c(1), name = "weights_il")
+      
+      offset <- volumes %>%
+        layer_dense(
+          units = 1,
+          activation = 'linear',
+          use_bias = FALSE ,
+          trainable = FALSE ,
+          weights = list(array(1, dim = c(1 , 1))),
+          name = "weights_ol"
+        )
+      
+      merged <- list(net, offset) %>%
+        layer_multiply()
+      model <- keras_model(inputs = list (features , volumes), outputs = merged)
+      model %>% compile (loss = 'mse', optimizer = 'rmsprop')
+      
+      dat.X <- as.matrix.data.frame(x_data[train_set, ][cond_positive_denominator, ])
+      dat.W <- as.matrix(wtrain[cond_positive_denominator])
+      dat.Y <- as.matrix(ytgt[cond_positive_denominator])
+      
+      
+      my_batch_size = eval(parse(text = (paste0(
+        as.integer(max(floor(length(
+          ytgt
+        ) / 10), 2)), "L"
+      ))))
+      
+      if (j == (max_dp - 1)) {
+        my_val_split = 0L
+      } else{
+        my_val_split = 0.30
+      }
+      
+      
+      fit <- model %>% fit(
+        list(apply(dat.X, MARGIN = 2, as.numeric), dat.W),
+        dat.Y,
+        epochs = 80 ,
+        verbose = 0,
+        batch_size = my_batch_size,
+        validation_split = my_val_split
+      )
+      
+      
+      loss <- c(loss,last(fit$metrics$loss))
+      val_loss <- c(val_loss,last(fit$metrics$val_loss))
+      
+    }
+    
+    
+  
+  
+    }
+    
+    
+    out.cv = data.frame(
+        number_of_neurons=number_of_neurons,
+        number_of_layers = number_of_layers,
+        loss=mean(loss),
+        val_loss=mean(val_loss)
+      )
+
+    
+    best.out.cv = out.cv%>%
+      filter(val_loss==min(val_loss))
+    
+    out <- list(
+      out.cv=out.cv,
+      out.cv.best=best.out.cv)
+    
+    return(out)
+    
+    }
+
+
+
+scoringFunction <- function(number_of_neurons,
+                            number_of_layers){
+  
+  
+  
+  categorical_features = "claim_type"
+  continuous_features = NULL
+  development_period = "DP"
+  accident_period = "AP"
+  id_col = "claim_number"
+  max_dp = max(input_data$AP)
+
+  cv_out <- nn_model_cv(data=dt_target,
+              number_of_neurons=number_of_neurons,
+              number_of_layers=number_of_layers,
+              categorical_features=categorical_features,
+              max_dp=max_dp,
+              continuous_features=NULL)
+  
+  
+  lst <- list(
+    Score = cv_out$out.cv.best$val_loss,
+    train_loss = cv_out$out.cv.best$loss
+  )
+  
+  return(lst)
+  
+  
+}
+
+
+# bayes_out <- bayesOpt(FUN = scoringFunction,
+#                       bounds = bounds,
+#                       initPoints = 3,
+#                       iters.n = 10,
+#                       iters.k = 2,
+#                       otherHalting = list(timeLimit = 1200))
+
+nn_model_fit_and_predict <- function(data,
+                                     max_dp,
+                                     number_of_neurons,
+                                     categorical_features,
+                                     continuous_features) {
+  
+  y_data_columns <- paste0("DP", 1:max_dp)
+  x_cat <- dummy_cols(data[,..categorical_features],
+                      select_columns=categorical_features,
+                      remove_first_dummy=F)[,-1]
+  
+  
+  x_data <- cbind(x_cat,
+                  data[,..continuous_features])
+  
+  y_data <- data[,..y_data_columns]
+  
+  output_frame <- data.table::copy(data)
+  output_frame_score_diagonal <- data.table::copy(data)
+  
+  for(j in 1:(max_dp-1)){
+    
+    train_set <- (data[['AP']] < (max_dp - j + 1))
+    
+    tmp <- y_data[train_set,][[paste0("DP", j+1)]]
+    
+    tmp_1 <- y_data[train_set,][[paste0("DP", j)]]
+    
+    cond_positive_denominator <- tmp_1 >0
+    
+    if (sum(cond_positive_denominator) > 0) {
+      ytgt = tmp / sqrt(tmp_1)
+      wtrain = sqrt(tmp_1)
+      
+      features <- layer_input(shape = dim(x_data)[2], name = "main_model_il")
+      net <- features
+      
+      if (number_of_neurons > 0) {
+        net <- net %>%
+          layer_dense(
+            units = number_of_neurons,
+            activation = 'tanh',
+            use_bias = FALSE,
+            name = "main_model_hl"
+          )
+      }
+      net <- net %>%
+        layer_dense (units = 1,
+                     activation = k_exp,
+                     name = "main_model_ol")
+      
+      
+      volumes <- layer_input(shape = c(1), name = "weights_il")
+      
+      offset <- volumes %>%
+        layer_dense(
+          units = 1,
+          activation = 'linear',
+          use_bias = FALSE ,
+          trainable = FALSE ,
+          weights = list(array(1, dim = c(1 , 1))),
+          name = "weights_ol"
+        )
+      
+      merged <- list(net, offset) %>%
+        layer_multiply()
+      model <- keras_model(inputs = list (features , volumes), outputs = merged)
+      model %>% compile (loss = 'mse', optimizer = 'rmsprop')
+      
+      dat.X <- as.matrix.data.frame(x_data[train_set, ][cond_positive_denominator, ])
+      dat.W <- as.matrix(wtrain[cond_positive_denominator])
+      dat.Y <- as.matrix(ytgt[cond_positive_denominator])
+      
+      
+      my_batch_size = eval(parse(text = (paste0(
+        as.integer(max(floor(length(
+          ytgt
+        ) / 10), 2)), "L"
+      ))))
+      
+      if (j == (max_dp - 1)) {
+        my_val_split = 0L
+      } else{
+        my_val_split = 0.1
+      }
+      
+      
+      fit <- model %>% fit(
+        list(apply(dat.X, MARGIN = 2, as.numeric), dat.W),
+        dat.Y,
+        epochs = 500 ,
+        verbose = 0,
+        batch_size = my_batch_size,
+        validation_split = my_val_split
+      )
+      
+      
+      tmp_3 <- y_data[!train_set, ][[paste0("DP", j)]]
+      
+      cond_positive_denominator_test <- tmp_3 > 0
+      
+      x_test <- as.matrix.data.frame(apply(x_data[!train_set, ], 2, as.numeric))
+      
+      w_test = as.matrix(sqrt(tmp_3))
+      
+      pred <- as.vector(model %>% predict(list(x_test, w_test))) * w_test
+      
+      tmp_4 <- output_frame[!train_set, ][[paste0("DP", j)]]
+      w_test_1 = as.matrix(sqrt(tmp_4))
+      
+      pred1 <- as.vector(model %>% predict(list(x_test, w_test_1))) * w_test_1
+      
+      
+      pred1[is.na(pred1)] <- tmp_3[is.na(pred1)] #if the nn fits something negative you just put df to one
+      
+    }else{
+        
+      pred1 <- pred <- y_data[!train_set, ][[paste0("DP", j)]]
+      
+      }
+      
+      
+      eval(parse(text = paste0(
+        "output_frame[!train_set,DP", j + 1, ":=pred1]"
+      )))
+      eval(parse(
+        text = paste0(
+          "output_frame_score_diagonal[!train_set,DP",
+          j + 1,
+          ":=pred]"
+        )
+      ))
+      
+      
+    }
+  
+  out <- list(score_total=(output_frame),
+              score_diagonal=(output_frame_score_diagonal))
+  
+  return(out)
+  
+}
+
+
+```
+
+```{r}
+library(reticulate)
+# use_python("C:/Users/pwt887/AppData/Local/Programs/Python/Python313/python.exe")
+reticulate::use_condaenv("mw_et")
+library(keras)
+```
+
+
+
+
+# Scenario Alpha
+
+
+```{r}
+
+input_data <- data_generator(
+  random_seed = 1,
+  scenario = 1,
+  time_unit =  1 / 360,
+  years = 4,
+  period_exposure  = 200
+)
+
+
+individual_data_y <- IndividualDataPP(input_data,
+                                      id = "claim_number",
+                                      continuous_features = "AP_i",
+                                      categorical_features = "claim_type",
+                                      accident_period = "AP",
+                                      calendar_period = "RP",
+                                      input_time_granularity = "days",
+                                      output_time_granularity = "months",
+                                      years = 4,
+                                      continuous_features_spline = NULL,
+                                      calendar_period_extrapolation = FALSE)
+
+
+
+input_data <- individual_data_y$training.data
+setDT(input_data)
+
+input_data[,DP_o := max(DP_rev_o)-DP_rev_o +1]
+
+input_data<-input_data[,.SD,.SDcols = c("claim_number", "claim_type",  "AP_o", "DP_o")]
+
+setnames(input_data, c("AP_o", "DP_o"),c("AP","DP"))
+
+input_data[,RP:=(DP+AP-1)]
+
+
+```
+
+
+
+```{r}
+categorical_features = "claim_type"
+continuous_features=NULL
+development_period = "DP"
+accident_period = "AP"
+id_col = "claim_number"
+max_dp=max(input_data$AP)
+
+```
+
+```{r}
+setDT(input_data)
+# input_data[,DP:=pmin(RP-AP+1,max_dp)]
+
+vec1 <- sort(unique(input_data$DP))
+vec2 <- 1:max_dp
+
+v3 <- setdiff(union(vec1, vec2), intersect(vec1, vec2))
+
+
+
+```
+
+
+```{r}
+wrapped_data <- data_wrapper(data=input_data,
+                             categorical_features = categorical_features,
+                             development_period = development_period,
+                             accident_period=accident_period)
+
+if(length(v3)!=0){
+  
+  extra_data <- tail(wrapped_data, 1)
+
+# Duplicate the last row length(v3) times
+extra_data <- extra_data[rep(1, length(v3))]
+
+# Assign the DP column
+extra_data[, DP := v3]
+
+extra_data[, dt_count := 0]
+  wrapped_data <- rbind(wrapped_data,
+                        extra_data)
+  
+}
+
+
+```
+
+```{r}
+wrapped_data<-wrapped_data[order(DP),.SD,by=c(categorical_features,
+                               continuous_features,
+                               accident_period)]
+
+
+
+```
+
+
+
+```{r}
+dt_target <- mw18_datapp_y(wrapped_data,
+              development_time = development_period,
+              dt_counts = "dt_count"
+              )
+
+columns<-  c(paste0("DP",1:max_dp))
+
+
+tmp = as.data.frame(t(apply(dt_target[,..columns],1,cumsum)))
+
+setDT(tmp)
+
+dt_target[,(columns):=tmp]
+
+
+
+
+```
+
+
+
+```{r}
+dt_covariates <- mw18_datapp_x(dt_target,
+              categorical_features = categorical_features)
+
+
+common_cols <- intersect(colnames(dt_covariates),
+                         colnames(dt_target))
+
+
+setDT(dt_covariates)
+
+dt_target[, (common_cols):=dt_covariates[,..common_cols]]
+
+head(dt_target)
+
+
+```
+
+
+## Proportional model 
+
+```{r}
+out_pm <- fit_proportional_model(data=dt_target,
+                                 max_dp = max_dp)
+
+
+```
+
+
+
+## Neural newtorks model 
+
+```{r}
+library(keras)
+out_nn <- nn_model_fit_and_predict(dt_target,
+                                     max_dp=max_dp,
+                                     number_of_neurons=1,
+                                     categorical_features=categorical_features,
+                                     continuous_features=continuous_features)
+```
+
+
+```{r}
+
+scoring_dt <- pivot_longer(
+  out_nn$score_total,
+  cols = starts_with("DP"),
+  names_to="DP",
+  values_to = "expected_counts",
+  names_prefix = "DP"
+) 
+
+setDT(scoring_dt)
+
+# scoring_dt[,DP:=as.numeric(DP)]
+
+true_dt <- pivot_longer(
+  dt_target,
+  cols = starts_with("DP"),
+  names_to="DP",
+  values_to = "actual_counts",
+  names_prefix = "DP"
+) 
+
+setDT(true_dt)
+
+scoring_dt <- merge(scoring_dt,true_dt,by=c("AP","DP",
+                                              categorical_features,
+                                              continuous_features))
+
+data.table::setkey(scoring_dt,NULL)
+# scoring_dt[,ave:=(expected_counts - actual_counts)]
+
+scoring_total<-scoring_dt %>%
+  group_by(AP, DP) %>%
+  mutate(diff_value = value - lag(value)) %>%
+  reframe(abs_ave = abs(sum(ave)),
+          I=sum(actual_counts))
+
+are_tot <- sum(scoring_total$abs_ave) / sum(scoring_total$I)
+
+
+#Cashflow on output scale.Etc quarterly cashflow development
+score_diagonal <- resurv_fit_cox$IndividualDataPP$full.data  %>%
+  mutate(
+    DP_rev_o = floor(max_dp_i * conversion_factor) -
+      ceiling(
+              DP_i * conversion_factor +
+                ((AP_i - 1) %% (
+                  1 / conversion_factor
+                )) * conversion_factor) + 1,
+    AP_o = ceiling(AP_i * conversion_factor)
+  ) %>%
+  group_by(claim_type, AP_o, DP_rev_o) %>%
+  mutate(claim_type = as.character(claim_type)) %>%
+  summarize(I = sum(I), .groups = "drop") %>%
+  group_by(claim_type, AP_o) %>%
+  arrange(desc(DP_rev_o)) %>%
+  mutate(I_cum = cumsum(I)) %>%
+  mutate(I_cum_lag = lag(I_cum, default = 0)) %>%
+  left_join(dfs_output, by = c("AP_o", "claim_type", "DP_rev_o")) %>%
+  mutate(I_cum_hat =  I_cum_lag * f_o,
+         RP_o = max(DP_rev_o) - DP_rev_o + AP_o) %>%
+  inner_join(true_output[, c("AP_o", "DP_rev_o")] %>%  distinct()
+             , by = c("AP_o", "DP_rev_o")) %>%
+  group_by(AP_o, DP_rev_o) %>%
+  reframe(abs_ave2_diag = abs(sum(I_cum_hat) - sum(I_cum)), I = sum(I))
+
+are_cal_q <- sum(score_diagonal$abs_ave2_diag) / sum(score_diagonal$I)
+
+
+
+
+
+
+```
+
+
+```{r}
+(sum(out_nn$score_diagonal$DP96)+sum(unlist(out_pm$predictions_at_runoff)))/sum(dt_target$DP96)
+# 1.154278
+```
+
+
+
+```{r}
+
+input_data <- data_generator(
+     random_seed = 1,
+     scenario = 5,
+     time_unit =  1 / 360,
+     years = 4,
+     period_exposure  = 200)
+
+sum(input_data$RP>1440)/dim(input_data)[1]
+
+hist(input_data$RP-input_data$AP+1)
+
+individual_data <- IndividualDataPP(
+    input_data,
+    categorical_features = c("business_use"),
+    continuous_features = c("property_value","AP","age"),
+    accident_period = "AP",
+    calendar_period = "RP",
+    input_time_granularity = "days",
+    output_time_granularity = "years",
+    years = 4
+)
+
+resurv_fit_cox <- ReSurv(individual_data,
+                     hazard_model = "COX",
+                     simplifier = T)
+
+
+resurv_fit_predict_y <- predict(resurv_fit_cox)
+
+summary(resurv_fit_predict_y)
+
+```
+
+
+
+
+
+## resurv 
+
+```{r}
+individual_data <- IndividualDataPP(
+  input_data,
+  categorical_features = "claim_type",
+  continuous_features = "AP",
+  accident_period = "AP",
+  calendar_period = "RP",
+  input_time_granularity = "months",
+  output_time_granularity = "years",
+  years = 8
+)
+```
+
+
+```{r}
+
+resurv_fit_cox <- ReSurv(individual_data,
+                     hazard_model = "COX")
+```
+
+```{r}
+resurv_fit_predict_y <- predict(resurv_fit_cox)
+```
+
+```{r}
+summary(resurv_fit_predict_y)
+```
+```{r}
+true_diagonal <- sum(unlist(out_pm$counts_at_diagonal))+sum(wrapped_data[AP==1,dt_count])
+
+true_ibnr <- sum(dt_target$DP96)-true_diagonal
+
+mw_ibnr <- (sum(out_nn$DP96)+sum(unlist(out_pm$predictions_at_runoff)))-true_diagonal
+
+resurv_fit_predict_y$predicted_counts
+
+
+```
+
+
+
+# mw 18
+
+
+```{r}
+
+
+
+
+
+
+
+
+```
+
+
+
+# Scenario 6
+
+```{r}
+input_data <- data_generator(
+  ref_claim = 200000,
+  time_unit = 1 / 4,
+  years = 10,
+  random_seed=1,
+  period_exposure  = 120000,
+  period_frequency  = .08,
+  scenario=6
+)
+```
+
+```{r}
+categorical_features = "business_use"
+continuous_features=NULL
+development_period = "DP"
+accident_period = "AP"
+id_col = "claim_number"
+max_dp=max(input_data$AP)
+```
+
+
+
+```{r}
+setDT(input_data)
+input_data[,DP:=pmin(RP-AP+1,max_dp)]
+
+vec1 <- sort(unique(input_data$DP))
+vec2 <- 1:max_dp
+
+v3 <- setdiff(union(vec1, vec2), intersect(vec1, vec2))
+
+
+
+```
+
+
+```{r}
+wrapped_data <- data_wrapper(data=input_data,
+                             categorical_features = categorical_features,
+                             development_period = development_period,
+                             accident_period=accident_period)
+
+if(length(v3)!=0){
+  
+  extra_data <- tail(wrapped_data, 1)
+
+# Duplicate the last row length(v3) times
+extra_data <- extra_data[rep(1, length(v3))]
+
+# Assign the DP column
+extra_data[, DP := v3]
+
+extra_data[, dt_count := 0]
+  wrapped_data <- rbind(wrapped_data,
+                        extra_data)
+  
+}
+
+
+```
+
+```{r}
+wrapped_data<-wrapped_data[order(DP),.SD,by=c(categorical_features,
+                               continuous_features,
+                               accident_period)]
+
+
+
+```
+
+
+
+```{r}
+dt_target <- mw18_datapp_y(wrapped_data,
+              development_time = development_period,
+              dt_counts = "dt_count"
+              )
+
+columns<-  c(paste0("DP",1:max_dp))
+
+
+tmp = as.data.frame(t(apply(dt_target[,..columns],1,cumsum)))
+
+setDT(tmp)
+
+dt_target[,(columns):=tmp]
+
+
+
+
+```
+
+
+
+```{r}
+dt_covariates <- mw18_datapp_x(dt_target,
+              categorical_features = categorical_features)
+
+
+common_cols <- intersect(colnames(dt_covariates),
+                         colnames(dt_target))
+
+
+setDT(dt_covariates)
+
+dt_target[, (common_cols):=dt_covariates[,..common_cols]]
+
+head(dt_target)
+
+
+```
+
+```{r}
+out_pm <- fit_proportional_model(data=dt_target,
+                                 max_dp = max_dp)
+
+
+```
+
+```{r}
+
+out_nn <- nn_model_fit_and_predict(dt_target,
+                                     max_dp=max_dp,
+                                     number_of_neurons=1,
+                                     categorical_features=categorical_features,
+                                     continuous_features=continuous_features)
+```
+
+```{r}
+
+```
+
+
+
+
+# Scenario 5
+
+```{r}
+
+input_data <- data_generator(
+  ref_claim = 200000,
+  time_unit = 1 / 4,
+  years = 12,
+  random_seed=1,
+  period_exposure  = 120000,
+  period_frequency  = .08,
+  scenario=5
+)
+
+
+hist(input_data$RP-input_data$AP)
+```
+
+
+```{r}
+categorical_features = "business_use"
+continuous_features=c("property_value","age")
+development_period = "DP"
+accident_period = "AP"
+id_col = "claim_number"
+max_dp=max(input_data$AP)
+```
+
+
+
+```{r}
+setDT(input_data)
+input_data[,DP:=pmin(RP-AP+1,max_dp)]
+
+vec1 <- sort(unique(input_data$DP))
+vec2 <- 1:max_dp
+
+v3 <- setdiff(union(vec1, vec2), intersect(vec1, vec2))
+
+```
+
+
+```{r}
+wrapped_data <- data_wrapper(data=input_data,
+                             categorical_features = categorical_features,
+                             continuous_features = continuous_features,
+                             development_period = development_period,
+                             accident_period=accident_period)
+
+if(length(v3)!=0){
+  
+  extra_data <- tail(wrapped_data, 1)
+
+# Duplicate the last row length(v3) times
+extra_data <- extra_data[rep(1, length(v3))]
+
+# Assign the DP column
+extra_data[, DP := v3]
+
+extra_data[, dt_count := 0]
+  wrapped_data <- rbind(wrapped_data,
+                        extra_data)
+  
+}
+
+
+```
+
+```{r}
+wrapped_data<-wrapped_data[order(DP),.SD,by=c(categorical_features,
+                               continuous_features,
+                               accident_period)]
+
+
+
+```
+
+
+
+```{r}
+dt_target <- mw18_datapp_y(wrapped_data,
+              development_time = development_period,
+              dt_counts = "dt_count"
+              )
+
+columns<-  c(paste0("DP",1:max_dp))
+
+
+tmp = as.data.frame(t(apply(dt_target[,..columns],1,cumsum)))
+
+setDT(tmp)
+
+dt_target[,(columns):=tmp]
+
+
+
+
+```
+
+```{r}
+dt_covariates <- mw18_datapp_x(dt_target,
+              categorical_features = categorical_features,
+              continuous_features = continuous_features)
+
+
+common_cols <- intersect(colnames(dt_covariates),
+                         colnames(dt_target))
+
+
+setDT(dt_covariates)
+
+dt_target[, (common_cols):=dt_covariates[,..common_cols]]
+
+
+
+
+```
+
+```{r}
+out_pm <- fit_proportional_model(data=dt_target,
+                                 max_dp = max_dp)
+
+
+```
+
+```{r}
+
+out_nn <- nn_model_fit_and_predict(dt_target,
+                                     max_dp=max_dp,
+                                     number_of_neurons=2,
+                                     categorical_features=categorical_features,
+                                     continuous_features=continuous_features)
+```
+
+
+
+
+```{r}
+sum(input_data$RP>max(input_data$AP))/dim(input_data)[1]
+```
+
+```{r}
+# hparameters_xgb <- list(
+#   params = list(
+#     booster = "gbtree",
+#     eta = 0.9611239,
+#     subsample = 0.62851,
+#     alpha = 5.836211,
+#     lambda = 15,
+#     min_child_weight = 29.18158,
+#     max_depth = 1
+#   ),
+#   print_every_n = 0,
+#   nrounds = 3000,
+#   verbose = FALSE,
+#   early_stopping_rounds = 500
+# )
+
+individual_data <- IndividualDataPP(data = input_data,
+                                    categorical_features = "business_use",
+                                    id="claim_number",
+                                    continuous_features = c("AP"),
+                                    accident_period = "AP",
+                                    calendar_period = "RP",
+                                    input_time_granularity = "quarters",
+                                    output_time_granularity = "years",
+                                    years = 10)
+
+# resurv_fit_xgb <- ReSurv(individual_data,
+#                          hazard_model = "XGB",
+#                          hparameters = hparameters_xgb)
+
+
+```
+
+
+```{r eval=FALSE, include=TRUE}
+
+resurv_fit_cox <- ReSurv(individual_data,
+                     hazard_model = "COX")
+
+```
+
+```{r}
+hist(resurv_fit_cox$hazard_frame$cum_f_i)
+```
+
+
+```{r}
+resurv_fit_predict <- predict(resurv_fit_cox,
+                              lower_triangular_output = FALSE)
+```
+
+
+```{r}
+hist(resurv_fit_predict$long_triangle_format_out$input_granularity$f_i)
+```
+
+
+```{r}
+summary(resurv_fit_predict)
+```
+
+
+```{r}
+
+setDT(input_data)
+
+cl_data <- input_data[,.N,by=.(AP,RP)][,DP:=RP-AP+1]
+
+vec1 <- sort(unique(cl_data$DP))
+vec2 <- 1:max(cl_data$AP)
+
+v3 <- setdiff(union(vec1, vec2), intersect(vec1, vec2))
+
+if(length(v3)!=0){
+  
+  extra_data <- tail(cl_data, 1)
+
+# Duplicate the last row length(v3) times
+extra_data <- extra_data[rep(1, length(v3))]
+
+# Assign the DP column
+extra_data[, DP := v3]
+
+extra_data[, N := 0]
+  cl_data <- rbind(cl_data,
+                        extra_data)
+  
+}
+
+cl_data<-cl_data[DP<=1440]
+
+
+
+library(ChainLadder)
+
+cl_data <- ChainLadder::as.triangle(cl_data,
+                                    value = "N",
+                                    origin = "AP",
+                                    dev="DP")
+cl_data[is.na(cl_data)] <- 0
+
+library(clmplus)
+datapp = AggregateDataPP(cumulative.payments.triangle = incr2cum(cl_data), eta= 1/2)
+
+a.model.fit=clmplus(datapp,
+                 hazard.model = "a")
+
+a.model=predict(a.model.fit)
+
+sum(a.model$reserve)
+
+```
+
+
+
+```{r}
+input_data2 <- data_generator(
+  ref_claim = 200000,
+  time_unit = 1 / 360,
+  years = 10,
+  random_seed=1,
+  period_exposure  = 120,
+  period_frequency  = .01,
+  scenario=5
+)
+
+individual_data2 <- IndividualDataPP(data = input_data2,
+                                    categorical_features = "business_use",
+                                    continuous_features = c("age"),
+                                    accident_period = "AP",
+                                    calendar_period = "RP",
+                                    input_time_granularity = "days",
+                                    output_time_granularity = "years",
+                                    years = 10)
+
+resurv_fit_predict <- predict(resurv_fit_cox,newdata = individual_data2)
+
+```
+
+```{r}
+summary(resurv_fit_predict)
+```
+
+
+
+
+
+# Case study 
+
+
+```{r}
+
+input_data <- fread("C:\\Users\\pwt887\\Downloads\\case_data_all_ng_12-17.csv")
+input_data[,CM:=AM+DM-1]
+input_data[,c( "Claim_type_key" ,"Cover_key"):=list(
+  as.factor(Claim_type_key),
+  as.factor(Cover_key)
+  
+  
+)]
+
+actual_reps <- sum(input_data$CM>max(input_data$AM))
+
+individual_data_y <- IndividualDataPP(input_data,
+                                      id = NULL,
+                                      continuous_features = "AM",
+                                      categorical_features = c( "Claim_type_key" ,"Cover_key"),
+                                      accident_period = "AM",
+                                      calendar_period = "CM",
+                                      input_time_granularity = "months",
+                                      output_time_granularity = "months",
+                                      years = 4,
+                                      continuous_features_spline = NULL,
+                                      calendar_period_extrapolation = FALSE)
+
+actual_reps <- sum(input_data$CM>48)
+
+  # individual_data <- IndividualDataPP(input_data,
+  #                                       id = "claim_number",
+  #                                       categorical_features = c("claim_type"),
+  #                                       continuous_features = c("AP"),
+  #                                       accident_period = "AP",
+  #                                       calendar_period = "RP",
+  #                                       input_time_granularity = "months",
+  #                                       output_time_granularity = "months",
+  #                                       years = 4,
+  #                                       continuous_features_spline = NULL,
+  #                                       calendar_period_extrapolation = FALSE)
+
+  # individual_data_q <- IndividualDataPP(input_data,
+  #                                     id = NULL,
+  #                                     categorical_features = c("Cover_key","Claim_type_key"),
+  #                                     continuous_features = c("AM"),
+  #                                     accident_period = "AM",
+  #                                     calendar_period = "CM",
+  #                                     input_time_granularity = "months",
+  #                                     output_time_granularity = "quarters",
+  #                                     years = 4,
+  #                                     continuous_features_spline = NULL,
+  #                                     calendar_period_extrapolation = FALSE)
+  # 
+  # 
+  # individual_data_y <- IndividualDataPP(input_data,
+  #                                     id = NULL,
+  #                                     categorical_features = c("Cover_key","Claim_type_key"),
+  #                                     continuous_features = c("AM"),
+  #                                     accident_period = "AM",
+  #                                     calendar_period = "CM",
+  #                                     input_time_granularity = "months",
+  #                                     output_time_granularity = "years",
+  #                                     years=4,
+  #                                     continuous_features_spline=NULL,
+  #                                     calendar_period_extrapolation=F)
+
+input_data <- individual_data_y$training.data
+setDT(input_data)
+
+input_data[,DP_o := max(DP_rev_o)-DP_rev_o +1]
+
+input_data<-input_data[,.SD,.SDcols = c("Claim_type_key" ,"Cover_key",  "AP_o", "DP_o")]
+
+setnames(input_data, c("AP_o", "DP_o"),c("AP","DP"))
+
+input_data[,RP:=(DP+AP-1)]
+input_data[,claim_number:=1:nrow(input_data)]
+
+```
+
+```{r}
+categorical_features = c( "Claim_type_key" ,"Cover_key")
+continuous_features=NULL
+development_period = "DP"
+accident_period = "AP"
+id_col = "claim_number"
+max_dp=max(input_data$AP)
+
+```
+
+```{r}
+setDT(input_data)
+# input_data[,DP:=pmin(RP-AP+1,max_dp)]
+
+vec1 <- sort(unique(input_data$DP))
+vec2 <- 1:max_dp
+
+v3 <- setdiff(union(vec1, vec2), intersect(vec1, vec2))
+
+
+
+```
+
+
+```{r}
+wrapped_data <- data_wrapper(data=input_data,
+                             categorical_features = categorical_features,
+                             development_period = development_period,
+                             accident_period=accident_period)
+
+if(length(v3)!=0){
+  
+  extra_data <- tail(wrapped_data, 1)
+
+# Duplicate the last row length(v3) times
+extra_data <- extra_data[rep(1, length(v3))]
+
+# Assign the DP column
+extra_data[, DP := v3]
+
+extra_data[, dt_count := 0]
+  wrapped_data <- rbind(wrapped_data,
+                        extra_data)
+  
+}
+
+
+```
+
+```{r}
+wrapped_data<-wrapped_data[order(DP),.SD,by=c(categorical_features,
+                               continuous_features,
+                               accident_period)]
+
+
+
+```
+
+
+
+```{r}
+dt_target <- mw18_datapp_y(wrapped_data,
+              development_time = development_period,
+              dt_counts = "dt_count"
+              )
+
+columns<-  c(paste0("DP",1:max_dp))
+
+
+tmp = as.data.frame(t(apply(dt_target[,..columns],1,cumsum)))
+
+setDT(tmp)
+
+dt_target[,(columns):=tmp]
+
+
+
+
+```
+
+
+
+```{r}
+dt_covariates <- mw18_datapp_x(dt_target,
+              categorical_features = categorical_features)
+
+
+common_cols <- intersect(colnames(dt_covariates),
+                         colnames(dt_target))
+
+
+setDT(dt_covariates)
+
+dt_target[, (common_cols):=dt_covariates[,..common_cols]]
+
+head(dt_target)
+
+
+```
+
+
+## Proportional model 
+
+```{r}
+out_pm <- fit_proportional_model(data=dt_target,
+                                 max_dp = max_dp)
+
+
+```
+
+
+
+## Neural newtorks model 
+
+```{r}
+library(keras)
+out_nn <- nn_model_fit_and_predict(dt_target,
+                                     max_dp=max_dp,
+                                     number_of_neurons=1,
+                                     categorical_features=categorical_features,
+                                     continuous_features=continuous_features)
+```
+
+
+
+### scoring
+
+```{r}
+lowert_dt <- pivot_longer( out_pm$lower_triangle, cols = starts_with("DP"), names_to = "DP", values_to = "expected_counts_pm", names_prefix = "DP" )  %>%  mutate(DP = as.numeric(DP)) %>%  group_by(AP) %>%  # Make sure we're properly sorted first
+    arrange(AP, DP) %>% # Fill NAs with the most recent non-NA value
+    fill(expected_counts_pm, .direction = "down") %>% # If there are still NA values at the beginning of groups, replace with 0
+    mutate(expected_counts_pm = replace_na(expected_counts_pm, 0)) %>% ungroup()
+
+  setDT(lowert_dt)
+
+  lowert_dt[is.na(lowert_dt)] <- 0
+
+  setorder(lowert_dt,AP,DP)
+  lowert_dt[,expected_counts_pm:=(expected_counts_pm-lag(expected_counts_pm,default=0)),
+             by=.(AP)]
+
+  scoring_dt <- pivot_longer(
+    out_nn$score_total,
+    cols = starts_with("DP"),
+    names_to="DP",
+    values_to = "expected_counts",
+    names_prefix = "DP"
+  )
+
+  setDT(scoring_dt)
+  scoring_dt[,DP:=as.numeric(DP)]
+  scoring_dt[,c("Claim_type_key",
+                "Cover_key"):=list(as.factor(Claim_type_key),
+                                   as.factor(Cover_key))]
+
+
+  # just read it here again, historically it was two different things ...
+  scoring_diagonal_dt <- pivot_longer(
+    out_nn$score_total,
+    cols = starts_with("DP"),
+    names_to="DP",
+    values_to = "expected_counts",
+    names_prefix = "DP"
+  )
+
+  setDT(scoring_diagonal_dt)
+
+  scoring_diagonal_dt[,DP:=as.numeric(DP)]
+  scoring_diagonal_dt[,c("Claim_type_key",
+                "Cover_key"):=list(as.factor(Claim_type_key),
+                                   as.factor(Cover_key))]
+
+
+
+
+  true_dt <- individual_data$starting.data %>%
+    mutate(AP_i=AM,
+           DP_i=DM,
+           DP_rev_o =   floor(max(AP_i)*individual_data$conversion_factor)-ceiling(DP_i*individual_data$conversion_factor+((AP_i-1)%%(1/individual_data$conversion_factor))*individual_data$conversion_factor) +1,
+           AP = ceiling(AP_i*individual_data$conversion_factor),
+           DP = pmin(max(DP_rev_o)-DP_rev_o +1,48))
+
+  setDT(true_dt)
+
+  true_dt<-true_dt[,.(actual_counts=.N),.(AP,DP,Claim_type_key,Cover_key)]
+
+  setorder(true_dt, Claim_type_key,Cover_key, AP, DP)
+
+
+  true_dt<-true_dt[,.(actual_counts=actual_counts,
+                      DP=DP),.(AP,Claim_type_key,Cover_key)]
+
+  # true_dt <- pivot_longer(
+  #   dt_target,
+  #   cols = starts_with("DP"),
+  #   names_to="DP",
+  #   values_to = "actual_counts",
+  #   names_prefix = "DP"
+  # )
+
+  setDT(true_dt)
+  true_dt[,DP:=as.numeric(DP)]
+  true_dt[,c("Claim_type_key",
+                "Cover_key"):=list(as.factor(Claim_type_key),
+                                   as.factor(Cover_key))]
+
+  # Total metrics ----
+
+  scoring_dt <- merge(scoring_dt,true_dt,by=c("AP","DP",
+                                              categorical_features,
+                                              continuous_features))
+
+
+  data.table::setkey(scoring_dt,NULL)
+
+  setorder(scoring_dt,Claim_type_key,Cover_key,AP,DP)
+  scoring_dt[,expected_counts:=(expected_counts-lag(expected_counts,default=0)),
+             by=.(AP,Cover_key,Claim_type_key)]
+
+  scoring_total<-scoring_dt %>%
+    group_by(AP,DP) %>%
+    arrange(AP,DP)%>%
+    reframe(expected_counts  =sum(expected_counts),
+            actual_counts=sum(actual_counts))
+
+
+  scoring_dt <- merge(scoring_total,lowert_dt,by=c("AP","DP"),all.x = T,all.y = F)
+
+
+  if(sum(is.na(scoring_dt))>0){
+    scoring_dt[is.na(scoring_dt)] <- 0}
+
+  scoring_dt<-scoring_dt%>%
+    group_by(AP,DP) %>%
+    reframe(expected_counts  =sum(expected_counts+expected_counts_pm),
+            actual_counts=actual_counts)
+
+
+  scoring_total <- scoring_dt%>%
+    filter((AP+DP-1)>max_dp)%>%
+    mutate(ave=expected_counts-actual_counts)%>%
+    reframe(abs_ave = sum(abs(ave)),
+            I=sum(actual_counts))
+  
+  
+
+  are_tot_mw <- sum(scoring_total$abs_ave) / actual_reps
+
+  predicted_reps_nn <- sum(out_nn$score_total[[paste0("DP",
+                                               max_dp)]])-sum(unlist(out_pm$counts_at_diagonal))
+
+  pick <- names(unlist(out_pm$predictions_at_runoff))
+
+  predicted_reps_pm<-sum(unlist(out_pm$predictions_at_runoff))
+
+  ei_r_mw <- (predicted_reps_nn+predicted_reps_pm)/actual_reps
+
+  # are cal ----
+
+
+  scoring_diagonal_dt <- merge(scoring_diagonal_dt,true_dt,by=c("AP","DP",
+                                              categorical_features,
+                                              continuous_features))
+
+  scoring_diagonal_dt[,DP:=as.numeric(DP)]
+
+  setorder(scoring_diagonal_dt,Claim_type_key,Cover_key,AP,DP)
+  
+  scoring_diagonal_dt[,expected_counts:=(expected_counts-lag(expected_counts,default=0)),
+             by=.(AP,Claim_type_key,Cover_key)]
+
+
+
+  data.table::setkey(scoring_diagonal_dt,NULL)
+
+  scoring_diagonal_total<-scoring_diagonal_dt %>%
+    group_by(AP,DP) %>%
+    arrange(AP,DP)%>%
+    reframe(expected_counts  =sum(expected_counts),
+            actual_counts=sum(actual_counts))
+
+
+  scoring_diagonal_dt <- merge(scoring_diagonal_total,lowert_dt,by=c("AP","DP"),all.x = T,all.y = F)
+
+
+  if(sum(is.na(scoring_diagonal_dt))>0){
+    scoring_diagonal_dt[is.na(scoring_diagonal_dt)] <- 0}
+
+  scoring_diagonal_dt<-scoring_diagonal_dt%>%
+    group_by(AP,DP) %>%
+    reframe(expected_counts  =sum(expected_counts+expected_counts_pm),
+            actual_counts=actual_counts)
+
+  conversion_factor_quarters <- individual_data_q$conversion_factor
+  conversion_factor_years <- individual_data_y$conversion_factor
+
+  scoring_diagonal_dt <- scoring_diagonal_dt %>%
+    mutate(RP=AP+DP-1,
+           RP_q=ceiling(RP*conversion_factor_quarters),
+           RP_y=ceiling(RP*conversion_factor_years))
+
+  scoring_diagonal_total_q <- scoring_diagonal_dt%>%
+    filter(RP_q>ceiling(max_dp*conversion_factor_quarters))%>%
+    mutate(ave=expected_counts-actual_counts)%>%
+    group_by(RP_q)%>%
+    reframe(abs_ave = sum(abs(ave)),
+            I=sum(actual_counts))
+
+
+  are_cal_q_mw <- sum(scoring_diagonal_total_q$abs_ave)/ actual_reps
+
+
+
+  scoring_diagonal_total_y <- scoring_diagonal_dt%>%
+    filter(RP_y>ceiling(max_dp*conversion_factor_years))%>%
+    mutate(ave=expected_counts-actual_counts)%>%
+    group_by(RP_y)%>%
+    reframe(abs_ave = sum(abs(ave)),
+            I=sum(actual_counts))
+
+  are_cal_y_mw <- sum(scoring_diagonal_total_y$abs_ave) / actual_reps
+```
+
+
+
+
+
+

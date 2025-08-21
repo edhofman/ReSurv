@@ -35,11 +35,6 @@ For each scenario we will show if they satisfy the chain ladder assumptions (CL)
 
 This scenario is a mix of `claim_type 0` and  `claim_type 1` with same number of claims at each accident month (i.e. the claims volume).
 
-| CL  | Prop | INT |
-|-----|------|-----|
-| YES |YES   | NO  |
-
-
 ```{r eval=FALSE, include=TRUE}
 # Input data
 

@@ -60,11 +60,6 @@
 #'
 #'
 #'
-#'
-#'
-#'
-#'
-#'
 #'@return \code{IndividualDataPP} object. A list containing
 #'\itemize{
 #'\item{\code{full.data}: \code{data.frame}. The input data after pre-processing.}
@@ -98,6 +93,26 @@
 #'}
 #'
 #'
+#'@examples
+#'
+#'input_data_0 <- data_generator(
+#'random_seed = 1964,
+#'scenario = "alpha",
+#'time_unit = 1,
+#'years = 2,
+#'period_exposure = 100)
+#'
+#'individual_data <- IndividualDataPP(data = input_data_0,
+#'categorical_features = "claim_type",
+#'continuous_features = "AP",
+#'accident_period = "AP",
+#'calendar_period = "RP",
+#'input_time_granularity = "years",
+#'output_time_granularity = "years",
+#'years = 2)
+#'
+#'
+#'
 #'
 #' @importFrom dplyr mutate
 #' @importFrom dplyr filter
@@ -120,9 +135,9 @@
 #'
 #' @export
 IndividualDataPP <- function(data,
-                           id=NULL,
-                           continuous_features=NULL,
-                           categorical_features=NULL,
+                           id = NULL,
+                           continuous_features = NULL,
+                           categorical_features = NULL,
                            accident_period,
                            calendar_period,
                            input_time_granularity="months",

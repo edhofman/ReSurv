@@ -173,6 +173,34 @@ Given an i.i.d. sample \(\left\{y_i,x_i\right\}_{i=1, \ldots, n}\) the individua
 <p>Chen, T., He, T., Benesty, M., &amp; Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.</p>
     </div>
 
+    <div id="ref-examples">
+    <h2>Examples</h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="va">input_data_0</span> <span class="op">&lt;-</span> <span class="fu"><a href="data_generator.html">data_generator</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>random_seed <span class="op">=</span> <span class="fl">1964</span>,</span></span>
+<span class="r-in"><span>scenario <span class="op">=</span> <span class="st">"alpha"</span>,</span></span>
+<span class="r-in"><span>time_unit <span class="op">=</span> <span class="fl">1</span>,</span></span>
+<span class="r-in"><span>years <span class="op">=</span> <span class="fl">4</span>,</span></span>
+<span class="r-in"><span>period_exposure <span class="op">=</span> <span class="fl">100</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="va">individual_data</span> <span class="op">&lt;-</span> <span class="fu"><a href="IndividualDataPP.html">IndividualDataPP</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">input_data_0</span>,</span></span>
+<span class="r-in"><span>categorical_features <span class="op">=</span> <span class="st">"claim_type"</span>,</span></span>
+<span class="r-in"><span>continuous_features <span class="op">=</span> <span class="st">"AP"</span>,</span></span>
+<span class="r-in"><span>accident_period <span class="op">=</span> <span class="st">"AP"</span>,</span></span>
+<span class="r-in"><span>calendar_period <span class="op">=</span> <span class="st">"RP"</span>,</span></span>
+<span class="r-in"><span>input_time_granularity <span class="op">=</span> <span class="st">"years"</span>,</span></span>
+<span class="r-in"><span>output_time_granularity <span class="op">=</span> <span class="st">"years"</span>,</span></span>
+<span class="r-in"><span>years<span class="op">=</span><span class="fl">4</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="va">resurv_fit_cox</span> <span class="op">&lt;-</span> <span class="fu">ReSurv</span><span class="op">(</span><span class="va">individual_data</span>,</span></span>
+<span class="r-in"><span>hazard_model <span class="op">=</span> <span class="st">"COX"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span></span></span>
+</code></pre></div>
+    </div>
   </div>
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
     <nav id="toc" data-toggle="toc" class="sticky-top"><h2 data-toc-skip>Contents</h2>

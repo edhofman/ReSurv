@@ -4,7 +4,7 @@
 \alias{survival_crps.ReSurvFit}
 \title{Survival continuously ranked probability score.}
 \usage{
-\method{survival_crps}{ReSurvFit}(ReSurvFit, user_data_set = NULL)
+\method{survival_crps}{ReSurvFit}(ReSurvFit, user_hazard_frame = NULL, user_data_set = NULL)
 }
 \arguments{
 \item{ReSurvFit}{ReSurvFit object to use for the score computation.}

@@ -3,6 +3,7 @@
 #' This script contains the utils functions that are used in ReSurv.
 #'
 #' @importFrom fastDummies dummy_cols
+#' @importFrom actuar rztpois rtrgamma
 #' @importFrom bshazard bshazard
 #' @import survival
 #' @importFrom stats runif pnorm predict
@@ -139,20 +140,76 @@ notidel_param_1 <- function(claim_size,
 }
 
 
+## Internal functions for W18 comparison
+
+notification_delay_scenario5 <- function(x) {
+  pv <- as.numeric(x[['property_value']]) / 10
+  bu <- x[['business_use']] # "Y" or "N"
+
+  a <- 1 + 1 / pv
+  d <- 1 - (1 + (bu == "Y")) / 10
+
+  # Target mean
+  target_mean <- 850
+
+  # Compute required rate
+  num <- gamma(a + 1 / d)
+  denom <- target_mean * gamma(a)
+  rate <- (num / denom)^d
+
+  out <- rtrgamma(1, shape1 = a, shape2 = d, rate = rate)
+  return(out)
+}
+
+# notification_delay_scenario5 <- function(x) {
+#   pv <- as.numeric(x[['property_value']])/10 #rlnorm(meanlog = 3.034513, sdlog = 0.4087569),
+#   bu <- x[['business_use']] # either Y or N
+#
+#
+#
+#   # out <- rweibull(1,shape = 1 + 1 / pv, scale=1 - (1 + (bu == "Y")) / 10)
+#   out <- rtrgamma(
+#     1,
+#     shape1 = 1 + 1 / pv,
+#     shape2 = 1 - (1 + (bu == "Y")) / 10,
+#     rate = .2
+#   )
+#
+#   return(out)
+# }
+
+
+
+notification_delay_scenario6 <- function(x) {
+  ap <- as.numeric(x[['AP']])
+  bu <- x[['business_use']]
+
+
+
+  # out <- rweibull(1,shape = 1 + 1 / pv, scale=1 - (1 + (bu == "Y")) / 10)
+  out <- rtrgamma(
+    1,
+    shape1 = 1 + 1 / ap + sin(ap)/(ap^2)+cos(ap)/(ap^3),
+    shape2 = 1 - (1 + (bu == "Y")) / 10 + (1-(bu == "N"))/100,
+    rate = .2
+  )
+
+  return(out)
+}
 
 
 ## Data generator ----
 
 pkg.env$check_scenario <- function(scenario){
 
-  available_scenarios <- c(0,1,2,3,4)
-  available_scenario_char <- c('alpha','beta','gamma','delta','epsilon')
+  available_scenarios <- c(0,1,2,3,4,5,6)
+  available_scenario_char <- c('alpha','beta','gamma','delta','epsilon','zeta','eta')
 
   if(is.numeric(scenario)){
 
     tmp <- scenario %in% available_scenarios
 
-    if(!tmp){stop("Scenario must be one of 'alpha','beta','gamma','delta','epsilon'.")}
+    if(!tmp){stop("Scenario must be one of 'alpha','beta','gamma','delta','epsilon', 'zeta','eta'.")}
   }
 
 
@@ -160,7 +217,7 @@ pkg.env$check_scenario <- function(scenario){
 
     tmp <- scenario %in% available_scenario_char
 
-    if(!tmp){stop("Scenario must be one of 'alpha','beta','gamma','delta','epsilon'.")}
+    if(!tmp){stop("Scenario must be one of 'alpha','beta','gamma','delta','epsilon', 'zeta','eta'.")}
 
     input.pos <- which(scenario==available_scenario_char)
 
@@ -171,6 +228,22 @@ pkg.env$check_scenario <- function(scenario){
   return(scenario)
 
 }
+
+
+# Superimposed inflation:
+# 1) With respect to occurrence "time" (continuous scale)
+SI_occurrence <- function(occurrence_time, claim_size) {
+  if (occurrence_time <= 20 / 4 / time_unit) {1}
+  else {1 - 0.4*max(0, 1 - claim_size/(0.25 * ref_claim))}
+}
+# 2) With respect to payment "time" (continuous scale)
+# -> compounding by user-defined time unit
+SI_payment <- function(payment_time, claim_size) {
+  period_rate <- (1 + 0.30)^(time_unit) - 1
+  beta <- period_rate * max(0, 1 - claim_size/ref_claim)
+  (1 + beta)^payment_time
+}
+
 
 pkg.env$scenario0_simulator <- function(ref_claim,
                                         time_unit,
@@ -637,6 +710,161 @@ pkg.env$scenario4_simulator <- function(ref_claim,
 
 }
 
+generate_proportions <- function(I) {
+       raw <- rexp(I, rate = runif(I, min = 0.1, max = 2))  # exponential with varying rates → irregular
+       proportions <- raw / sum(raw)
+       return(proportions)
+   }
+
+## Wuethrich 18 comparisons
+
+pkg.env$scenario5_simulator <- function(ref_claim=200000,
+                                        time_unit=1/4,
+                                        years=10,
+                                        random_seed,
+                                        yearly_exposure=120000,
+                                        yearly_frequency=0.08){
+
+
+  I <- years / time_unit
+  E <- c(rep(floor(yearly_exposure), I))
+  lambda <- c(rep(yearly_frequency, I))
+  scenario=5
+
+  #Frequency simulation -- business use 0
+  # n_vector <- claim_frequency(I = I, E = E, freq = lambda)
+  # occurrence_times <- claim_occurrence(frequency_vector = n_vector)
+
+
+  #Decreasing the exposure, and hence lowering the claims occurred -- business use 1
+  E_1 <- c(rep(floor(yearly_exposure), I)) + round(seq(from = 0, by = -.1, length = I))# now adjusted for days: monthly code was seq(from = 0, by = -100, length = I)
+  #Frequency simulation
+  n_vector_0 <- claim_frequency(I = I, E = E, freq = lambda)
+  n_vector_1 <- claim_frequency(I = I, E = E_1, freq = lambda)
+  occurrence_times_0 <- claim_occurrence(frequency_vector = n_vector_0)
+  occurrence_times_1 <- claim_occurrence(frequency_vector = n_vector_1)
+
+
+  claim_sizes <- claim_size(frequency_vector = c(n_vector_0,n_vector_1))
+  n_of_claims <- length(unlist(claim_sizes))
+
+  bu_covariates_dataset <- data.frame(
+    "claim_number"=1:n_of_claims,
+    "business_use" = c(rep("Y",sum(n_vector_0)),
+                       rep("N",sum(n_vector_1)))
+
+    )
+
+
+  age_range <- 50:55
+  probabilties_age <- rep(.01,length(age_range))
+
+  probabilties_age <- probabilties_age/sum(probabilties_age)
+
+  covariates_dataset <- data.frame(
+    "claim_number"=1:n_of_claims,
+    "age" = sample(age_range,n_of_claims,replace=TRUE,prob=probabilties_age),
+    "property_value"= rlnorm(n_of_claims, meanlog = 3.034513, sdlog = 0.4087569)#,
+    # "business_use" = sample(c("Y","N"),n_of_claims,replace = TRUE)
+  )
+
+  covariates_dataset <-merge(covariates_dataset,
+                             bu_covariates_dataset,
+                             by="claim_number")
+
+  rdelay = apply(FUN = notification_delay_scenario5 ,
+                 covariates_dataset,
+                 MARGIN = 1)
+
+
+
+  rdelay = pmin(rdelay, years / time_unit)
+
+
+  dt_dates <- data.frame(
+    claim_number=1:n_of_claims,
+    AP=ceiling(c(unlist(occurrence_times_0),
+                 unlist(occurrence_times_1))),
+    RP=ceiling(c(unlist(occurrence_times_0),
+                 unlist(occurrence_times_1))+rdelay))
+
+
+  dt <- merge(dt_dates,covariates_dataset,by.x="claim_number",by.y="claim_number",all=TRUE)
+
+
+
+  return(dt)
+
+
+
+
+}
+
+pkg.env$scenario6_simulator <- function(ref_claim=200000,
+                                        time_unit=1/4,
+                                        years=10,
+                                        random_seed,
+                                        yearly_exposure=120000,
+                                        yearly_frequency=0.08){
+
+
+
+  I <- years / time_unit
+  E <- c(rep(yearly_exposure, I))
+  lambda <- c(rep(yearly_frequency, I))
+  scenario=5
+
+  #Frequency simulation
+  n_vector <- claim_frequency(I = I, E = E, freq = lambda)
+  occurrence_times <- claim_occurrence(frequency_vector = n_vector)
+  claim_sizes <- claim_size(frequency_vector = n_vector)
+
+  n_of_claims <- length(unlist(claim_sizes))
+
+  age_range <- 50:55
+  probabilties_age <- rep(.01,length(age_range))
+  # probabilties_age[age_range >= 40 & age_range <= 45] <- .2
+  # probabilties_age[age_range >= 20 & age_range <= 30] <- .1
+  # probabilties_age[age_range >= 30 & age_range <= 39] <- .15
+  # probabilties_age[age_range > 45 & age_range <= 55] <- .3
+
+  probabilties_age <- probabilties_age/sum(probabilties_age)
+
+  covariates_dataset <- data.frame(
+    "claim_number"=1:n_of_claims,
+    "AP" = ceiling(unlist(occurrence_times)),
+    "business_use" = sample(c("Y","N"),n_of_claims,replace = TRUE)
+  )
+
+  rdelay = apply(FUN = notification_delay_scenario6 ,
+                 covariates_dataset,
+                 MARGIN = 1)
+
+  rdelay = pmin(rdelay, years / time_unit)
+
+
+  dt_dates <- data.frame(
+    claim_number=1:n_of_claims,
+    # AP=ceiling(unlist(occurrence_times)), (we have it already in the covariates.)
+    RP=ceiling(unlist(occurrence_times)+rdelay))
+
+
+  dt <- merge(dt_dates,covariates_dataset,by.x="claim_number",by.y="claim_number",all=TRUE)
+
+
+
+  return(dt)
+
+
+
+
+}
+
+
+
+
+
+
 ## Checks ----
 
 pkg.env$check.all.present <- function(x,check.on){
@@ -974,7 +1202,7 @@ pkg.env$model.matrix.creator <- function(data,
   #individual_data$training.data
   X <- data %>%
     dummy_cols(select_columns = select_columns, #individual_data$categorical_features
-               remove_selected_columns = T,
+               remove_selected_columns = TRUE,
                remove_first_dummy = remove_first_dummy)
 
   tmp.cond=as.logical(apply(pkg.env$vgrepl(pattern=select_columns,
@@ -1229,6 +1457,9 @@ pkg.env$hazard_data_frame <- function(hazard,
   Convert hazard matrix to dataframe and add grouping variables.
 
   "
+
+  continuous_features_group=unique(c("AP_i",continuous_features))
+
   #Calculate input development factors and corresponding survival probabilities
   hazard_frame_tmp <- hazard %>%
     # left_join(Om.df, "DP_rev_i") %>%
@@ -1236,7 +1467,7 @@ pkg.env$hazard_data_frame <- function(hazard,
     # mutate(dev_f_i = (2*Om+(Om+1)*hazard)/(2*Om-(Om-1)*hazard) ) %>%
     replace_na(list(dev_f_i =1)) %>%
     mutate(dev_f_i = ifelse(dev_f_i<0,1,dev_f_i)) %>%  #for initial development factor one can encounter negative values, we put to 0
-    group_by(pick(all_of(categorical_features), AP_i)) %>%
+    group_by(pick(all_of(c(categorical_features, continuous_features_group)))) %>%
     arrange(DP_rev_i) %>%
     mutate(cum_dev_f_i = cumprod(dev_f_i)) %>%
     mutate(S_i = ifelse(cum_dev_f_i==0,0,1/cum_dev_f_i), # to handle the ifelse statement from above
@@ -1244,7 +1475,7 @@ pkg.env$hazard_data_frame <- function(hazard,
            S_i_lag = lag(S_i, default = 1)) %>%
     select(-c(expg, baseline, hazard))
 
-  continuous_features_group=unique(c("AP_i",continuous_features))
+  # continuous_features_group=unique(c("AP_i",continuous_features))
 
   hazard_frame <- hazard %>%
     left_join(hazard_frame_tmp, c(categorical_features,
@@ -1424,7 +1655,8 @@ pkg.env$latest_observed_values_i <- function(data_reserve,
 
 
 
-  } else{ #Very similiar to above, expect we now also take the continuous features into account
+  } else{
+    #Very similiar to above, expect we now also take the continuous features into account
 
     if(( (length(continuous_features)==1 & "AP_i" %in% continuous_features) |
          (length(continuous_features)==1 & "RP_i" %in% continuous_features) |
@@ -1507,7 +1739,7 @@ pkg.env$latest_observed_values_i <- function(data_reserve,
 
     observed_dp_rev_i_tmp <- observed_dp_rev_i %>%  left_join(groups, by=c(time_features, "covariate")) %>%
       select(AP_i, all_of(time_features), group_i, DP_rev_i, DP_i, I) %>%
-      inner_join(groups[,c(time_features, "group_i")], by =c(time_features, "group_i")) #filter only relevant combinations
+      inner_join(groups[,c(time_features, "group_i"), drop = FALSE], by =c(time_features, "group_i")) #filter only relevant combinations
 
 
   }
@@ -1550,7 +1782,7 @@ pkg.env$predict_i <- function(hazard_data_frame,
                               min_DP_rev_i
 ){
   "
-  Calculate expected incremential claim number on input scale.
+  Calculate expected incremental claim number on input scale.
   Grouping is used when doing granularity increased development factors in i_to_o_development_factor
    "
 
@@ -1761,8 +1993,8 @@ pkg.env$predict_o <- function(
            DP_rev_o = ceiling(max_dp_i*conversion_factor)- ceiling((DP_i+(AP_i-1)%%(1/conversion_factor))*conversion_factor)+1) %>%
     #we can consider re-adding it in the future: filter(DP_rev_o >0) %>% #since for DP_rev_o = 0, we are working with half a parallelogram in the end of the development time
     group_by(AP_o, DP_rev_o, group_o) %>%
-    summarize(I_expected = sum(I_expected,na.rm=T),
-              IBNR = sum(IBNR, na.rm=T), .groups="drop") %>%
+    summarize(I_expected = sum(I_expected,na.rm=TRUE),
+              IBNR = sum(IBNR, na.rm=TRUE), .groups="drop") %>%
     select(AP_o, group_o, DP_rev_o, I_expected, IBNR)
 
   return(expected)
@@ -1785,6 +2017,7 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
   Group input development factor to output.
 
   "
+
   max_dp_i <-pkg.env$maximum.time(years,input_time_granularity)
   # Add output groupings to relevant frames
   hazard_data_frame <- lazy_dt(hazard_data_frame) %>%
@@ -1798,7 +2031,7 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
   latest_cumulative_o <- lazy_dt(latest_cumulative) %>%
     left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
     group_by(AP_i, group_o, DP_max_rev) %>%
-    summarize(latest_I = sum(latest_I, na.rm=T), .groups = "drop")
+    summarize(latest_I = sum(latest_I, na.rm=TRUE), .groups = "drop")
 
 
   #For probability approach to grouping method we assume equal exposure for each accident period
@@ -1816,6 +2049,7 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
 
   }
 
+  # browser()
 
   # #select relevant hazard value group and add output variables, and other variables to help with grouping
   grouped_hazard_0 <- hazard_data_frame %>%
@@ -1855,6 +2089,7 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
       1/S_ultimate_i * latest_I) ) %>% #handle special ultimate cases
     mutate(U = ifelse(DP_max_rev ==min_DP_rev_i , latest_I, U))  %>%
     mutate(U = ifelse(gm=="probability", 1 ,U)) %>%
+    mutate(U = ifelse(latest_I==0,0,U))%>%
     mutate(exposure_expected = U*(S_i)) %>%  #in theory one could say U*S_i- ifelse(DP_max_rev==DP_rev_i-1, latest_I, U*S_i_lead ), but this might lead to negative expected as we are not sure latest equal the same as distribution estimate
     select(AP_i, group_o, DP_rev_o, DP_rev_i, exposure_expected)
 
@@ -1885,12 +2120,15 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
   grouped_hazard_2 <- grouped_hazard_1 %>%
     group_by(AP_i, DP_rev_o, group_o) %>%
     summarize(observed = sum(I_combined), .groups="drop") %>%
-    left_join(exposures_combined, by=c("AP_i", "group_o", "DP_rev_o"))
+    left_join(exposures_combined, by=c("AP_i", "group_o", "DP_rev_o"))%>%
+    mutate(observed=ifelse(latest_I==0,0,observed))
 
 
   output_dev_factor <- grouped_hazard_2 %>%
     group_by(DP_rev_o, group_o) %>%
-    summarise(dev_f_o = (sum(observed)+  sum(exposure_combined))/sum(exposure_combined),.groups="drop" ) %>%
+    summarise(dev_f_o = ifelse(sum(exposure_combined)==0,
+                               1,
+                               (sum(observed)+  sum(exposure_combined))/sum(exposure_combined)),.groups="drop" ) %>%
     as.data.table() %>%
     dcast(DP_rev_o ~group_o, value.var="dev_f_o")
 
@@ -2123,6 +2361,34 @@ pkg.env$spline_hp <- function(hparameters,IndividualDataPP){
   }
 }
 
+
+simplified_df_2_fcst<- function(IndividualDataPP,
+                                hazard_model){
+
+  cont_f <- IndividualDataPP$continuous_features
+  cat_f <- IndividualDataPP$categorical_features
+  columns_for_grouping <- unique(c(cont_f,cat_f,"AP_i"))
+
+  tmp <- as.data.table(IndividualDataPP$training.data)
+
+  out <- tmp[,.(.N),by=columns_for_grouping][,..columns_for_grouping]
+
+  l4 <- list()
+
+  l4$DP_rev_i <- min(IndividualDataPP$training.data[,'DP_rev_i']):max(IndividualDataPP$training.data[,'DP_rev_i'])
+
+  l4<-do.call(CJ, c(l4, sorted = FALSE))
+
+  out<-as.data.frame(setkey(out[,c(k=1,.SD)],k)[l4[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL])
+
+
+
+  return(out)
+
+
+}
+
+
 create.df.2.fcst <- function(IndividualDataPP,
                              hazard_model){
 
@@ -2186,12 +2452,15 @@ pkg.env$df.2.fcst.nn.pp <- function(data,
 
   tmp <- newdata[continuous_features]
 
+  setDT(tmp)
+  setDT(data)
+
   for(cft in continuous_features){
 
-    mnv <- min(data[cft])
-    mxv <- max(data[cft])
+    mnv <- min(data[[cft]])
+    mxv <- max(data[[cft]])
 
-    tmp[,cft] <-2*(tmp[,cft]-mnv)/(mxv-mnv)-1
+    tmp[[cft]] <-2*(tmp[[cft]]-mnv)/(mxv-mnv)-1
 
   }
 
@@ -2241,7 +2510,7 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
 
     X=pkg.env$model.matrix.creator(data= newdata,
                                    select_columns = categorical_features,
-                                   remove_first_dummy = T)
+                                   remove_first_dummy = TRUE)
   }
 
 
@@ -2265,7 +2534,7 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
 pkg.env$benchmark_id <- function(X,
                                  Y,
                                  newdata.mx,
-                                 remove_first_dummy=F
+                                 remove_first_dummy=FALSE
 ){
   "
   Find benchmark value used in baseline calculation.
@@ -2279,7 +2548,7 @@ pkg.env$benchmark_id <- function(X,
     unlist() %>%
     unname()
 
-  if(remove_first_dummy==T){
+  if(remove_first_dummy==TRUE){
     newdata.mx <- data.frame(newdata.mx[,colnames(newdata.mx) %in% names(X)])
   }
 
@@ -2397,7 +2666,72 @@ pkg.env$create.om.df<-function(training.data,
 
 }
 
+pkg.env$simplified_fill_data_frame<-function(data,
+                                  continuous_features,
+                                  categorical_features,
+                                  years,
+                                  input_time_granularity,
+                                  conversion_factor){
 
+
+  #Take the features unique values
+  tmp.ls <- data %>%
+    filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1))
+
+  setDT(tmp.ls)
+
+  cols <- c(categorical_features,
+            continuous_features)
+
+
+  tmp.ls <- tmp.ls[,.(.N),by=cols][,.(DP_i=1:max(data$DP_i)),by=cols]
+
+
+  #Take only the training data
+  tmp.existing <- data %>%
+    filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1)) %>%
+    select(all_of(continuous_features),
+           all_of(categorical_features),
+           AP_i,
+           DP_i) %>%
+    unique() %>%
+    as.data.frame()
+
+
+  tmp.missing <- dplyr::setdiff(x=tmp.ls,y=tmp.existing)
+
+  if(dim(tmp.missing)[1]==0){
+    return(NULL)
+  }else{
+
+    max_dp_i = pkg.env$maximum.time(years,input_time_granularity)
+    tmp.missing<- tmp.missing %>%
+      mutate(DP_rev_i = pkg.env$maximum.time(years,input_time_granularity) - DP_i+1,
+             TR_i = AP_i-1, #just setting truncation to max year simulated. and accounting for
+             I=0)%>%
+      filter(DP_rev_i > TR_i) %>%
+      mutate(
+        DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
+        AP_o = ceiling(AP_i*conversion_factor)
+      ) %>%
+      mutate(TR_o= AP_o-1) %>%
+      mutate(across(all_of(categorical_features),
+                    as.factor)) %>%
+      select(all_of(categorical_features),
+             all_of(continuous_features),
+             AP_i,
+             AP_o,
+             DP_i,
+             DP_rev_i,
+             DP_rev_o,
+             TR_i,
+             TR_o,
+             I) %>%
+      as.data.frame()
+
+    return(tmp.missing)
+
+  }}
 
 pkg.env$fill_data_frame<-function(data,
                                   continuous_features,
@@ -2405,6 +2739,7 @@ pkg.env$fill_data_frame<-function(data,
                                   years,
                                   input_time_granularity,
                                   conversion_factor){
+
 
   #Take the features unique values
   tmp.ls <- data %>%
@@ -2590,7 +2925,7 @@ pkg.env$fit_xgboost <- function(datads_pp,
                                                              min_child_weight=.2),
                                                  print_every_n = NULL,
                                                  nrounds=10,
-                                                 verbose=F,
+                                                 verbose=FALSE,
                                                  early_stopping_rounds = 500)){
 
 
@@ -2604,7 +2939,7 @@ pkg.env$fit_xgboost <- function(datads_pp,
                             verbose= hparameters$verbose,
                             print_every_n = hparameters$print_every_n,
                             early_stopping_rounds = hparameters$early_stopping_rounds,
-                            maximize = F)
+                            maximize = FALSE)
 
   return(out)
 
@@ -2626,12 +2961,12 @@ pkg.env$xgboost_cv <- function(IndividualDataPP,
                                hparameters.f,
                                out,
                                verbose.cv=FALSE,
-                               parallel=F,
+                               parallel=FALSE,
                                ncores=1,
                                random_seed){
 
   "Function to perform K-fold cross-validation with xgboost"
-  if(parallel == T){
+  if(parallel == TRUE){
     # handle UNIx-operated systems seperatly?.Platform$OS.type
     require(parallel)
 
@@ -2651,7 +2986,7 @@ pkg.env$xgboost_cv <- function(IndividualDataPP,
                                                            kfolds=kfolds,
                                                            print_every_n=print_every_n,
                                                            nrounds=nrounds,
-                                                           verbose=F,
+                                                           verbose=FALSE,
                                                            early_stopping_rounds=early_stopping_rounds,
                                                            hparameters.f=hparameters.f))
     stopCluster(cl)
@@ -2743,7 +3078,7 @@ pkg.env$deep_surv_cv <- function(IndividualDataPP,
 
   "Function to perform K-fold cross-validation with xgboost"
 
-  if(parallel == T){
+  if(parallel == TRUE){
     # handle UNIx-operated systems seperatly?.Platform$OS.type
     require(parallel)
 
@@ -3338,6 +3673,445 @@ pkg.env$find_lt_output <- function(dt,
   return(dt.w[1:cut_point,])
 
 }
+
+
+
+manually_extract_info_for_scoring_cont <- function(ReSurvFit,
+                                                   hazard_model,
+                                                   IndividualDataPP,
+                                                   tie = "efron",
+                                                   baseline = "spline",
+                                                   continuous_features_scaling_method = "minmax",
+                                                   random_seed = 1,
+                                                   hparameters = list(),
+                                                   percentage_data_training = .8,
+                                                   grouping_method = "exposure",
+                                                   check_value = 1.85,
+                                                   eta=0.5,
+                                                   simplifier=TRUE){
+
+
+  set.seed(random_seed)
+
+  formula_ct <- as.formula(IndividualDataPP$string_formula_i)
+
+
+    cont_f <- IndividualDataPP$continuous_features
+    cat_f <- IndividualDataPP$categorical_features
+    columns_for_grouping <- unique(c(cont_f,cat_f,"AP_i"))
+
+    tmp <- as.data.table(IndividualDataPP$full.data)
+
+    out <- tmp[,.(.N),by=columns_for_grouping][,..columns_for_grouping]
+
+    l4 <- list()
+
+    l4$DP_rev_i <- min(IndividualDataPP$full.data[,'DP_rev_i']):max(IndividualDataPP$full.data[,'DP_rev_i'])
+
+    l4<-do.call(CJ, c(l4, sorted = FALSE))
+
+    newdata<-as.data.frame(setkey(out[,c(k=1,.SD)],k)[l4[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL])
+
+
+
+  # logical: check if we work with a baseline model
+  is_baseline_model = is.null(c(IndividualDataPP$categorical_features,
+                                IndividualDataPP$continuous_features))
+
+
+  if(hazard_model=="COX"){
+    browser()
+    data=IndividualDataPP$training.data
+
+    X=data %>%
+      select(c(IndividualDataPP$continuous_features,IndividualDataPP$categorical_features))
+
+    Y=IndividualDataPP$full.data[,c("DP_rev_i", "I", "TR_i")]
+
+    cox <- coxph(formula_ct, data=data, ties="efron")
+    cox_lp <- predict(cox,newdata=newdata,'lp',reference='zero')
+
+    cox_training_lp <- predict(cox,newdata=newdata %>% arrange(DP_rev_i) %>% as.data.frame(),'lp',reference='zero')
+
+
+    model.out <- list(cox=cox,
+                      cox_lp=cox_lp,
+                      expg = exp(cox_lp))
+
+    ## NEW BASELINE COMPUTATION (RESURV)
+
+      scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
+
+      Xc_tmp_bsln <- IndividualDataPP$full.data %>%
+        reframe(across(all_of(IndividualDataPP$continuous_features),
+                       scaler))
+
+
+      if(!is.null(IndividualDataPP$categorical_features)){
+
+
+        X_tmp_bsln <- pkg.env$model.matrix.creator(data= IndividualDataPP$full.data,
+                                                   select_columns = IndividualDataPP$categorical_features,
+                                                   remove_first_dummy=T)
+
+
+        X_tmp_bsln=cbind(X_tmp_bsln,Xc_tmp_bsln)
+
+      }else{
+
+        X_tmp_bsln= Xc_tmp_bsln
+
+      }
+
+
+
+    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+                                  model.out = model.out,
+                                  X=X_tmp_bsln,
+                                  Y=Y)
+
+    browser()
+
+    bsln <- data.frame(baseline=bsln,
+                       DP_rev_i=sort(as.integer(unique(IndividualDataPP$training.data$DP_rev_i))))
+
+    ### make it relative
+
+
+      newdata.bs <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$full.data,
+                                            newdata=newdata,
+                                            continuous_features=IndividualDataPP$continuous_features,
+                                            categorical_features=IndividualDataPP$categorical_features)
+
+      benchmark_id <- pkg.env$benchmark_id(X = X_tmp_bsln,
+                                           Y =Y ,
+                                           newdata.mx = newdata.bs,
+                                           remove_first_dummy=T)
+
+
+
+
+
+
+
+
+    pred_relative <- cox_lp-cox_lp[benchmark_id]
+
+    ###
+
+    hazard_frame <- cbind(newdata, exp(pred_relative))
+    colnames(hazard_frame)[dim(hazard_frame)[2]]="expg"
+
+
+
+    is_lkh <- pkg.env$evaluate_lkh_cox(X_train=X,
+                                       Y_train=Y,
+                                       model=model.out)
+
+
+    os_lkh <- NULL
+
+
+  }
+
+  if(hazard_model=="NN"){
+
+
+    Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
+
+    training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
+
+    if(is_baseline_model){
+
+      X <- data.frame(intercept_1 = rep(1,dim(Y)[1]))
+
+    }else{
+
+      scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
+
+      Xc <- IndividualDataPP$training.data %>%
+        reframe(across(all_of(IndividualDataPP$continuous_features),
+                       scaler))
+
+      if(!is.null(IndividualDataPP$categorical_features)){
+
+        X <- pkg.env$model.matrix.creator(data= IndividualDataPP$training.data,
+                                          select_columns = IndividualDataPP$categorical_features)
+
+        X = cbind(X,Xc)
+
+
+      }else{
+
+
+        X <- Xc
+
+      }
+
+    }
+
+    datads_pp = pkg.env$deep_surv_pp(X=X,
+                                     Y=Y,
+                                     training_test_split = training_test_split)
+
+    hparameters <- pkg.env$nn_hparameter_nodes_grid(hparameters)
+
+    hparameters <- list(params=as.list.data.frame(hparameters),
+                        verbose=hparameters$verbose,
+                        epochs = hparameters$epochs,
+                        num_workers = hparameters$num_workers)
+
+
+    model.out <- pkg.env$fit_deep_surv(datads_pp,
+                                       params=hparameters$params,
+                                       verbose = hparameters$verbose,
+                                       epochs = hparameters$epochs,
+                                       num_workers = hparameters$num_workers,
+                                       seed = random_seed)
+
+
+    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+                                  model.out = model.out,
+                                  X=X,
+                                  Y=Y)
+
+    if(is_baseline_model){
+
+      newdata.mx <- data.frame(intercept_1= rep(1,dim(newdata)[1]))
+
+    }else{
+
+      newdata.mx <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
+                                            newdata=newdata,
+                                            continuous_features=IndividualDataPP$continuous_features,
+                                            categorical_features=IndividualDataPP$categorical_features)}
+
+
+
+    x_fc= reticulate::np_array(as.matrix(newdata.mx), dtype = "float32")
+
+
+    beta_ams <- model.out$predict(input=x_fc,
+                                  num_workers=hparameters$num_workers)
+
+    #make to hazard relative to initial model, to have similiar interpretation as standard cox
+
+    benchmark_id <- pkg.env$benchmark_id(X = X,
+                                         Y =Y ,
+                                         newdata.mx = newdata.mx
+    )
+
+    pred_relative <- beta_ams - beta_ams[benchmark_id]
+
+    expg <- exp(pred_relative)
+    hazard_frame <- cbind(newdata,expg)
+    bsln <- data.frame(baseline=bsln,
+                       DP_rev_i=sort(as.integer(unique(IndividualDataPP$training.data$DP_rev_i))))
+
+
+
+    if(!inherits(datads_pp$lkh_eval_data$data_train,"data.frame")){
+
+
+      is_lkh <- pkg.env$evaluate_lkh_nn(X_train=as.data.frame(datads_pp$lkh_eval_data$data_train),
+                                        Y_train=datads_pp$lkh_eval_data$y_train,
+                                        model=model.out)
+
+      os_lkh <- pkg.env$evaluate_lkh_nn(X_train=as.data.frame(datads_pp$lkh_eval_data$data_val),
+                                        Y_train=datads_pp$lkh_eval_data$y_val,
+                                        model=model.out)
+
+
+    }else{
+
+      is_lkh <- pkg.env$evaluate_lkh_nn(X_train=datads_pp$lkh_eval_data$data_train,
+                                        Y_train=datads_pp$lkh_eval_data$y_train,
+                                        model=model.out)
+
+      os_lkh <- pkg.env$evaluate_lkh_nn(X_train=datads_pp$lkh_eval_data$data_val,
+                                        Y_train=datads_pp$lkh_eval_data$y_val,
+                                        model=model.out)
+
+    }
+
+
+
+
+  }
+
+  if(hazard_model == "XGB"){
+
+    Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
+
+    training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
+
+    if(is_baseline_model){
+
+      X= data.frame(intercept_1 = rep(1,dim(Y)[1]))
+
+    }else{
+
+      scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
+
+      Xc <- IndividualDataPP$training.data %>%
+        reframe(across(all_of(IndividualDataPP$continuous_features),
+                       scaler))
+
+
+      if(!is.null(IndividualDataPP$categorical_features)){
+
+        X <- pkg.env$model.matrix.creator(data= IndividualDataPP$training.data,
+                                          select_columns = IndividualDataPP$categorical_features,
+                                          remove_first_dummy=T)
+
+        X=cbind(X,Xc)
+      }else{
+
+
+        X <- Xc
+
+
+      }
+
+    }
+
+
+
+    datads_pp <- pkg.env$xgboost_pp(X=X,
+                                    Y=Y,
+                                    training_test_split=training_test_split)
+
+    model.out <- pkg.env$fit_xgboost(datads_pp,
+                                     hparameters=hparameters)
+
+    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+                                  model.out = model.out,
+                                  X=X,
+                                  Y=Y)
+
+
+    if(is_baseline_model){
+
+      newdata.mx <- xgboost::xgb.DMatrix(as.matrix(rep(1, dim(newdata)[1])))
+
+    }else{
+
+      newdata.mx <- pkg.env$df.2.fcst.xgboost.pp(data=IndividualDataPP$training.data,
+                                                 newdata=newdata,
+                                                 continuous_features=IndividualDataPP$continuous_features,
+                                                 categorical_features=IndividualDataPP$categorical_features)
+    }
+
+    pred <- predict(model.out,newdata.mx)
+
+
+
+    if(is_baseline_model){
+
+      newdata.bs <- data.frame(intercept_1 = rep(1, dim(newdata)[1]))
+
+      benchmark_id <- pkg.env$benchmark_id(X = X,
+                                           Y =Y ,
+                                           newdata.mx = newdata.bs,
+                                           remove_first_dummy=F)
+
+    }else{
+      #make to hazard relative to initial model, to have similiar interpretation as standard cox
+      newdata.bs <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
+                                            newdata=newdata,
+                                            continuous_features=IndividualDataPP$continuous_features,
+                                            categorical_features=IndividualDataPP$categorical_features)
+
+      benchmark_id <- pkg.env$benchmark_id(X = X,
+                                           Y =Y ,
+                                           newdata.mx = newdata.bs,
+                                           remove_first_dummy=T)}
+
+
+    pred_relative <- pred - pred[benchmark_id]
+
+    expg <- exp(pred_relative)
+
+    hazard_frame <- cbind(newdata,expg)
+
+    bsln <- data.frame(baseline=bsln,
+                       DP_rev_i=sort(as.integer(unique(IndividualDataPP$training.data$DP_rev_i))))
+
+    # compute the likelihood of the fitted model (upper triangle)
+    is_lkh <- pkg.env$evaluate_lkh_xgb(X_train=X,
+                                       Y_train=Y,
+                                       dset='is',
+                                       samples_cn=datads_pp$samples_cn,
+                                       model=model.out)
+
+    os_lkh <- pkg.env$evaluate_lkh_xgb(X_train=X,
+                                       Y_train=Y,
+                                       dset='os',
+                                       samples_cn=datads_pp$samples_cn,
+                                       model=model.out)
+
+  }
+
+  ##################################################################################
+
+
+  hazard_frame <- hazard_frame %>%
+    full_join(bsln,
+              by="DP_rev_i") %>%
+    as.data.frame() %>%
+    replace_na(list(baseline=0))
+
+  hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
+
+
+
+
+  #Add development and relevant survival values to the hazard_frame
+  hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
+                                                    # Om.df=Om.df,
+                                                    eta_old=eta,
+                                                    categorical_features = IndividualDataPP$categorical_features,
+                                                    continuous_features = IndividualDataPP$continuous_features,
+                                                    calendar_period_extrapolation = IndividualDataPP$calendar_period_extrapolation)
+
+
+  out_hz_frame <-  hazard_frame_updated %>%
+    mutate(DP_i=pkg.env$maximum.time(IndividualDataPP$years, IndividualDataPP$input_time_granularity)-DP_rev_i+1) %>%
+    relocate(DP_i, .after =  AP_i) %>%
+    rename(f_i=dev_f_i,
+           cum_f_i=cum_dev_f_i)
+
+  out=list(model.out=list(data=X,
+                          model.out=model.out),
+           simplifier=simplifier,
+           is_lkh=is_lkh,
+           os_lkh=os_lkh,
+           hazard_frame = out_hz_frame,
+           hazard_model = hazard_model,
+           IndividualDataPP = IndividualDataPP)
+
+  class(out) <- c('ReSurvFit')
+
+  return(out)
+
+
+
+
+
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
 
 
 

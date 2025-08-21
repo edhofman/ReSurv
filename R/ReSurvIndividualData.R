@@ -64,6 +64,33 @@
 #' \item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
 #' }
 #'
+#'
+#'
+#'@examples
+#'
+#' input_data_0 <- data_generator(
+#' random_seed = 1964,
+#' scenario = "alpha",
+#' time_unit = 1,
+#' years = 4,
+#' period_exposure = 100)
+#'
+#' individual_data <- IndividualDataPP(data = input_data_0,
+#' categorical_features = "claim_type",
+#' continuous_features = "AP",
+#' accident_period = "AP",
+#' calendar_period = "RP",
+#' input_time_granularity = "years",
+#' output_time_granularity = "years",
+#' years=4)
+#'
+#'
+#' resurv_fit_cox <- ReSurv(individual_data,
+#' hazard_model = "COX")
+#'
+#'
+#'
+#'
 #' @import reticulate
 #' @import tidyverse
 #' @import xgboost
@@ -83,15 +110,17 @@
 #'
 #' @export
 ReSurv <- function(IndividualDataPP,
-                   hazard_model="COX",
-                   tie='efron',
-                   baseline="spline",
-                   continuous_features_scaling_method="minmax",
-                   random_seed=1,
-                   hparameters=list(),
-                   percentage_data_training=.8,
-                   grouping_method = "exposure",
-                   check_value = 1.85){
+                   hazard_model = "COX",
+                   tie = "efron",
+                   baseline = "spline",
+                   continuous_features_scaling_method = "minmax",
+                   random_seed = 1,
+                   hparameters = list(),
+                   percentage_data_training = .8,
+                   grouping_method = "probability",
+                   check_value = 1.85,
+                   eta=0.5,
+                   simplifier=FALSE){
 
   UseMethod("ReSurv")
 
@@ -168,6 +197,34 @@ ReSurv <- function(IndividualDataPP,
 #' @import rpart
 #'
 #'
+#'
+#'
+#'@examples
+#'
+#' input_data_0 <- data_generator(
+#' random_seed = 1964,
+#' scenario = "alpha",
+#' time_unit = 1,
+#' years = 4,
+#' period_exposure = 100)
+#'
+#' individual_data <- IndividualDataPP(data = input_data_0,
+#' categorical_features = "claim_type",
+#' continuous_features = "AP",
+#' accident_period = "AP",
+#' calendar_period = "RP",
+#' input_time_granularity = "years",
+#' output_time_granularity = "years",
+#' years=4)
+#'
+#'
+#' resurv_fit_cox <- ReSurv(individual_data,
+#' hazard_model = "COX")
+#'
+#'
+#'
+#'
+#'
 #' @references
 #' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
 #'
@@ -179,15 +236,17 @@ ReSurv <- function(IndividualDataPP,
 #'
 #' @export
 ReSurv.default <- function(IndividualDataPP,
-                           hazard_model="COX",
-                           tie='efron',
-                           baseline="spline",
-                           continuous_features_scaling_method="minmax",
-                           random_seed=1,
-                           hparameters=list(),
-                           percentage_data_training=.8,
+                           hazard_model = "COX",
+                           tie = "efron",
+                           baseline = "spline",
+                           continuous_features_scaling_method = "minmax",
+                           random_seed = 1,
+                           hparameters = list(),
+                           percentage_data_training = .8,
                            grouping_method = "exposure",
-                           check_value = 1.85){
+                           check_value = 1.85,
+                           eta=0.5,
+                           simplifier=FALSE){
 
   message('The object provided must be of class IndividualDataPP')
 
@@ -266,6 +325,34 @@ ReSurv.default <- function(IndividualDataPP,
 #' @import rpart
 #'
 #'
+#'
+#'
+#'@examples
+#'
+#' input_data_0 <- data_generator(
+#' random_seed = 1964,
+#' scenario = "alpha",
+#' time_unit = 1,
+#' years = 4,
+#' period_exposure = 100)
+#'
+#' individual_data <- IndividualDataPP(data = input_data_0,
+#' categorical_features = "claim_type",
+#' continuous_features = "AP",
+#' accident_period = "AP",
+#' calendar_period = "RP",
+#' input_time_granularity = "years",
+#' output_time_granularity = "years",
+#' years=4)
+#'
+#'
+#' resurv_fit_cox <- ReSurv(individual_data,
+#' hazard_model = "COX")
+#'
+#'
+#'
+#'
+#'
 #' @references
 #' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
 #'
@@ -277,15 +364,17 @@ ReSurv.default <- function(IndividualDataPP,
 #'
 #' @export
 ReSurv.IndividualDataPP <- function(IndividualDataPP,
-                                  hazard_model="COX",
-                                  tie='efron',
-                                  baseline="spline",
-                                  continuous_features_scaling_method="minmax",
-                                  random_seed=1,
-                                  hparameters=list(),
-                                  percentage_data_training=.8,
+                                  hazard_model = "COX",
+                                  tie = "efron",
+                                  baseline = "spline",
+                                  continuous_features_scaling_method = "minmax",
+                                  random_seed = 1,
+                                  hparameters = list(),
+                                  percentage_data_training = .8,
                                   grouping_method = "exposure",
-                                  check_value = 1.85
+                                  check_value = 1.85,
+                                  eta=0.5,
+                                  simplifier=FALSE
 ){
 
 
@@ -293,20 +382,19 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
   formula_ct <- as.formula(IndividualDataPP$string_formula_i)
 
+  if(simplifier){
+
+    newdata <- simplified_df_2_fcst(IndividualDataPP=IndividualDataPP,
+                                     hazard_model=hazard_model)
+
+  }else{
   newdata <- create.df.2.fcst(IndividualDataPP=IndividualDataPP,
-                              hazard_model=hazard_model)
+                              hazard_model=hazard_model)}
 
 
   # logical: check if we work with a baseline model
   is_baseline_model = is.null(c(IndividualDataPP$categorical_features,
                                 IndividualDataPP$continuous_features))
-
-
-  # create data frame of occurrencies to weight development factors
-  # Om.df <-   pkg.env$create.om.df(training.data=IndividualDataPP$training.data,
-                                  # input_time_granularity=IndividualDataPP$input_time_granularity,
-                                  # years=IndividualDataPP$years)
-
 
 
   if(hazard_model=="COX"){
@@ -321,17 +409,6 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
     model.out <- pkg.env$fit_cox_model(data=data,
                                        formula_ct=formula_ct,
                                        newdata=newdata)
-
-    # tmp <- pkg.env$spline_hp(hparameters,IndividualDataPP)
-
-
-    ## OLD BASELINE COMPUTATION (BRESLOW)
-    # bs_hazard <- basehaz( model.out$cox, centered=FALSE) %>%
-    #   mutate(hazard = hazard-lag(hazard,default=0))
-    #
-    #
-    # bsln <- data.frame(baseline=bs_hazard$hazard,
-    #                    DP_rev_i=ceiling(bs_hazard$time))  #$hazard
 
     ## NEW BASELINE COMPUTATION (RESURV)
 
@@ -425,7 +502,7 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
   }
 
   if(hazard_model=="NN"){
-
+    # browser()
 
     Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
 
@@ -480,11 +557,7 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
                                        seed = random_seed)
 
 
-
-    # bsln <- model.out$compute_baseline_hazards(
-    #   input = datads_pp$x_train,
-    #   target = datads_pp$y_train,
-    #   batch_size = hparameters$batch_size)
+    # browser()
 
     bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
                                   model.out = model.out,
@@ -500,7 +573,8 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
     newdata.mx <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
                                           newdata=newdata,
                                           continuous_features=IndividualDataPP$continuous_features,
-                                          categorical_features=IndividualDataPP$categorical_features)}
+                                          categorical_features=IndividualDataPP$categorical_features)
+    }
 
 
 
@@ -681,32 +755,11 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
 
 
-  #return(hazard_frame)
-
-  #need placeholder for latest i mirror cl behaviour
-
-  # hazard_cl <- (sapply(seq_along(hz_names_i$time),
-  #                      pkg.env$hazard_f,
-  #                      enter= hz_names_i$enter,
-  #                      time=hz_names_i$time,
-  #                      exit=hz_names_i$exit,
-  #                      event=hz_names_i$event))
-
-
-
-
-  ############################################################
-  #check
-
-  #hazard_q <- matrix(nrow=max_DP, ncol=(ncol(hazard)-1)*IndividualDataPP$conversion_factor)
-  #eta_o <- c()
-
-
-  ############################################################
 
   #Add development and relevant survival values to the hazard_frame
   hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
                                                     # Om.df=Om.df,
+                                                    eta_old=eta,
                                                     categorical_features = IndividualDataPP$categorical_features,
                                                     continuous_features = IndividualDataPP$continuous_features,
                                                     calendar_period_extrapolation = IndividualDataPP$calendar_period_extrapolation)
@@ -720,7 +773,7 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
   out=list(model.out=list(data=X,
                           model.out=model.out),
-           # Om.df=Om.df,
+           simplifier=simplifier,
            is_lkh=is_lkh,
            os_lkh=os_lkh,
            hazard_frame = out_hz_frame,

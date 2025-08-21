@@ -304,7 +304,7 @@ In this Section we show the usage of the `ReSurv` method for the estimation of o
 ```{r eval=FALSE, include=TRUE}
 
 resurv_fit_cox <- ReSurv(individual_data,
-                     hazard_model = "COX")
+                     hazard_model = "COX",simplifier = TRUE)
 
 ```
 
@@ -534,7 +534,7 @@ p2
 
 ```
 
-## Code for plotting feature-dependent development factors
+## Code for plotting Figure 3
 Chain-Ladder case.
 
 ```{r eval=FALSE, include=TRUE}
@@ -569,6 +569,7 @@ clmodel %>%
   ggplot(aes(x = DP_o, y = df_o)) +
   geom_line(linewidth = 2.5,
             color = "#454555") +
+  scale_x_continuous(breaks = c(3,5,7,9,11,13,15))+
   labs(title = "Chain ladder",
        x = "Development quarter",
        y = "Development factor") +
@@ -600,7 +601,7 @@ clmodel_months <- individual_data_m$training.data %>%
   mutate(DP_o_join = DP_o - 1) %>%
   as.data.frame()
 
-ticks_at <- seq(1, 48, 4)
+ticks_at <- c(4,8,12,16)*3
 labels_as <- as.character(ticks_at)
 
 clmodel_months %>%
@@ -642,7 +643,7 @@ clmodel_years <- individual_data_y$training.data %>%
   mutate(DP_o_join = DP_o - 1) %>%
   as.data.frame()
 
-ticks_at <- seq(1, 4, 1)
+ticks_at <- c(3) 
 labels_as <- as.character(ticks_at)
 
 clmodel_years %>%
@@ -945,7 +946,8 @@ true_output_cl <- individual_data$full.data %>%
                 ((AP_i - 1) %% (
                   1 / conversion_factor
                 )) * conversion_factor) + 1,
-    AP_o = ceiling(AP_i * conversion_factor)
+    AP_o = ceiling(AP_i * conversion_factor),
+    TR_o = AP_o - 1
   ) %>%
   filter(DP_rev_o <= TR_o) %>%
   mutate(DP_o = max(individual_data$training.data$DP_rev_o) - DP_rev_o + 1) %>%
