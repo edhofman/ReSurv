@@ -147,6 +147,7 @@ predict.ReSurvFit <- function(object,
   )
 
 
+
   df_i <- pkg.env$retrieve_df_i(
     hazard_data_frame = hazard_frame_grouped$hazard_group,
     groups = hazard_frame_grouped$groups,
