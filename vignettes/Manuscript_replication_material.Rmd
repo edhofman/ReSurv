@@ -38,7 +38,7 @@ We first fit simulate and pre-process some data from Scenario Delta.
 ```{r eval=FALSE, echo=TRUE}
 
 input_data <- data_generator(random_seed = 7,
-                             scenario = 3,
+                             scenario = 1,
                              time_unit = 1 / 360,
                              years = 4,
                              period_exposure = 200)
