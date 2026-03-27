@@ -8,7 +8,6 @@
 #'
 #' @return \code{ggplot2} of the SHAP values for an \code{"XGB"} model or a \code{"NN"} model.
 #'
-#' @import SHAPforxgboost
 #' @import ggplot2
 #' @importFrom tibble rownames_to_column
 #'
@@ -24,8 +23,11 @@ plot.ReSurvFit <- function(x,
 
   if(hazard_model=="XGB"){
 
+    if(!requireNamespace("SHAPforxgboost", quietly = TRUE))
+      stop("Package 'SHAPforxgboost' is required for XGB feature importance plots. Install it with install.packages('SHAPforxgboost').")
+
     #we need the following
-    shap_values <- shap.values(xgb_model = output.fit$model.out,
+    shap_values <- SHAPforxgboost::shap.values(xgb_model = output.fit$model.out,
                                X_train = as.matrix(output.fit$data))
 
     df.2.plot <- apply(abs(shap_values$shap_score),2,mean)
@@ -57,8 +59,7 @@ plot.ReSurvFit <- function(x,
   }
 
 
-  df.2.plot %>%
-    reshape2::melt(df.2.plot, na.rm = FALSE, value.name = "value", id = NULL) %>%
+  data.frame(value = df.2.plot) %>%
     rownames_to_column(var = "feature") %>%
   ggplot(aes(x=feature, y=value)) +
     geom_bar(stat = "identity", fill=plot.color) +
@@ -72,32 +73,6 @@ plot.ReSurvFit <- function(x,
 
 }
 
-#
-# library(SHAPforxgboost)
-# dataX=resurv.fit.xgb$model.out$data
-# #
-#
-# library(xgboost)
-# featImp_RBNS <- xgb.importance(model=resurv.fit.xgb$model.out$model.out)
-# xgb.plot.importance(featImp_RBNS, main="Feature Importance - RBNS")
-#
-# shap_values <- shap.values(xgb_model = resurv.fit.xgb$model.out$model.out, X_train = dataX)
-# shap_values <- shap.values(xgb_model = resurv.fit.xgb$model.out$model.out, X_train = as.matrix(dataX))
-# #
-# shap_long <- shap.prep(shap_contrib = shap_values$shap_score, X_train = dataX)
-# shap_long <- shap.prep(xgb_model = resurv.fit.xgb$model.out$model.out, X_train = as.matrix(resurv.fit.xgb$model.out$data))
-#
-# #
-# # Return the SHAP values and ranked features by mean|SHAP|
-# shap_values <- shap.values(xgb_model = xgb_RBNS_Fit, X_train = as.matrix(df.RBNS_train))
-#
-# # Prepare the long-format data:
-# shap_long <- shap.prep(shap_contrib = shap_values$shap_score, X_train =  as.matrix(df.RBNS_train))
-#
-# # **SHAP summary plot**
-# shap.plot.summary(shap_long)
-
-#
 #
 # shap <- reticulate::import("shap")
 #

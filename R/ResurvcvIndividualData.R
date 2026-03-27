@@ -30,7 +30,6 @@
 #' For XGB the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{booster}, \code{eta}, \code{max_depth}, \code{subsample}, \code{alpha}, \code{lambda}, \code{min_child_weight}. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}. For NN the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{num_layers}, \code{optim}, \code{activation}, \code{lr}, \code{xi}, \code{eps}, \code{tie}, \code{batch_size}, \code{early_stopping}, \code{patience}, \code{node} train.lkh test.lkh. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}.
 #'
 #' @import reticulate
-#' @import tidyverse
 #' @import xgboost
 #'
 #'

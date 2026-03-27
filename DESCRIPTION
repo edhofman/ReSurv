@@ -23,33 +23,29 @@ Description: Prediction of claim counts using the feature based development fact
 URL: https://github.com/edhofman/ReSurv
 BugReports: https://github.com/edhofman/ReSurv/issues
 License: GPL (>= 2)
-Depends: tidyverse
 Imports: 
   stats,
   dplyr,
   actuar,
-  dtplyr,
   fastDummies,
-  forecast,
   data.table,
   purrr,
   tidyr,
   tibble,
   ggplot2,
   survival,
-  reshape2,
-  bshazard,
   SynthETIC,
-  rpart,
   reticulate, 
-  xgboost,
-  SHAPforxgboost
+  xgboost
 SystemRequirements: Python (>= 3.8.0)
 Encoding: UTF-8
 LazyData: true
 Suggests: 
+    bshazard,
     knitr,
     rmarkdown,
+    rpart,
+    SHAPforxgboost,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr, rmarkdown
 RoxygenNote: 7.3.2

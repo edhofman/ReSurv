@@ -39,18 +39,13 @@ install_pyresurv <- function(...,
 }
 
 
-.onLoad <- function(...) {
-  use_virtualenv("pyresurv", required = FALSE)
-}
-
-
-# global reference to scipy (will be initialized in .onLoad)
+# Global references to Python modules (initialized in .onLoad)
 torch <- NULL
-torchtuple <- NULL
+torchtuples <- NULL
 shap <- NULL
 
 .onLoad <- function(libname, pkgname) {
-  # use superassignment to update global reference to scipy
+  use_virtualenv("pyresurv", required = FALSE)
   torch <<- reticulate::import("torch", delay_load = TRUE)
   torchtuples <<- reticulate::import('torchtuples', delay_load = TRUE)
   shap <<- reticulate::import('shap', delay_load = TRUE)

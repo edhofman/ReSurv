@@ -111,7 +111,6 @@ predict.ReSurvFit <- function(object,
     input_time_granularity
   )
 
-  # browser()
   is_baseline_model <- is.null(c(categorical_features, continuous_features))
 
   # Convert to data.table if not already
@@ -123,10 +122,6 @@ predict.ReSurvFit <- function(object,
   # Rename columns
   setnames(hazard_frame, old = c("f_i", "cum_f_i"), new = c("dev_f_i", "cum_dev_f_i"))
 
-  # hazard_frame <- object$hazard_frame %>%
-  #   select(-DP_i) %>%
-  #   rename(dev_f_i = f_i, cum_dev_f_i = cum_f_i)
-
   hazard_frame_grouped <- pkg.env$covariate_mapping(
     hazard_frame = hazard_frame,
     categorical_features = categorical_features,
@@ -137,21 +132,8 @@ predict.ReSurvFit <- function(object,
 
 
 
-    # missing.obsevations <- pkg.env$simplified_fill_data_frame(
-    #   data = idata$full.data,
-    #   continuous_features = continuous_features,
-    #   categorical_features =
-    #     categorical_features,
-    #   years = years,
-    #   input_time_granularity =
-    #     input_time_granularity,
-    #   conversion_factor = conversion_factor
-    # )
-
-
   # latest_observed computation ----
   ## Retrieve total amount of observed claims as of the evaluation date ----
-browser()
   data_reserve = object$data_information$data_for_reserving
 
   max_DP_i <- unique(data_reserve[, .(DP_max_rev = min(max(DP_rev_i) - DP_i) + 1), by = AP_i])
@@ -634,7 +616,6 @@ browser()
 
 
 
-  # browser()
   # Final output formatting: no actual computations from here on
 
 

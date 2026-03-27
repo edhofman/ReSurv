@@ -92,9 +92,7 @@
 #'
 #'
 #' @import reticulate
-#' @import tidyverse
 #' @import xgboost
-#' @import rpart
 #' @import data.table
 #' @importFrom dplyr reframe full_join
 #' @importFrom tidyr replace_na
@@ -192,9 +190,9 @@ ReSurv <- function(IndividualDataPP,
 #' }
 #'
 #' @import reticulate
-#' @import tidyverse
+
 #' @import xgboost
-#' @import rpart
+
 #'
 #'
 #'
@@ -320,9 +318,9 @@ ReSurv.default <- function(IndividualDataPP,
 #' }
 #'
 #' @import reticulate
-#' @import tidyverse
+
 #' @import xgboost
-#' @import rpart
+
 #'
 #'
 #'

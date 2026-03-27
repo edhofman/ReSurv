@@ -127,11 +127,7 @@ ooslkh.ReSurvFit <- function(object,
 
   if(hazard_model=="LTRCtrees"){
 
-    Y=test.data[,c("DP_rev_i", "I", "TR_i")]
-    lkh <- pkg.env$evaluate_lkh_LTRCtrees(X_train=test.data %>% select(c(categorical_features,
-                                                                         continuous_features)),
-                                             Y_train=Y,
-                                             model=fitted.model$model.out)
+    stop("Out-of-sample likelihood for LTRCtrees is not yet implemented.")
 
   }
 
