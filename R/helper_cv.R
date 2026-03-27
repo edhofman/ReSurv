@@ -138,7 +138,7 @@ pkg.env$deep_surv_cv <- function(IndividualDataPP,
 
     clusterEvalQ(cl, {library("ReSurv")
       library("fastDummies")
-      library("reticulate")
+      library("torch")
       set.seed(random_seed)} )
 
     out[,c("train.lkh","test.lkh", "time")] <- t(parSapply(cl, 1:dim(hparameters.f)[1],  FUN =cv_deep_surv,

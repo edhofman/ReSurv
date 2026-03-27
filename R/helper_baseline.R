@@ -93,7 +93,7 @@ pkg.env$baseline.calc <- function(hazard_model,
                                         Y=Y,
                                         training_test_split = 1)
 
-    predict_bsln <- model.out$predict(input=datads_pp_nn$x_train)
+    predict_bsln <- pkg.env$predict_deepsurv(model.out$net, datads_pp_nn$x_train)
 
   }
 

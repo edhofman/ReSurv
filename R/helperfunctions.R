@@ -7,7 +7,6 @@
 #' @importFrom actuar rztpois rtrgamma
 #' @import survival
 #' @importFrom stats runif pnorm predict as.formula complete.cases
-#' @import reticulate
 #' @import xgboost
 #' @import data.table
 #' @importFrom dplyr reframe lag full_join rename

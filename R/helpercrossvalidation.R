@@ -47,13 +47,13 @@ cv_deep_surv <- function(hp,
                                                        seed= random_seed))
 
 
-    best.it <- model.out.k$log$to_pandas()[,1] == min(model.out.k$log$to_pandas()[,1])
+    best.it <- model.out.k$log$train_loss == min(model.out.k$log$train_loss)
 
     if(any(is.na(best.it))){
       best.it<-1
     }
-    tmp.train.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['train_loss']))
-    tmp.test.lkh[i] <- unname(unlist(model.out.k$log$to_pandas()[best.it,]['val_loss']))
+    tmp.train.lkh[i] <- model.out.k$log$train_loss[best.it]
+    tmp.test.lkh[i] <- model.out.k$log$val_loss[best.it]
 
   }
 

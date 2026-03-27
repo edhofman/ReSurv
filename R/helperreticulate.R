@@ -1,6 +1,7 @@
 #' Install Python Environment for ReSurv
 #'
-#' Install a Python environment that allows the user to apply the Neural Network (NN) models.
+#' Install a Python environment for optional Python-based features (e.g., SHAP for NN models).
+#' The core NN backend now uses native R torch and does not require Python.
 #'
 #' @param ... Additional arguments for `virtualenv_create`.
 #' @param envname `character`. Name of the environment created. Default `pyresurv`.
@@ -8,15 +9,17 @@
 #'
 #' @return No return value.
 #'
-#' @import reticulate
 #' @export
 install_pyresurv <- function(...,
                              envname = "pyresurv",
                              new_env = identical(envname, "pyresurv")) {
 
-  if(new_env && virtualenv_exists(envname)){
+  if(!requireNamespace("reticulate", quietly = TRUE))
+    stop("Package 'reticulate' is required for install_pyresurv(). Install it with install.packages('reticulate').")
 
-    virtualenv_remove(envname)
+  if(new_env && reticulate::virtualenv_exists(envname)){
+
+    reticulate::virtualenv_remove(envname)
 
 
     }
@@ -29,7 +32,7 @@ install_pyresurv <- function(...,
                      "shap")
 
 
-  virtualenv_create(envname = "pyresurv",
+  reticulate::virtualenv_create(envname = "pyresurv",
                     packages = packages_list,
                     force = TRUE,
                     ...)
@@ -38,15 +41,3 @@ install_pyresurv <- function(...,
 
 }
 
-
-# Global references to Python modules (initialized in .onLoad)
-torch <- NULL
-torchtuples <- NULL
-shap <- NULL
-
-.onLoad <- function(libname, pkgname) {
-  use_virtualenv("pyresurv", required = FALSE)
-  torch <<- reticulate::import("torch", delay_load = TRUE)
-  torchtuples <<- reticulate::import('torchtuples', delay_load = TRUE)
-  shap <<- reticulate::import('shap', delay_load = TRUE)
-}

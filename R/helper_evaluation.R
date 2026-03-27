@@ -15,12 +15,9 @@ pkg.env$evaluate_lkh_nn <-function(X_train,
   data_train <- cbind(X_train, DP_rev_i = Y_train$DP_rev_i) %>%
     arrange(DP_rev_i) %>%
     select(-DP_rev_i) %>%
-    as.matrix() %>%
-    as.array() %>%
-    reticulate::np_array(dtype = "float32")
+    as.matrix()
 
-  preds <- model$predict(input=data_train,
-                         num_workers=0)
+  preds <- pkg.env$predict_deepsurv(model$net, data_train)
   preds <-preds-preds[1]
 
 
@@ -273,11 +270,11 @@ adjust.predictions <- function(ResurvFit,
 
 
 
-    x_fc= reticulate::np_array(as.matrix(newdata.mx), dtype = "float32")
+    x_fc = as.matrix(newdata.mx)
 
 
 
-    beta_ams <- ResurvFit$model.out$model.out$predict(input=x_fc)
+    beta_ams <- pkg.env$predict_deepsurv(ResurvFit$model.out$model.out$net, x_fc)
 
     #make to hazard relative to initial model, to have similiar interpretation as standard cox
 
@@ -743,11 +740,10 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
 
 
-    x_fc= reticulate::np_array(as.matrix(newdata.mx), dtype = "float32")
+    x_fc = as.matrix(newdata.mx)
 
 
-    beta_ams <- model.out$predict(input=x_fc,
-                                  num_workers=hparameters$num_workers)
+    beta_ams <- pkg.env$predict_deepsurv(model.out$net, x_fc)
 
     #make to hazard relative to initial model, to have similiar interpretation as standard cox
 

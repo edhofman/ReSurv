@@ -35,14 +35,14 @@ Imports:
   ggplot2,
   survival,
   SynthETIC,
-  reticulate, 
+  torch,
   xgboost
-SystemRequirements: Python (>= 3.8.0)
 Encoding: UTF-8
 LazyData: true
 Suggests: 
     bshazard,
     knitr,
+    reticulate,
     rmarkdown,
     rpart,
     SHAPforxgboost,

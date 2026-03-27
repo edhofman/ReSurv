@@ -2,7 +2,6 @@
 #
 # Scalers, DeepSurv preprocessing, Cox and NN fitting routines.
 #
-# @import reticulate
 ## Deepsurv helpers ----
 
 pkg.env$deep_surv_pp <- function(X,
@@ -36,30 +35,17 @@ pkg.env$deep_surv_pp <- function(X,
   }
 
 
-  #convert to array for later numpy transforamtion
-  data_train <- as.array(as.matrix(X[id_train,]))
-  data_val <- as.array(as.matrix(X[!id_train,]))
-  y_train <- as.array(as.matrix(Y[id_train,]))
-  y_val <- as.array(as.matrix(Y[!id_train,]))
-
-
-  #create tuples holding target and validation values. Convert to same dtype to ensure safe pytorch handling.
-  y_train <- reticulate::tuple(reticulate::np_array(y_train[,1], dtype = "float32"), #duration
-                               reticulate::np_array(y_train[,2], dtype = "float32"), #event
-                               reticulate::np_array(y_train[,3], dtype = "float32")) #truncation
-
-  validation_data = reticulate::tuple(reticulate::np_array(data_val, dtype = "float32"),
-                                      reticulate::tuple(reticulate::np_array(y_val[,1], dtype = "float32"), #duration
-                                                        reticulate::np_array(y_val[,2], dtype = "float32"), #event
-                                                        reticulate::np_array(y_val[,3], dtype = "float32"))) #truncation
-
-  x_train = reticulate::np_array(data_train, dtype = "float32")
-
+  # Plain R matrices for native torch training
+  x_train <- as.matrix(X[id_train, ])
+  x_val   <- as.matrix(X[!id_train, ])
+  y_train <- as.matrix(Y[id_train, ])   # columns: duration, event, truncation
+  y_val   <- as.matrix(Y[!id_train, ])
 
   return(list(
     x_train = x_train,
     y_train = y_train,
-    validation_data = validation_data,
+    x_val   = x_val,
+    y_val   = y_val,
     lkh_eval_data = list(data_train=X[id_train,],
                        data_val=X[!id_train,],
                        y_train=Y[id_train,],
@@ -101,63 +87,22 @@ pkg.env$fit_deep_surv <- function(data,
                                   network_structure=NULL,
                                   newdata){
 
+  input_dim <- ncol(data$x_train)
+  net <- pkg.env$build_deepsurv_net(input_dim, params)
 
-  # #Import python modules
-
-  torchtuples <- reticulate::import("torchtuples")
-  torch <- reticulate::import("torch")
-
-  #Source python code for left truncated deepsurv
-  reticulate::source_python(system.file("python", "coxnetwork_custom.py", package = "ReSurv"))
-
-  torch$manual_seed(seed)
-
-  net <- torch$nn$Sequential()
-  input_shape =  data$x_train$shape[[1]]
-  for( i in 1:(params$num_layers+1)){
-    if( i > params$num_layers){
-      net$add_module(paste0(i,"_l"),torch$nn$Linear(input_shape, as.integer(1), bias=FALSE))
-    }
-    else{
-      net$add_module(paste0(i,"_l"),torch$nn$Linear(input_shape,as.integer(params[[paste0("node_",i)]] )))
-      net$add_module(paste0(i,"_a"),torch$nn[[params$activation]]())
-      input_shape = as.integer(params[[paste0("node_",i)]] )
-    }
-  }
-
-
-  # Setup CoxPH model, as imported from python script. Seed is for weight initlization and comparability when doing cv.
-
-  model <- CoxPH(
-    net = net,
-    optimizer = torchtuples$optim[[params$optim]](lr=params$lr),
-    xi=params$xi,
-    eps=params$eps,
-    tie = params$tie
+  result <- pkg.env$train_deepsurv(
+    net       = net,
+    x_train   = data$x_train,
+    y_train   = data$y_train,
+    x_val     = data$x_val,
+    y_val     = data$y_val,
+    params    = params,
+    epochs    = epochs,
+    verbose   = verbose,
+    seed      = seed
   )
 
-
-  #If early stopping specified add to callbacks.
-  if(params$early_stopping==TRUE){
-    callbacks = list(torchtuples$callbacks$EarlyStopping(patience=as.integer(params$patience)))
-  }else{
-    callbacks = NULL
-  }
-
-  #fit model
-  model$fit(
-    input = data$x_train,
-    target = data$y_train,
-    batch_size = as.integer(params$batch_size),
-    epochs = epochs,
-    callbacks = r_to_py(callbacks),
-    verbose = verbose,
-    val_data=data$validation_data,
-    val_batch_size=params$batch_size,
-    num_workers=num_workers
-  )
-
-  return(model)
+  return(result)
 
 }
 

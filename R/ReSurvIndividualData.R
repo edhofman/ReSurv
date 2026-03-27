@@ -91,7 +91,7 @@
 #'
 #'
 #'
-#' @import reticulate
+
 #' @import xgboost
 #' @import data.table
 #' @importFrom dplyr reframe full_join
@@ -189,7 +189,7 @@ ReSurv <- function(IndividualDataPP,
 #' \item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
 #' }
 #'
-#' @import reticulate
+
 
 #' @import xgboost
 
@@ -317,7 +317,7 @@ ReSurv.default <- function(IndividualDataPP,
 #' \item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
 #' }
 #'
-#' @import reticulate
+
 
 #' @import xgboost
 
@@ -622,11 +622,10 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
 
 
-    x_fc= reticulate::np_array(as.matrix(newdata.mx), dtype = "float32")
+    x_fc = as.matrix(newdata.mx)
 
 
-    beta_ams <- model.out$predict(input=x_fc,
-                                  num_workers=hparameters$num_workers)
+    beta_ams <- pkg.env$predict_deepsurv(model.out$net, x_fc)
 
     #make to hazard relative to initial model, to have similiar interpretation as standard cox
 

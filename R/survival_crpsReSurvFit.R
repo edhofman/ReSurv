@@ -337,9 +337,9 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
                                                  categorical_features=tmp$categorical_features)
 
 
-      x_fc= reticulate::np_array(as.matrix(newdata.mx), dtype = "float32")
+      x_fc = as.matrix(newdata.mx)
 
-      beta_ams <- ReSurvFit$model.out$model.out$predict(input=x_fc)
+      beta_ams <- pkg.env$predict_deepsurv(ReSurvFit$model.out$model.out$net, x_fc)
 
 
       expg <- exp(beta_ams)

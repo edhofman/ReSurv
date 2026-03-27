@@ -36,26 +36,7 @@ plot.ReSurvFit <- function(x,
   }
 
   if(hazard_model=="NN"){
-
-    shap <- reticulate::import("shap")
-
-    x_fc= reticulate::np_array(as.matrix( output.fit$data), dtype = "float32")
-
-    explainer = shap$KernelExplainer(output.fit$model.out$predict,
-                                     x_fc)
-
-    if(!is.null(nsamples)){
-      x_fc <- shap$sample(x_fc,as.integer(nsamples))
-      x_fc <- reticulate::np_array(as.matrix(x_fc), dtype = "float32")
-
-      }
-
-    shap_values = explainer$shap_values(x_fc)[[1]]
-    colnames(shap_values) <- colnames(output.fit$data)
-
-    df.2.plot <- apply(abs(shap_values),MARGIN = 2,mean)
-    plot.color <- "#a71429"
-
+    stop("Feature importance plots for NN models require the 'shap' Python package via reticulate, which is no longer the default backend. Use ReSurv with hazard_model='XGB' for SHAP-based feature importance.")
   }
 
 

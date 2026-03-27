@@ -538,7 +538,6 @@ pkg.env$input_hazard_frame <- function(
   hazard_frame_input_relevant <- hazard_frame %>%
     select(- c(cum_dev_f_i, S_i, S_i_lead, S_i_lag, covariate))
 
-  browser()
   #If AP is included as a grouping variable
   if(ncol(groups)==5){
     df_i_long <- df_i %>%
