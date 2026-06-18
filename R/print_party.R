@@ -247,3 +247,61 @@ print.ReSurvPredict <- function(x, ...) {
 
   invisible(x)
 }
+
+
+
+#' Print method for ReSurvCV objects
+#'
+#' @param x An object of class \code{ReSurvCV}.
+#' @param ... Additional arguments, currently ignored.
+#'
+#' @export
+print.ReSurvCV <- function(x, ...) {
+
+  cat("\nReSurv cross-validation\n")
+  cat("----------------------\n")
+
+  if (!is.null(x$out.cv)) {
+    cat("Number of hyperparameter combinations:", nrow(x$out.cv), "\n")
+  }
+
+  if (!is.null(x$out.cv.best.oos) && nrow(x$out.cv.best.oos) > 0L) {
+
+    cat("\nBest out-of-sample result:\n")
+
+    best <- data.table::as.data.table(x$out.cv.best.oos)
+
+    print(best)
+
+  } else {
+
+    cat("\nBest out-of-sample result: not available\n")
+  }
+
+  if (!is.null(x$hparameters.best)) {
+
+    cat("\nSelected hyperparameters:\n")
+
+    if (is.list(x$hparameters.best) &&
+        !is.data.frame(x$hparameters.best) &&
+        !is.null(x$hparameters.best$params)) {
+
+      print(x$hparameters.best)
+
+    } else if (is.list(x$hparameters.best) &&
+               !is.data.frame(x$hparameters.best)) {
+
+      print(data.table::as.data.table(as.list(x$hparameters.best)))
+
+    } else {
+
+      print(x$hparameters.best)
+    }
+
+  } else {
+
+    cat("\nSelected hyperparameters: not available\n")
+  }
+
+  invisible(x)
+}
