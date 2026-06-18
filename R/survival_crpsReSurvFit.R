@@ -5,6 +5,7 @@
 #' The model fit uses the theoretical framework of Hiabu et al. (2023), that relies on the
 #'
 #' @param ReSurvFit ReSurvFit object to use for the score computation.
+#' @param user_hazard_frame data.frame with user-provided hazards. This path is currently unsupported for the current ReSurvFit structure.
 #' @param user_data_set data.frame provided from the user to compute the survival CRPS, optional.
 #'
 #' @return Survival CRPS, \code{data.table} that contains the CRPS (\code{crps}) for each observation (\code{id}).
@@ -15,11 +16,11 @@
 #' @references
 #' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
 #'
-#' Therneau, T. M., & Lumley, T. (2015). Package ‘survival’. R Top Doc, 128(10), 28-33.
+#' Therneau, T. M., & Lumley, T. (2015). Package â€˜survivalâ€™. R Top Doc, 128(10), 28-33.
 #'
 #' Katzman, J. L., Shaham, U., Cloninger, A., Bates, J., Jiang, T., & Kluger, Y. (2018). DeepSurv: personalized treatment recommender system using a Cox proportional hazards deep neural network. BMC medical research methodology, 18(1), 1-12.
 #'
-#' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
+#' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package â€˜xgboostâ€™. R version, 90, 1-66.
 #'
 #' @export
 survival_crps <- function(ReSurvFit,
@@ -38,6 +39,7 @@ survival_crps <- function(ReSurvFit,
 #' The model fit uses the theoretical framework of Hiabu et al. (2023), that relies on the
 #'
 #' @param ReSurvFit ReSurvFit object to use for the score computation.
+#' @param user_hazard_frame data.frame with user-provided hazards. This path is currently unsupported for the current ReSurvFit structure.
 #' @param user_data_set data.frame provided from the user to compute the survival CRPS, optional.
 #'
 #' @return Survival CRPS, \code{data.table} that contains the CRPS (\code{crps}) for each observation (\code{id}).
@@ -47,11 +49,11 @@ survival_crps <- function(ReSurvFit,
 #' @references
 #' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
 #'
-#' Therneau, T. M., & Lumley, T. (2015). Package ‘survival’. R Top Doc, 128(10), 28-33.
+#' Therneau, T. M., & Lumley, T. (2015). Package â€˜survivalâ€™. R Top Doc, 128(10), 28-33.
 #'
 #' Katzman, J. L., Shaham, U., Cloninger, A., Bates, J., Jiang, T., & Kluger, Y. (2018). DeepSurv: personalized treatment recommender system using a Cox proportional hazards deep neural network. BMC medical research methodology, 18(1), 1-12.
 #'
-#' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
+#' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package â€˜xgboostâ€™. R version, 90, 1-66.
 #'
 #' @export
 survival_crps.default <- function(ReSurvFit,
@@ -69,6 +71,7 @@ survival_crps.default <- function(ReSurvFit,
 #' The model fit uses the theoretical framework of Hiabu et al. (2023), that relies on the
 #'
 #' @param ReSurvFit ReSurvFit object to use for the score computation.
+#' @param user_hazard_frame data.frame with user-provided hazards. This path is currently unsupported for the current ReSurvFit structure.
 #' @param user_data_set data.frame provided from the user to compute the survival CRPS, optional.
 #'
 #' @return Survival CRPS, \code{data.table} that contains the CRPS (\code{crps}) for each observation (\code{id}).
@@ -78,27 +81,39 @@ survival_crps.default <- function(ReSurvFit,
 #' @references
 #' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
 #'
-#' Therneau, T. M., & Lumley, T. (2015). Package ‘survival’. R Top Doc, 128(10), 28-33.
+#' Therneau, T. M., & Lumley, T. (2015). Package â€˜survivalâ€™. R Top Doc, 128(10), 28-33.
 #'
 #' Katzman, J. L., Shaham, U., Cloninger, A., Bates, J., Jiang, T., & Kluger, Y. (2018). DeepSurv: personalized treatment recommender system using a Cox proportional hazards deep neural network. BMC medical research methodology, 18(1), 1-12.
 #'
-#' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
+#' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package â€˜xgboostâ€™. R version, 90, 1-66.
 #'
 #' @export
 survival_crps.ReSurvFit <- function(ReSurvFit,
                                     user_hazard_frame=NULL,
                                     user_data_set = NULL){
 
+  if (!is.null(user_hazard_frame)) {
+    stop(
+      "`survival_crps()` with `user_hazard_frame` is not supported by the current ReSurvFit object structure.",
+      call. = FALSE
+    )
+  }
 
+  if (!is.null(user_data_set)) {
+    stop(
+      "`survival_crps()` with `user_data_set` is not supported because the original raw input data are no longer stored in ReSurvFit objects.",
+      call. = FALSE
+    )
+  }
 
   if (is.null(user_hazard_frame)) {
     hazard_frame <- ReSurvFit$hazard_frame %>%
-      select(-DP_i) %>%
-      rename(dev_f_i = f_i, cum_dev_f_i = cum_f_i)
+      dplyr::select(-DP_i) %>%
+      dplyr::rename(dev_f_i = f_i, cum_dev_f_i = cum_f_i)
   } else{
     # hazard_frame<- user_hazard_frame%>%
-    #   select(-DP_i) %>%
-    #   rename(dev_f_i = f_i, cum_dev_f_i = cum_f_i)
+    #   dplyr::select(-DP_i) %>%
+    #   dplyr::rename(dev_f_i = f_i, cum_dev_f_i = cum_f_i)
     # browser()
     tmp <- IndividualDataPP(user_hazard_frame,
                             id=NULL,
@@ -133,8 +148,8 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
       for(cft in tmp$continuous_features){
 
 
-        mnv <- min(tmp$training.data[cft])
-        mxv <- max(tmp$training.data[cft])
+        mnv <- min(tmp$training.data[[cft]])
+        mxv <- max(tmp$training.data[[cft]])
 
         Xc_tmp_bsln[[cft]] <-2*(Xc_tmp_bsln[[cft]]-mnv)/(mxv-mnv)-1
 
@@ -174,13 +189,13 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
     max_dp_i =  pkg.env$maximum.time(tmp$years,tmp$input_time_granularity)
 
     unique_baseline <- ReSurvFit$hazard_frame %>%
-      group_by(DP_i) %>%
-      summarise(baseline = unique(baseline)) %>%
-      mutate(DP_rev_i = max_dp_i - DP_i+1)
+      dplyr::group_by(DP_i) %>%
+      dplyr::summarise(baseline = unique(baseline)) %>%
+      dplyr::mutate(DP_rev_i = max_dp_i - DP_i+1)
 
 
     hazard_frame <- hazard_frame %>%
-      left_join(unique_baseline,by=c("DP_rev_i"))
+      dplyr::left_join(unique_baseline,by=c("DP_rev_i"))
 
     hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
 
@@ -194,9 +209,9 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
 
     hazard_frame <-  hazard_frame_updated %>%
-      mutate(DP_i=max_dp_i-DP_rev_i+1) %>%
+      dplyr::mutate(DP_i=max_dp_i-DP_rev_i+1) %>%
       relocate(DP_i, .after =  AP_i) %>%
-      rename(f_i=dev_f_i,
+      dplyr::rename(f_i=dev_f_i,
              cum_f_i=cum_dev_f_i)
 
 
@@ -215,15 +230,15 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
       for(cft in tmp$continuous_features){
 
 
-        mnv <- min(tmp$training.data[cft])
-        mxv <- max(tmp$training.data[cft])
+        mnv <- min(tmp$training.data[[cft]])
+        mxv <- max(tmp$training.data[[cft]])
 
         Xc[[cft]] <-2*(Xc[[cft]]-mnv)/(mxv-mnv)-1
 
       }
 
       # Xc <- IndividualDataPP$training.data %>%
-      #   reframe(across(all_of(IndividualDataPP$continuous_features),
+      #   dplyr::reframe(dplyr::across(dplyr::all_of(IndividualDataPP$continuous_features),
       #                  scaler))
 
 
@@ -266,13 +281,13 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
       max_dp_i =  pkg.env$maximum.time(tmp$years,tmp$input_time_granularity)
 
       unique_baseline <- ReSurvFit$hazard_frame %>%
-        group_by(DP_i) %>%
-        summarise(baseline = unique(baseline)) %>%
-        mutate(DP_rev_i = max_dp_i - DP_i+1)
+        dplyr::group_by(DP_i) %>%
+        dplyr::summarise(baseline = unique(baseline)) %>%
+        dplyr::mutate(DP_rev_i = max_dp_i - DP_i+1)
 
 
       hazard_frame <- hazard_frame %>%
-        left_join(unique_baseline,by=c("DP_rev_i"))
+        dplyr::left_join(unique_baseline,by=c("DP_rev_i"))
 
       hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
 
@@ -285,9 +300,9 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
 
       hazard_frame <-  hazard_frame_updated %>%
-        mutate(DP_i=max_dp_i-DP_rev_i+1) %>%
+        dplyr::mutate(DP_i=max_dp_i-DP_rev_i+1) %>%
         relocate(DP_i, .after =  AP_i) %>%
-        rename(f_i=dev_f_i,
+        dplyr::rename(f_i=dev_f_i,
                cum_f_i=cum_dev_f_i)
 
 
@@ -303,8 +318,8 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
       for(cft in tmp$continuous_features){
 
 
-        mnv <- min(tmp$training.data[cft])
-        mxv <- max(tmp$training.data[cft])
+        mnv <- min(tmp$training.data[[cft]])
+        mxv <- max(tmp$training.data[[cft]])
 
         Xc[[cft]] <-2*(Xc[[cft]]-mnv)/(mxv-mnv)-1
 
@@ -351,13 +366,13 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
       max_dp_i =  pkg.env$maximum.time(tmp$years,tmp$input_time_granularity)
 
       unique_baseline <- ReSurvFit$hazard_frame %>%
-        group_by(DP_i) %>%
-        summarise(baseline = unique(baseline)) %>%
-        mutate(DP_rev_i = max_dp_i - DP_i+1)
+        dplyr::group_by(DP_i) %>%
+        dplyr::summarise(baseline = unique(baseline)) %>%
+        dplyr::mutate(DP_rev_i = max_dp_i - DP_i+1)
 
 
       hazard_frame <- hazard_frame %>%
-        left_join(unique_baseline,by=c("DP_rev_i"))
+        dplyr::left_join(unique_baseline,by=c("DP_rev_i"))
 
       hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
 
@@ -370,9 +385,9 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
 
       hazard_frame <-  hazard_frame_updated %>%
-        mutate(DP_i=max_dp_i-DP_rev_i+1) %>%
+        dplyr::mutate(DP_i=max_dp_i-DP_rev_i+1) %>%
         relocate(DP_i, .after =  AP_i) %>%
-        rename(f_i=dev_f_i,
+        dplyr::rename(f_i=dev_f_i,
                cum_f_i=cum_dev_f_i)
 
 
@@ -387,12 +402,12 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
     hazard_frame <- data.table(hazard_frame)
 
     # Simplify the code and save useful attributes
-    categorical_features <- ReSurvFit$IndividualDataPP$categorical_features
-    continuous_features <- ReSurvFit$IndividualDataPP$continuous_features
-    max_dp_i =  pkg.env$maximum.time(ReSurvFit$IndividualDataPP$years,
-                                     ReSurvFit$IndividualDataPP$input_time_granularity)
-    conversion_factor =ReSurvFit$IndividualDataPP$conversion_factor
-    calendar_period_extrapolation = ReSurvFit$IndividualDataPP$calendar_period_extrapolation
+    categorical_features <- ReSurvFit$data_information$categorical_features
+    continuous_features <- ReSurvFit$data_information$continuous_features
+    max_dp_i =  pkg.env$maximum.time(ReSurvFit$data_information$years,
+                                     ReSurvFit$data_information$input_time_granularity)
+    conversion_factor =ReSurvFit$data_information$conversion_factor
+    calendar_period_extrapolation = ReSurvFit$data_information$calendar_period_extrapolation
 
     # find groups
     hazard_frame <- hazard_frame[,
@@ -407,8 +422,8 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
     # find the test set
 
-    test_for_crps = ReSurvFit$IndividualDataPP$full.data %>%
-      filter(DP_rev_i <= TR_i)
+    test_for_crps = ReSurvFit$data_information$data_for_reserving %>%
+      dplyr::filter(DP_rev_i <= TR_i)
 
     # Save the different curves
 
@@ -453,25 +468,32 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
 
     # Simplify the code and save useful attributes
-    categorical_features <- ReSurvFit$IndividualDataPP$categorical_features
-    continuous_features <- ReSurvFit$IndividualDataPP$continuous_features
-    max_dp_i =  pkg.env$maximum.time(ReSurvFit$IndividualDataPP$years,
-                                     ReSurvFit$IndividualDataPP$input_time_granularity)
-    conversion_factor =ReSurvFit$IndividualDataPP$conversion_factor
-    calendar_period_extrapolation = ReSurvFit$IndividualDataPP$calendar_period_extrapolation
+    categorical_features <- ReSurvFit$data_information$categorical_features
+    continuous_features <- ReSurvFit$data_information$continuous_features
+    max_dp_i =  pkg.env$maximum.time(ReSurvFit$data_information$years,
+                                     ReSurvFit$data_information$input_time_granularity)
+    conversion_factor =ReSurvFit$data_information$conversion_factor
+    calendar_period_extrapolation = ReSurvFit$data_information$calendar_period_extrapolation
 
-    test_for_crps=ReSurvFit$IndividualDataPP$full.data %>%
-      filter(DP_rev_i <= TR_i)%>%
-    mutate(
+    if (is.null(ReSurvFit$data_information$data_for_reserving)) {
+      stop(
+        "`survival_crps()` requires `ReSurvFit$data_information$data_for_reserving`, which is not available.",
+        call. = FALSE
+      )
+    }
+
+    test_for_crps=ReSurvFit$data_information$data_for_reserving %>%
+      dplyr::filter(DP_rev_i <= TR_i)%>%
+    dplyr::mutate(
       DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
       AP_o = ceiling(AP_i*conversion_factor)
     ) %>%
-    mutate(TR_o= AP_o-1) %>%
-    mutate(across(all_of(categorical_features),
+    dplyr::mutate(TR_o= AP_o-1) %>%
+    dplyr::mutate(dplyr::across(dplyr::all_of(categorical_features),
                   as.factor)) %>%
-    select(all_of(categorical_features),
-           all_of(continuous_features),
-           all_of(switch(calendar_period_extrapolation, 'RP_i', NULL)),
+    dplyr::select(dplyr::all_of(categorical_features),
+           dplyr::all_of(continuous_features),
+           dplyr::all_of(switch(calendar_period_extrapolation, 'RP_i', NULL)),
            AP_i,
            AP_o,
            DP_i,
@@ -504,9 +526,9 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
     }else{
 
 
-      tmp_cond= colnames(ReSurvFit$IndividualDataPP$starting.data) %in% colnames(user_data_set)
+      tmp_cond= colnames(ReSurvFit$data_information$data_for_reserving) %in% colnames(user_data_set)
 
-      tmp_training_set = as.data.table(ReSurvFit$IndividualDataPP$starting.data)[,..tmp_cond]
+      tmp_training_set = as.data.table(ReSurvFit$data_information$data_for_reserving)[,..tmp_cond]
 
       # Simple rbind (full starting data and new data to compute CRPS)
       tmp_fdata = rbind(tmp_training_set,
@@ -514,9 +536,9 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
 
 
 
-      conversion_factor= ReSurvFit$IndividualDataPP$conversion_factor
-      continuous_features=ReSurvFit$IndividualDataPP$continuous_features
-      categorical_features=ReSurvFit$IndividualDataPP$categorical_features
+      conversion_factor= ReSurvFit$data_information$conversion_factor
+      continuous_features=ReSurvFit$data_information$continuous_features
+      categorical_features=ReSurvFit$data_information$categorical_features
 
       # find groups
       setDT(hazard_frame)
@@ -535,33 +557,33 @@ survival_crps.ReSurvFit <- function(ReSurvFit,
       tmp_idata = IndividualDataPP(tmp_fdata,
                                  continuous_features=continuous_features,
                                  categorical_features=categorical_features,
-                                 accident_period=ReSurvFit$IndividualDataPP$accident_period,
-                                 calendar_period=ReSurvFit$IndividualDataPP$calendar_period,
-                                 input_time_granularity=ReSurvFit$IndividualDataPP$input_time_granularity,
-                                 output_time_granularity=ReSurvFit$IndividualDataPP$output_time_granularity,
-                                 years=ReSurvFit$IndividualDataPP$years,
-                                 calendar_period_extrapolation=ReSurvFit$IndividualDataPP$calendar_period_extrapolation,
+                                 accident_period=ReSurvFit$data_information$accident_period,
+                                 calendar_period=ReSurvFit$data_information$calendar_period,
+                                 input_time_granularity=ReSurvFit$data_information$input_time_granularity,
+                                 output_time_granularity=ReSurvFit$data_information$output_time_granularity,
+                                 years=ReSurvFit$data_information$years,
+                                 calendar_period_extrapolation=ReSurvFit$data_information$calendar_period_extrapolation,
                                  continuous_features_spline=NULL)
 
-      test_for_crps = tmp_idata$full.data %>%
-        filter(DP_rev_i <= TR_i)
+      test_for_crps = tmp_idata$training.data %>%
+        dplyr::filter(DP_rev_i <= TR_i)
 
-      max_dp_i =  pkg.env$maximum.time(ReSurvFit$IndividualDataPP$years,ReSurvFit$IndividualDataPP$input_time_granularity)
+      max_dp_i =  pkg.env$maximum.time(ReSurvFit$data_information$years,ReSurvFit$data_information$input_time_granularity)
 
 
-      calendar_period_extrapolation=ReSurvFit$IndividualDataPP$calendar_period_extrapolation
+      calendar_period_extrapolation=ReSurvFit$data_information$calendar_period_extrapolation
 
       test_for_crps=test_for_crps%>%
-        mutate(
+        dplyr::mutate(
           DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
           AP_o = ceiling(AP_i*conversion_factor)
         ) %>%
-        mutate(TR_o= AP_o-1) %>%
-        mutate(across(all_of(categorical_features),
+        dplyr::mutate(TR_o= AP_o-1) %>%
+        dplyr::mutate(dplyr::across(dplyr::all_of(categorical_features),
                       as.factor)) %>%
-        select(all_of(categorical_features),
-               all_of(continuous_features),
-               all_of(switch(calendar_period_extrapolation, 'RP_i', NULL)),
+        dplyr::select(dplyr::all_of(categorical_features),
+               dplyr::all_of(continuous_features),
+               dplyr::all_of(switch(calendar_period_extrapolation, 'RP_i', NULL)),
                AP_i,
                AP_o,
                DP_i,

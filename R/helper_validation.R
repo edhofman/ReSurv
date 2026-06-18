@@ -1,4 +1,15 @@
-﻿## Checks ----
+## Checks ----
+pkg.env$validate_eta <- function(eta) {
+  if (!is.numeric(eta) || length(eta) != 1L || !is.finite(eta)) {
+    stop("`eta` must be a single finite numeric value.", call. = FALSE)
+  }
+
+  if (eta < 0 || eta > 1) {
+    stop("`eta` must lie in [0, 1].", call. = FALSE)
+  }
+
+  eta
+}
 
 pkg.env$check.all.present <- function(x,check.on){
 
@@ -143,7 +154,7 @@ pkg.env$check.traintestsplit <- function(x){
 
 
 pkg.env$check_input_hazard <- function(hazard_frame_input, check_value=1.9){
-  check <- hazard_frame_input %>%  filter(hazard > check_value & DP_rev_i < max(DP_rev_i))
+  check <- hazard_frame_input %>%  dplyr::filter(hazard > check_value & DP_rev_i < max(DP_rev_i))
 
   if(nrow(check)>0){
     warning(paste0("Hazard value on input granularity exceeds ", check_value,

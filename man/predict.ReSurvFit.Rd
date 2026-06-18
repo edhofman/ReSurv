@@ -7,8 +7,7 @@
 \method{predict}{ReSurvFit}(
   object,
   newdata = NULL,
-  grouping_method = "probability",
-  lower_triangular_output = TRUE,
+  lower_triangular_output = FALSE,
   minimal_output = FALSE,
   check_value = 1.85,
   ...
@@ -19,55 +18,16 @@
 
 \item{newdata}{\code{IndividualDataPP} object that contains new data to predict.}
 
-\item{grouping_method}{\code{character}, use probability or exposure approach to group from input to output development factors. Choice between:
-\itemize{
-\item{\code{"exposure"}}
-\item{\code{"probability"}}
-}
-Default is \code{"exposure"}.}
-
 \item{lower_triangular_output}{\code{logical}, if set to \code{TRUE} we add the predicted lower triangle in input and output granularity to the \code{predict.ReSurvFit} output.}
+
+\item{minimal_output}{\code{logical}, if set to \code{TRUE} return a reduced prediction object.}
 
 \item{check_value}{\code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.}
 
 \item{...}{Additional arguments to pass to the predict function.}
-
-\item{groups_encoding_output}{\code{logical}, if set to \code{TRUE} we add a \code{data.table} containing the groups encoding to the \code{predict.ReSurvFit} output.}
 }
 \value{
-Predictions for the \code{ReSurvFit} model. It includes
-\itemize{
-\item{\code{ReSurvFit}: Fitted \code{ReSurv} model.}
-\item{\code{long_triangle_format_out}: \code{data.frame}. Predicted development factors and IBNR claim counts for each feature combination in long format.}
-\itemize{
-\item{\code{input_granularity}: \code{data.frame}. Predictions for each feature combination in long format for \code{input_time_granularity}.}
-\itemize{
-\item{\code{AP_i}: Accident period, \code{input_time_granularity}.}
-\item{\code{DP_i}: Development period, \code{input_time_granularity}.}
-\item{\code{f_i}: Predicted development factors, \code{input_time_granularity}.}
-\item{\code{group_i}: Group code, \code{input_time_granularity}. This associates to each feature combination an identifier.}
-\item{\code{expected_counts}: Expected counts, \code{input_time_granularity}.}
-\item{\code{IBNR}: Predicted IBNR claim counts, \code{input_time_granularity}.}
-}
-\item{\code{output_granularity}: \code{data.frame}. Predictions for each feature combination in long format for \code{output_time_granularity}.}
-\itemize{
-\item{\code{AP_o}: Accident period, \code{output_time_granularity}.}
-\item{\code{DP_o}: Development period, \code{output_time_granularity}.}
-\item{\code{f_o}: Predicted development factors, \code{output_time_granularity}.}
-\item{\code{group_o}: Group code, \code{output_time_granularity}. This associates to each feature combination an identifier.}
-\item{\code{expected_counts}: Expected counts, \code{output_time_granularity}.}
-\item{\code{IBNR}: Predicted IBNR claim counts, \code{output_time_granularity}.}
-}
-}
-\item{\code{lower_triangle}: Predicted lower triangle.}
-\itemize{
-\item{\code{input_granularity}: \code{data.frame}. Predicted lower triangle for \code{input_time_granularity}.}
-\item{\code{output_granularity}: \code{data.frame}. Predicted lower triangle for \code{output_time_granularity}.}
-}
-\item{\code{predicted_counts}: \code{numeric}. Predicted total frequencies.}
-\item{\code{grouping_method}: \code{character}. Chosen grouping method.}
-
-}
+A \code{ReSurvPredict} object with fitted predictions, long triangle outputs, predicted counts, and optional lower-triangle outputs.
 }
 \description{
 This function predicts the results from the ReSurv fits.

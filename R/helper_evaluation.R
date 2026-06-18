@@ -1,4 +1,4 @@
-﻿# Evaluation and prediction helper functions
+# Evaluation and prediction helper functions
 #
 # Likelihood evaluation, triangle completion, prediction adjustment, and survival CRPS helpers.
 #
@@ -13,8 +13,8 @@ pkg.env$evaluate_lkh_nn <-function(X_train,
 
   # data_transformed <- cbind(X, Y)
   data_train <- cbind(X_train, DP_rev_i = Y_train$DP_rev_i) %>%
-    arrange(DP_rev_i) %>%
-    select(-DP_rev_i) %>%
+    dplyr::arrange(DP_rev_i) %>%
+    dplyr::select(-DP_rev_i) %>%
     as.matrix()
 
   preds <- pkg.env$predict_deepsurv(model$net, data_train)
@@ -24,20 +24,20 @@ pkg.env$evaluate_lkh_nn <-function(X_train,
   xy_tr=cbind(X_train,Y_train)
 
   tmp_tr=xy_tr %>%
-    arrange(DP_rev_i) %>%
+    dplyr::arrange(DP_rev_i) %>%
     as.data.frame()
 
 
   tmp_train <- tmp_tr %>%
-    arrange(DP_rev_i) %>%
-    group_by(DP_rev_i) %>%
-    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
+    dplyr::arrange(DP_rev_i) %>%
+    dplyr::group_by(DP_rev_i) %>%
+    dplyr::mutate(efron_c=(seq_along(DP_rev_i) - 1)/length(DP_rev_i))%>% as.data.frame()
 
 
   ds_train_m <- tmp_train %>%
-    arrange(DP_rev_i) %>%
-    group_by(DP_rev_i) %>%
-    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
+    dplyr::arrange(DP_rev_i) %>%
+    dplyr::group_by(DP_rev_i) %>%
+    dplyr::mutate(efron_c=(seq_along(DP_rev_i) - 1)/length(DP_rev_i))%>% as.data.frame()
 
 
   attr(ds_train_m, 'truncation') <- tmp_train$TR_i
@@ -81,7 +81,7 @@ pkg.env$evaluate_lkh_xgb <-function(X_train,
                                     model){
 
   xy_tr=cbind(X_train,Y_train) %>%
-    arrange(DP_rev_i) %>%
+    dplyr::arrange(DP_rev_i) %>%
     as.data.frame()
 
   id <- seq(1, dim(X_train)[1])
@@ -90,18 +90,24 @@ pkg.env$evaluate_lkh_xgb <-function(X_train,
   if(dset=='os'){cond <- !cond}
 
   tmp_tr=xy_tr[cond,] %>%
-    arrange(DP_rev_i) %>%
+    dplyr::arrange(DP_rev_i) %>%
     as.data.frame()
 
   tmp_train <- tmp_tr %>%
-    arrange(DP_rev_i) %>%
-    group_by(DP_rev_i) %>%
-    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
+    dplyr::arrange(DP_rev_i) %>%
+    dplyr::group_by(DP_rev_i) %>%
+    dplyr::mutate(efron_c=(seq_along(DP_rev_i) - 1)/length(DP_rev_i))%>% as.data.frame()
 
 
 
-  ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X_train))),
-                                      label=tmp_train$I)
+  tmp_train_x <- data.matrix(tmp_train %>% dplyr::select(colnames(X_train)))
+  tmp_train_x <- matrix(
+    as.numeric(tmp_train_x),
+    nrow = nrow(tmp_train_x),
+    ncol = ncol(tmp_train_x),
+    dimnames = dimnames(tmp_train_x)
+  )
+  ds_train_m <- xgboost::xgb.DMatrix(tmp_train_x, label=tmp_train$I)
 
   attr(ds_train_m, 'truncation') <- tmp_train$TR_i
   attr(ds_train_m, 'claim_arrival') <- tmp_train$DP_rev_i
@@ -149,19 +155,19 @@ pkg.env$evaluate_lkh_cox <-function(X_train,
 
 
   tmp_tr=xy_tr %>%
-    arrange(DP_rev_i) %>%
+    dplyr::arrange(DP_rev_i) %>%
     as.data.frame()
 
 
   tmp_train <- tmp_tr %>%
-    arrange(DP_rev_i) %>%
-    group_by(DP_rev_i) %>%
-    mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame()
+    dplyr::arrange(DP_rev_i) %>%
+    dplyr::group_by(DP_rev_i) %>%
+    dplyr::mutate(efron_c=(seq_along(DP_rev_i) - 1)/length(DP_rev_i))%>% as.data.frame()
 
 
   ds_train_m <- X_train
   # if(hazard_model == "XGB"){
-  #   ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X_train))),
+  #   ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% dplyr::select(colnames(X_train))),
   #                                       label=tmp_train$I)}
 
   attr(ds_train_m, 'truncation') <- tmp_train$TR_i
@@ -213,7 +219,7 @@ adjust.predictions <- function(ResurvFit,
 
     data=idata$training.data
     X=data %>%
-      select(c(idata$continuous_features,idata$categorical_features))
+      dplyr::select(c(idata$continuous_features,idata$categorical_features))
 
     Y=data[,c("DP_rev_i", "I", "TR_i")]
 
@@ -225,10 +231,10 @@ adjust.predictions <- function(ResurvFit,
 
     expg <- exp(coxlp)
 
-    bs_hazard <- basehaz(model.out$cox,
+    bs_hazard <- survival::basehaz(model.out$cox,
                          newdata=newdata, # here the baseline is refitted
                          centered=FALSE) %>%
-      mutate(hazard = hazard-lag(hazard,default=0))
+      dplyr::mutate(hazard = hazard-dplyr::lag(hazard,default=0))
 
     bsln <- data.frame(baseline=bs_hazard$hazard,
                        DP_rev_i=ceiling(bs_hazard$time))  #$hazard
@@ -246,7 +252,7 @@ adjust.predictions <- function(ResurvFit,
     scaler <- pkg.env$scaler(continuous_features_scaling_method='minmax')
 
     Xc <- idata$training.data %>%
-      reframe(across(all_of(idata$continuous_features),
+      dplyr::reframe(dplyr::across(dplyr::all_of(idata$continuous_features),
                      scaler))
 
 
@@ -295,10 +301,10 @@ adjust.predictions <- function(ResurvFit,
 
 
   hazard_frame <- hazard_frame %>%
-    full_join(bsln,
+    dplyr::full_join(bsln,
               by="DP_rev_i") %>%
     as.data.frame() %>%
-    replace_na(list(baseline=0))
+    tidyr::replace_na(list(baseline=0))
 
   hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
 
@@ -576,14 +582,14 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
     data=IndividualDataPP$training.data
 
     X=data %>%
-      select(c(IndividualDataPP$continuous_features,IndividualDataPP$categorical_features))
+      dplyr::select(c(IndividualDataPP$continuous_features,IndividualDataPP$categorical_features))
 
     Y=IndividualDataPP$full.data[,c("DP_rev_i", "I", "TR_i")]
 
-    cox <- coxph(formula_ct, data=data, ties="efron")
+    cox <- survival::coxph(formula_ct, data=data, ties="efron")
     cox_lp <- predict(cox,newdata=newdata,'lp',reference='zero')
 
-    cox_training_lp <- predict(cox,newdata=newdata %>% arrange(DP_rev_i) %>% as.data.frame(),'lp',reference='zero')
+    cox_training_lp <- predict(cox,newdata=newdata %>% dplyr::arrange(DP_rev_i) %>% as.data.frame(),'lp',reference='zero')
 
 
     model.out <- list(cox=cox,
@@ -595,7 +601,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
       scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
 
       Xc_tmp_bsln <- IndividualDataPP$full.data %>%
-        reframe(across(all_of(IndividualDataPP$continuous_features),
+        dplyr::reframe(dplyr::across(dplyr::all_of(IndividualDataPP$continuous_features),
                        scaler))
 
 
@@ -682,7 +688,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
       scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
 
       Xc <- IndividualDataPP$training.data %>%
-        reframe(across(all_of(IndividualDataPP$continuous_features),
+        dplyr::reframe(dplyr::across(dplyr::all_of(IndividualDataPP$continuous_features),
                        scaler))
 
       if(!is.null(IndividualDataPP$categorical_features)){
@@ -805,7 +811,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
       scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
 
       Xc <- IndividualDataPP$training.data %>%
-        reframe(across(all_of(IndividualDataPP$continuous_features),
+        dplyr::reframe(dplyr::across(dplyr::all_of(IndividualDataPP$continuous_features),
                        scaler))
 
 
@@ -907,10 +913,10 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
 
   hazard_frame <- hazard_frame %>%
-    full_join(bsln,
+    dplyr::full_join(bsln,
               by="DP_rev_i") %>%
     as.data.frame() %>%
-    replace_na(list(baseline=0))
+    tidyr::replace_na(list(baseline=0))
 
   hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
 
@@ -920,16 +926,16 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
   #Add development and relevant survival values to the hazard_frame
   hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
                                                     # Om.df=Om.df,
-                                                    eta_old=eta,
+                                                    eta=eta,
                                                     categorical_features = IndividualDataPP$categorical_features,
                                                     continuous_features = IndividualDataPP$continuous_features,
                                                     calendar_period_extrapolation = IndividualDataPP$calendar_period_extrapolation)
 
 
   out_hz_frame <-  hazard_frame_updated %>%
-    mutate(DP_i=pkg.env$maximum.time(IndividualDataPP$years, IndividualDataPP$input_time_granularity)-DP_rev_i+1) %>%
+    dplyr::mutate(DP_i=pkg.env$maximum.time(IndividualDataPP$years, IndividualDataPP$input_time_granularity)-DP_rev_i+1) %>%
     relocate(DP_i, .after =  AP_i) %>%
-    rename(f_i=dev_f_i,
+    dplyr::rename(f_i=dev_f_i,
            cum_f_i=cum_dev_f_i)
 
   out=list(model.out=list(data=X,

@@ -1,4 +1,4 @@
-﻿#' Helper functions
+#' Helper functions
 #'
 #' This script contains the utils functions that are used in ReSurv.
 #' The actual implementation is split across helper_*.R files.
@@ -11,4 +11,3 @@
 #' @import data.table
 #' @importFrom dplyr reframe lag full_join rename
 #' @importFrom tidyr replace_na
-NULL

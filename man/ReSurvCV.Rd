@@ -2,7 +2,7 @@
 % Please edit documentation in R/ResurvcvIndividualData.R
 \name{ReSurvCV}
 \alias{ReSurvCV}
-\title{K fold cross-validation of a \code{ReSurv} model.}
+\title{K-fold cross-validation of a ReSurv model}
 \usage{
 ReSurvCV(
   IndividualDataPP,
@@ -23,50 +23,39 @@ ReSurvCV(
 )
 }
 \arguments{
-\item{IndividualDataPP}{\code{IndividualDataPP} object to use for the \code{ReSurv} fit cross-validation.}
+\item{IndividualDataPP}{An object of class \code{IndividualDataPP}.}
 
-\item{model}{\code{character}, machine learning for cross validation.}
+\item{model}{Character. Either \code{"NN"} or \code{"XGB"}.}
 
-\item{hparameters_grid}{\code{list}, grid of the hyperparameters to cross-validate.}
+\item{hparameters_grid}{Named list defining the hyperparameter grid.}
 
-\item{folds}{\code{integer}, number of folds (i.e. K).}
+\item{folds}{Integer. Number of folds.}
 
-\item{random_seed}{\code{integer}, random seed for making the code reproducible.}
+\item{random_seed}{Integer. Random seed.}
 
-\item{continuous_features_scaling_method}{\code{character}, method for scaling continuous features.}
+\item{continuous_features_scaling_method}{Character. Scaling method for continuous features.}
 
-\item{print_every_n}{\code{integer}, specific to the \code{XGB} approach, see \code{xgboost::xgb.train} documentation.}
+\item{print_every_n}{Integer. Passed to XGBoost.}
 
-\item{nrounds}{\code{integer}, specific to \code{XGB}, max number of boosting iterations.}
+\item{nrounds}{Integer. Number of XGBoost boosting rounds.}
 
-\item{early_stopping_rounds}{\code{integer}, specific to the \code{XGB} approach, see \code{xgboost::xgb.train} documentation.}
+\item{early_stopping_rounds}{Integer. XGBoost early stopping.}
 
-\item{epochs}{\code{integer}, specific to the \code{NN} approach, epochs to be checked.}
+\item{epochs}{Integer. Number of NN epochs.}
 
-\item{parallel}{\code{logical}, specific to the \code{NN} approach, whether to use parallel computing.}
+\item{parallel}{Logical. Currently passed to the CV helper.}
 
-\item{ncores}{\code{integer}, specific to \code{NN}, max number of cores used.}
+\item{ncores}{Integer. Number of cores if parallel execution is used.}
 
-\item{num_workers}{\code{numeric}, number of workers for the \code{NN} approach, multi-process data loading with the specified number of loader worker processes.}
+\item{num_workers}{Deprecated for the native torch backend. Ignored.}
 
-\item{verbose}{\code{logical}, whether messages from the machine learning models must be printed.}
+\item{verbose}{Logical. Print model fitting output.}
 
-\item{verbose.cv}{\code{logical}, whether messages from cross-validation must be printed.}
+\item{verbose.cv}{Logical. Print CV progress.}
 }
 \value{
-Best \code{ReSurv} model fit. The output is different depending on the machine learning approach that is required for cross-validation. A list containing:
- \itemize{
-\item{\code{out.cv}: \code{data.frame}, total output of the cross-validation (all the input parameters combinations). }
-\item{\code{out.cv.best.oos}:  \code{data.frame}, combination with the best out of sample likelihood. }
-}
-
-For XGB the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{booster}, \code{eta}, \code{max_depth}, \code{subsample}, \code{alpha}, \code{lambda}, \code{min_child_weight}. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}. For NN the columns in \code{out.cv} and \code{out.cv.best.oos} are the hyperparameters \code{num_layers}, \code{optim}, \code{activation}, \code{lr}, \code{xi}, \code{eps}, \code{tie}, \code{batch_size}, \code{early_stopping}, \code{patience}, \code{node} train.lkh test.lkh. They also contain the metrics \code{train.lkh}, \code{test.lkh}, and the computational time \code{time}.
+An object of class \code{ReSurvCV}.
 }
 \description{
-This function computes a K fold cross-validation of a pre-specified machine learning model supported from the \code{ReSurv} package for a given grid of hyperparameters.
-The hyperparameters to be tested are provided in a list, namely \code{hparameters_grid}.
-Conversely, the parameters for the models run are provided separately as arguments and they are specific for each machine learning model support from.
-}
-\references{
-Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
+K-fold cross-validation of a ReSurv model
 }

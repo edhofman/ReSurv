@@ -533,10 +533,10 @@ nn_model_fit_and_predict <- function(data,
 ```
 
 ```{r}
-library(reticulate)
+# Python backend setup removed; native torch backend is used.
 # use_python("C:/Users/pwt887/AppData/Local/Programs/Python/Python313/python.exe")
-reticulate::use_condaenv("mw_et")
-library(keras)
+# Python backend setup removed.
+# Python/Keras backend setup removed; native torch backend is used.
 ```
 
 
@@ -701,7 +701,7 @@ out_pm <- fit_proportional_model(data=dt_target,
 ## Neural newtorks model 
 
 ```{r}
-library(keras)
+# Python/Keras backend setup removed; native torch backend is used.
 out_nn <- nn_model_fit_and_predict(dt_target,
                                      max_dp=max_dp,
                                      number_of_neurons=1,
@@ -1514,7 +1514,7 @@ out_pm <- fit_proportional_model(data=dt_target,
 ## Neural newtorks model 
 
 ```{r}
-library(keras)
+# Python/Keras backend setup removed; native torch backend is used.
 out_nn <- nn_model_fit_and_predict(dt_target,
                                      max_dp=max_dp,
                                      number_of_neurons=1,

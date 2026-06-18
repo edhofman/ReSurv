@@ -1,4 +1,4 @@
-﻿# Baseline and data handling helper functions
+# Baseline and data handling helper functions
 #
 # @importFrom bshazard bshazard
 ## Baseline calculation ----
@@ -13,17 +13,18 @@ pkg.env$benchmark_id <- function(X,
   "
 
   # benchmark <- cbind(X,DP_rev_i = Y$DP_rev_i) %>%
-  #   arrange(DP_rev_i) %>%
+  #   dplyr::arrange(DP_rev_i) %>%
   #   first() %>%
-  #   select(-DP_rev_i) %>%
+  #   dplyr::select(-DP_rev_i) %>%
   #   as.vector() %>%
   #   unlist() %>%
   #   unname()
-  # 
+  #
 
   #new fast code
-  DT <- cbind(X, DP_rev_i = Y$DP_rev_i)
+  DT <- data.table::as.data.table(cbind(X, DP_rev_i = Y$DP_rev_i))
   benchmark <- DT[order(DP_rev_i)][1, .SD, .SDcols = !'DP_rev_i']
+  newdata.mx <- data.table::as.data.table(newdata.mx)
 
   ## probably not useful rows below
   # benchmark <- unname(unlist(res, use.names = FALSE))
@@ -50,34 +51,52 @@ pkg.env$benchmark_id <- function(X,
 
 #Note that we for all methods apply xgboost naming convention
 
-pkg.env$baseline.efron <- function(preds, dtrain){
+pkg.env$baseline.efron <- function(preds,
+                                   dtrain,
+                                   eta = 0.5) {
+  eta <- pkg.env$validate_eta(eta)
 
-  risk_sets <- attr(dtrain, 'risk_sets')
-  event_sets <- attr(dtrain, 'event_sets')
-  # efron_c<-attr(dtrain, 'efron_c')
-  tieid<- attr(dtrain, 'tieid')
+  risk_sets  <- attr(dtrain, "risk_sets")
+  event_sets <- attr(dtrain, "event_sets")
 
-  exp_p_sum <- sapply(risk_sets,FUN=exp_sum_computer, ypred=preds)
-  exp_p_tie <- sapply(event_sets,FUN=exp_sum_computer, ypred=preds)
+  risk_sum <- vapply(
+    risk_sets,
+    FUN = exp_sum_computer,
+    ypred = preds,
+    FUN.VALUE = numeric(1)
+  )
 
-  exp_p_sum <- rep(sapply(risk_sets,FUN=exp_sum_computer, ypred=preds), tieid)
-  exp_p_tie <-  rep(sapply(event_sets,FUN=exp_sum_computer, ypred=preds), tieid)
+  event_sum <- vapply(
+    event_sets,
+    FUN = exp_sum_computer,
+    ypred = preds,
+    FUN.VALUE = numeric(1)
+  )
 
-  # alpha_i <- 1/(exp_p_sum-efron_c*exp_p_tie)
+  n_events <- lengths(event_sets)
 
-  alpha_i <- 1/(exp_p_sum-.5*exp_p_tie)
+  denom <- risk_sum - eta * event_sum
 
-  baseline <- sapply(event_sets, FUN = function(x,values){sum(values[x]) }, values=alpha_i)
+  if (any(!is.finite(denom)) || any(denom <= 0)) {
+    stop(
+      "Non-positive denominator in baseline hazard calculation. ",
+      "Check `eta`, fitted risk scores, and event/risk sets.",
+      call. = FALSE
+    )
+  }
+
+  baseline <- n_events / denom
 
   baseline
-
 }
 
 pkg.env$baseline.calc <- function(hazard_model,
                                   model.out,
                                   X,
                                   Y,
-                                  training_df = NULL){
+                                  training_df = NULL,
+                                  eta = 0.5) {
+  eta <- pkg.env$validate_eta(eta)
 
 
   #for baseline need full training data
@@ -104,8 +123,11 @@ pkg.env$baseline.calc <- function(hazard_model,
 
 
   predict_bsln <- predict_bsln - predict_bsln[1] #make relative to initial value, same approach as cox
-  bsln <- pkg.env$baseline.efron(predict_bsln,
-                                 datads_pp$ds_train_m)
+  bsln <- pkg.env$baseline.efron(
+    preds  = predict_bsln,
+    dtrain = datads_pp$ds_train_m,
+    eta    = eta
+  )
 
   bsln
 
@@ -130,8 +152,8 @@ pkg.env$create.om.df<-function(training.data,
                                years){
 
   tmp <- training.data %>%
-    group_by(DP_rev_i) %>%
-    summarise(Om= sum(I))
+    dplyr::group_by(DP_rev_i) %>%
+    dplyr::summarise(Om= sum(I))
 
   tmp.v <- tmp$DP_rev_i
   sequ.v <- seq(1,pkg.env$maximum.time(years,input_time_granularity))
@@ -165,7 +187,7 @@ pkg.env$simplified_fill_data_frame<-function(data,
   # browser()
   #Take the features unique values
   tmp.ls <- data %>%
-    filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1))
+    dplyr::filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1))
 
   setDT(tmp.ls)
 
@@ -178,9 +200,9 @@ pkg.env$simplified_fill_data_frame<-function(data,
 
   #Take only the training data
   tmp.existing <- data %>%
-    filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1)) %>%
-    select(all_of(continuous_features),
-           all_of(categorical_features),
+    dplyr::filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1)) %>%
+    dplyr::select(dplyr::all_of(continuous_features),
+           dplyr::all_of(categorical_features),
            AP_i,
            DP_i) %>%
     unique() %>%
@@ -195,19 +217,19 @@ pkg.env$simplified_fill_data_frame<-function(data,
 
     max_dp_i = pkg.env$maximum.time(years,input_time_granularity)
     tmp.missing<- tmp.missing %>%
-      mutate(DP_rev_i = pkg.env$maximum.time(years,input_time_granularity) - DP_i+1,
+      dplyr::mutate(DP_rev_i = pkg.env$maximum.time(years,input_time_granularity) - DP_i+1,
              TR_i = AP_i-1, #just setting truncation to max year simulated. and accounting for
              I=0)%>%
-      filter(DP_rev_i > TR_i) %>%
-      mutate(
+      dplyr::filter(DP_rev_i > TR_i) %>%
+      dplyr::mutate(
         DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
         AP_o = ceiling(AP_i*conversion_factor)
       ) %>%
-      mutate(TR_o= AP_o-1) %>%
-      mutate(across(all_of(categorical_features),
+      dplyr::mutate(TR_o= AP_o-1) %>%
+      dplyr::mutate(dplyr::across(dplyr::all_of(categorical_features),
                     as.factor)) %>%
-      select(all_of(categorical_features),
-             all_of(continuous_features),
+      dplyr::select(dplyr::all_of(categorical_features),
+             dplyr::all_of(continuous_features),
              AP_i,
              AP_o,
              DP_i,
@@ -232,17 +254,17 @@ pkg.env$fill_data_frame<-function(data,
 
   #Take the features unique values
   tmp.ls <- data %>%
-    select(all_of(continuous_features),
-           all_of(categorical_features)) %>%
+    dplyr::select(dplyr::all_of(continuous_features),
+           dplyr::all_of(categorical_features)) %>%
     as.data.frame() %>%
     lapply(FUN=unique)
 
 
   #Take only the training data
   tmp.existing <- data %>%
-    filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1)) %>%
-    select(all_of(continuous_features),
-           all_of(categorical_features),
+    dplyr::filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1)) %>%
+    dplyr::select(dplyr::all_of(continuous_features),
+           dplyr::all_of(categorical_features),
            AP_i,
            DP_i) %>%
     unique() %>%
@@ -263,7 +285,7 @@ pkg.env$fill_data_frame<-function(data,
 
   tmp.full <- expand.grid(tmp.ls) %>%
     as.data.frame() %>%
-    filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1))
+    dplyr::filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1))
 
   tmp.missing <- dplyr::setdiff(x=tmp.full,y=tmp.existing)
 
@@ -273,19 +295,19 @@ pkg.env$fill_data_frame<-function(data,
 
     max_dp_i = pkg.env$maximum.time(years,input_time_granularity)
     tmp.missing<- tmp.missing %>%
-      mutate(DP_rev_i = pkg.env$maximum.time(years,input_time_granularity) - DP_i+1,
+      dplyr::mutate(DP_rev_i = pkg.env$maximum.time(years,input_time_granularity) - DP_i+1,
              TR_i = AP_i-1, #just setting truncation to max year simulated. and accounting for
              I=0)%>%
-      filter(DP_rev_i > TR_i) %>%
-      mutate(
+      dplyr::filter(DP_rev_i > TR_i) %>%
+      dplyr::mutate(
         DP_rev_o = floor(max_dp_i*conversion_factor)-ceiling(DP_i*conversion_factor+((AP_i-1)%%(1/conversion_factor))*conversion_factor) +1,
         AP_o = ceiling(AP_i*conversion_factor)
       ) %>%
-      mutate(TR_o= AP_o-1) %>%
-      mutate(across(all_of(categorical_features),
+      dplyr::mutate(TR_o= AP_o-1) %>%
+      dplyr::mutate(dplyr::across(dplyr::all_of(categorical_features),
                     as.factor)) %>%
-      select(all_of(categorical_features),
-             all_of(continuous_features),
+      dplyr::select(dplyr::all_of(categorical_features),
+             dplyr::all_of(continuous_features),
              AP_i,
              AP_o,
              DP_i,

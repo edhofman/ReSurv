@@ -1,4 +1,4 @@
-﻿# Encoding, formula, model matrix, and scaler helper functions
+# Encoding, formula, model matrix, and scaler helper functions
 #
 # @importFrom fastDummies dummy_cols
 ## Encoding and formula ----
@@ -150,10 +150,12 @@ pkg.env$model.matrix.creator <- function(data,
   #              remove_selected_columns = TRUE,
   #              remove_first_dummy = remove_first_dummy)
 
-  X <- dummy_cols(data,
-                  select_columns = select_columns, #individual_data$categorical_features
-                  remove_selected_columns = TRUE,
-                  remove_first_dummy = remove_first_dummy)
+  X <- fastDummies::dummy_cols(
+    data,
+    select_columns = select_columns,
+    remove_selected_columns = TRUE,
+    remove_first_dummy = remove_first_dummy
+  )
 
   tmp.cond=as.logical(apply(pkg.env$vgrepl(pattern=select_columns,
                                            x=colnames(X)), #individual_data$categorical_features
@@ -165,7 +167,7 @@ pkg.env$model.matrix.creator <- function(data,
   X <- X[,.SD,.SDcols = colnames(X)[tmp.cond]]
 
   # X <- X %>%
-  #   select(colnames(X)[tmp.cond] ) %>%
+  #   dplyr::select(colnames(X)[tmp.cond] ) %>%
   #   as.data.frame()
 
   return(X)
@@ -191,7 +193,7 @@ pkg.env$model.matrix.extract.hazard.names <- function(X,
 
   names_hazard <- (data.frame(X_unique) %>%
                      rowwise() %>%
-                     mutate(name = paste0(names(.)[c_across() == 1], collapse = ',')))$name
+                     dplyr::mutate(name = paste0(names(.)[dplyr::c_across() == 1], collapse = ',')))$name
 
   return(list(enter=enter,
               exit=exit,

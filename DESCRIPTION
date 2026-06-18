@@ -33,6 +33,7 @@ Imports:
   tidyr,
   tibble,
   ggplot2,
+  lubridate,
   survival,
   SynthETIC,
   torch,
@@ -42,11 +43,10 @@ LazyData: true
 Suggests: 
     bshazard,
     knitr,
-    reticulate,
     rmarkdown,
     rpart,
     SHAPforxgboost,
     testthat (>= 3.0.0)
 VignetteBuilder: knitr, rmarkdown
-RoxygenNote: 7.3.2
+RoxygenNote: 7.3.3
 Config/testthat/edition: 3

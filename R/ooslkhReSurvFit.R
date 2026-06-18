@@ -48,25 +48,45 @@ ooslkh.ReSurvFit <- function(object,
                               ...){
 
   # Extract quantities that you need
-  starting.data <- object$IndividualDataPP$full.data
+  if (is.null(object$data_information$data_for_reserving)) {
+    stop(
+      "Out-of-sample likelihood requires `object$data_information$data_for_reserving`, which is not available in this ReSurvFit object.",
+      call. = FALSE
+    )
+  }
+
+  data_for_reserving <- object$data_information$data_for_reserving
   fitted.model <- object$model.out
-  hazard_model<- object$hazard_model
-  categorical_features <- object$IndividualDataPP$categorical_features
-  continuous_features <- object$IndividualDataPP$continuous_features
+  hazard_model <- object$hazard_model
+  if (is.null(hazard_model)) {
+    hazard_model <- object$fit_information$hazard_model
+  }
+  if (is.null(hazard_model)) {
+    stop("Out-of-sample likelihood requires `object$fit_information$hazard_model`.", call. = FALSE)
+  }
+  categorical_features <- object$data_information$categorical_features
+  continuous_features <- object$data_information$continuous_features
 
 
   # Perform the computations
-  test.data <- starting.data %>%
-      filter(DP_rev_i <= TR_i) %>%
-    mutate(across(all_of(categorical_features),
+  test.data <- data_for_reserving %>%
+      dplyr::filter(DP_rev_i <= TR_i) %>%
+    dplyr::mutate(dplyr::across(dplyr::all_of(categorical_features),
                   as.factor)) %>%
-    mutate(TR_i=0)
+    dplyr::mutate(TR_i=0)
+
+  if (nrow(test.data) == 0L) {
+    stop(
+      "Out-of-sample likelihood requires lower-triangle observations in `object$data_information$data_for_reserving`.",
+      call. = FALSE
+    )
+  }
 
 
   if(hazard_model=="COX"){
 
     X=test.data %>%
-      select(c(continuous_features,categorical_features))
+      dplyr::select(c(continuous_features,categorical_features))
 
     Y=test.data[,c("DP_rev_i", "I", "TR_i")]
 
@@ -85,7 +105,7 @@ ooslkh.ReSurvFit <- function(object,
     scaler <- pkg.env$scaler(continuous_features_scaling_method='minmax')
 
     Xc <- test.data %>%
-      reframe(across(all_of(continuous_features),
+      dplyr::reframe(dplyr::across(dplyr::all_of(continuous_features),
                        scaler))
 
     X = cbind(X,Xc)
@@ -108,7 +128,7 @@ ooslkh.ReSurvFit <- function(object,
     scaler <- pkg.env$scaler(continuous_features_scaling_method='minmax')
 
     Xc <- test.data %>%
-      reframe(across(all_of(continuous_features),
+      dplyr::reframe(dplyr::across(dplyr::all_of(continuous_features),
                      scaler))
 
 
@@ -129,6 +149,10 @@ ooslkh.ReSurvFit <- function(object,
 
     stop("Out-of-sample likelihood for LTRCtrees is not yet implemented.")
 
+  }
+
+  if(!hazard_model %in% c("COX", "NN", "XGB", "LTRCtrees")){
+    stop("Unsupported hazard model for out-of-sample likelihood: ", hazard_model, call. = FALSE)
   }
 
   return(lkh)

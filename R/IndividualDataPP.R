@@ -62,8 +62,6 @@
 #'
 #'@return \code{IndividualDataPP} object. A list containing
 #'\itemize{
-#'\item{\code{full.data}: \code{data.frame}. The input data after pre-processing.}
-#'\item{\code{starting.data}: \code{data.frame}. The input data as they were provided from the user.}
 #'\item{\code{training.data}: \code{data.frame}. The input data pre-processed for training.}
 #'\item{\code{conversion_factor}: \code{numeric}. The conversion factor for going from input granularity to output granularity. E.g, the conversion factor for going from months to quarters is 1/3.}
 #'\item{\code{string_formula_i}: \code{character}. The \code{survival} formula to model the data in input granularity.}
@@ -79,7 +77,7 @@
 #'}
 #'
 #'
-#' After pre-processing, we provide a standard encoding for the time components. This regards the output in \code{training.data} and \code{full.data}.
+#' After pre-processing, we provide a standard encoding for the time components. This regards the output in \code{training.data}.
 #' In the \code{ReSurv} notation:
 #'\itemize{
 #'\item{\code{AP_i}: Input granularity accident period.}
@@ -155,7 +153,7 @@ IndividualDataPP <- function(data,
   tmp <- as.data.table(data)
 
   if(inherits(tmp[,get(accident_period)], "Date")){
-    ap1=floor_date(min(tmp[,get(accident_period)]),"year")
+    ap1=lubridate::floor_date(min(tmp[,get(accident_period)]),"year")
 
 
   }else{
@@ -257,7 +255,9 @@ IndividualDataPP <- function(data,
   )][, TR_o := AP_o - 1][DP_rev_i > TR_i, ]
 
   # Check that the categorical covariates are of factor class
-  train<- train[, (categorical_features) := lapply(.SD, as.factor), .SDcols = categorical_features]
+  if (!is.null(categorical_features)) {
+    train<- train[, (categorical_features) := lapply(.SD, as.factor), .SDcols = categorical_features]
+  }
 
   train <- train[,.SD,.SDcols = c(id,
                                   unique(c(categorical_features,

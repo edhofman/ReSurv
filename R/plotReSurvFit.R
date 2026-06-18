@@ -19,6 +19,13 @@ plot.ReSurvFit <- function(x,
                            ){
 
   hazard_model <- x$hazard_model
+  if (is.null(hazard_model)) {
+    hazard_model <- x$fit_information$hazard_model
+  }
+  if (is.null(hazard_model)) {
+    stop("Cannot plot this ReSurvFit object: missing `fit_information$hazard_model`.", call. = FALSE)
+  }
+
   output.fit <- x$model.out
 
   if(hazard_model=="XGB"){
@@ -35,49 +42,24 @@ plot.ReSurvFit <- function(x,
 
   }
 
-  if(hazard_model=="NN"){
-    stop("Feature importance plots for NN models require the 'shap' Python package via reticulate, which is no longer the default backend. Use ReSurv with hazard_model='XGB' for SHAP-based feature importance.")
+  if(hazard_model!="XGB"){
+    stop(
+      "Feature importance plots are currently supported only for ReSurvFit objects fitted with hazard_model = 'XGB'.",
+      call. = FALSE
+    )
   }
 
 
   data.frame(value = df.2.plot) %>%
-    rownames_to_column(var = "feature") %>%
-  ggplot(aes(x=feature, y=value)) +
-    geom_bar(stat = "identity", fill=plot.color) +
-    coord_flip() +
-    labs(title=" ",
+    tibble::rownames_to_column(var = "feature") %>%
+  ggplot2::ggplot(ggplot2::aes(x=feature, y=value)) +
+    ggplot2::geom_bar(stat = "identity", fill=plot.color) +
+    ggplot2::coord_flip() +
+    ggplot2::labs(title=" ",
          x="",
          y="mean(|SHAP|)") +
-    theme_bw()
+    ggplot2::theme_bw()
 
 
 
 }
-
-#
-# shap <- reticulate::import("shap")
-#
-#
-
-# Kernel
-
-
-# compute SHAP values
-# explainer = shap$DeepExplainer(output.fit$model.out$predict,
-#                                x_fc2)
-# shap_values = explainer.shap_values(x_fc)
-
-#
-# x_fc2 <- shap$sample(x_fc,as.integer(5))
-#
-# x_fc2 <- reticulate::np_array(as.matrix(x_fc2), dtype = "float32")
-#
-#
-# shap_values = explainer$shap_values(x_fc2)
-#
-# shap$summary_plot(shap_values[[1]],x_fc2)
-#
-# resurv.fit.deepsurv$model.out$model.out
-
-
-

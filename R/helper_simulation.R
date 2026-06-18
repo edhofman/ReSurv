@@ -1,4 +1,4 @@
-﻿# Simulation helper functions
+# Simulation helper functions
 #
 # Utility functions and scenario simulators for data generation.
 #
@@ -270,41 +270,37 @@ pkg.env$scenario0_simulator <- function(ref_claim,
 
   # graphically compare the result with the default Weibull distribution
 
-  ct0 <- tibble(AT = unlist(occurrence_times_0),
-                RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
-                claim_type = 0)
+  ct0 <- data.table::data.table(
+    AT = unlist(occurrence_times_0),
+    RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
+    claim_type = 0
+  )
 
-  ct1 <- tibble(AT = unlist(occurrence_times_1),
-                RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
-                claim_type = 1)
+  ct1 <- data.table::data.table(
+    AT = unlist(occurrence_times_1),
+    RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
+    claim_type = 1
+  )
 
-  simulated_dataframe_RM_CT <- ct0 %>%  bind_rows(ct1) %>%
-    mutate(
-      claim_number = row_number(),
-    )  %>%  mutate(
+  simulated_dataframe_RM_CT <- data.table::rbindlist(list(ct0, ct1))
+  simulated_dataframe_RM_CT[
+    ,
+    `:=`(
+      claim_number = seq_len(.N),
       AP = ceiling(AT),
       RP = ceiling(RT),
-      DT = RT-AT,
-      DP = RP-AP+1,
-      DP_rev = years/time_unit - DP+1,
-      DT_rev = years/time_unit - DT,
-      TR = AP-1, #just setting truncation to max year simulated. and accounting for
-      I=1
-    ) %>%
-    select(claim_number,
-           # AT,
-           # RT,
-           claim_type,
-           AP,
-           RP#,
-           # DT,
-           # DP,
-           # DP_rev,
-           # DT_rev,
-           # TR,
-           # I
-           ) %>%
-    as.data.frame()
+      DT = RT - AT,
+      DP = ceiling(RT) - ceiling(AT) + 1,
+      DP_rev = years / time_unit - (ceiling(RT) - ceiling(AT) + 1) + 1,
+      DT_rev = years / time_unit - (RT - AT),
+      TR = ceiling(AT) - 1,
+      I = 1
+    )
+  ]
+  simulated_dataframe_RM_CT <- simulated_dataframe_RM_CT[
+    ,
+    .(claim_number, claim_type, AP, RP)
+  ]
 
   return(simulated_dataframe_RM_CT)
 
@@ -358,41 +354,37 @@ pkg.env$scenario1_simulator <- function(ref_claim,
                                              time_unit=time_unit)
 
 
-  ct0 <- tibble(AT = unlist(occurrence_times_0),
-                RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
-                claim_type = 0)
+  ct0 <- data.table::data.table(
+    AT = unlist(occurrence_times_0),
+    RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
+    claim_type = 0
+  )
 
-  ct1 <- tibble(AT = unlist(occurrence_times_1),
-                RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
-                claim_type = 1)
+  ct1 <- data.table::data.table(
+    AT = unlist(occurrence_times_1),
+    RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
+    claim_type = 1
+  )
 
-  simulated_dataframe_RM_CT <- ct0 %>%
-    bind_rows(ct1) %>%
-    mutate(
-      claim_number = row_number(),
-    )  %>%  mutate(
+  simulated_dataframe_RM_CT <- data.table::rbindlist(list(ct0, ct1))
+  simulated_dataframe_RM_CT[
+    ,
+    `:=`(
+      claim_number = seq_len(.N),
       AP = ceiling(AT),
       RP = ceiling(RT),
-      DT = RT-AT,
-      DP = RP-AP+1,
-      DP_rev = years/time_unit - DP+1,
-      DT_rev = years/time_unit - DT,
-      TR = AP-1, #just setting truncation to max year simulated. and accounting for
-      I=1
-    ) %>%
-    select(claim_number,
-           # AT,
-           # RT,
-           claim_type,
-           AP,
-           RP#,
-           # DT,
-           # RP,
-           # DP_rev,
-           # DT_rev,
-           # TR,
-           # I
-           ) %>% as.data.frame()
+      DT = RT - AT,
+      DP = ceiling(RT) - ceiling(AT) + 1,
+      DP_rev = years / time_unit - (ceiling(RT) - ceiling(AT) + 1) + 1,
+      DT_rev = years / time_unit - (RT - AT),
+      TR = ceiling(AT) - 1,
+      I = 1
+    )
+  ]
+  simulated_dataframe_RM_CT <- simulated_dataframe_RM_CT[
+    ,
+    .(claim_number, claim_type, AP, RP)
+  ]
 
   #simulated_dataframe_RM_CT
 
@@ -461,36 +453,37 @@ pkg.env$scenario2_simulator <- function(ref_claim,
                                              time_unit=time_unit)
 
 
-  ct0 <- tibble(AT = unlist(occurrence_times_0),
-                RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
-                claim_type = 0)
+  ct0 <- data.table::data.table(
+    AT = unlist(occurrence_times_0),
+    RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
+    claim_type = 0
+  )
 
-  ct1 <- tibble(AT = unlist(occurrence_times_1),
-                RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
-                claim_type = 1)
+  ct1 <- data.table::data.table(
+    AT = unlist(occurrence_times_1),
+    RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
+    claim_type = 1
+  )
 
-  simulated_dataframe_RM_CT <- ct0 %>%  bind_rows(ct1) %>%
-    mutate(
-      claim_number = row_number(),
-    )  %>%  mutate(
+  simulated_dataframe_RM_CT <- data.table::rbindlist(list(ct0, ct1))
+  simulated_dataframe_RM_CT[
+    ,
+    `:=`(
+      claim_number = seq_len(.N),
       AP = ceiling(AT),
       RP = ceiling(RT),
-      DT = RT-AT,
-      DP = RP-AP+1,
-      DP_rev = years/time_unit - DP+1,
-      DT_rev = years/time_unit - DT,
-      TR = AP-1, #just setting truncation to max year simulated. and accounting for
-      I=1
-    ) %>%
-    select(claim_number,
-           # AT,
-           # RT,
-           claim_type,
-           AP,
-           RP)#,
-           # DT,
-           # DP,
-           # DP_rev, DT_rev, TR, I)
+      DT = RT - AT,
+      DP = ceiling(RT) - ceiling(AT) + 1,
+      DP_rev = years / time_unit - (ceiling(RT) - ceiling(AT) + 1) + 1,
+      DT_rev = years / time_unit - (RT - AT),
+      TR = ceiling(AT) - 1,
+      I = 1
+    )
+  ]
+  simulated_dataframe_RM_CT <- simulated_dataframe_RM_CT[
+    ,
+    .(claim_number, claim_type, AP, RP)
+  ]
 
   # simulated_dataframe_RM_CT
   # setDT(simulated_dataframe_RM_CT)
@@ -550,34 +543,37 @@ pkg.env$scenario3_simulator <- function(ref_claim,
                                              time_unit=time_unit)
 
 
-  ct0 <- tibble(AT = unlist(occurrence_times_0),
-                RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
-                claim_type = 0)
+  ct0 <- data.table::data.table(
+    AT = unlist(occurrence_times_0),
+    RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
+    claim_type = 0
+  )
 
-  ct1 <- tibble(AT = unlist(occurrence_times_1),
-                RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
-                claim_type = 1)
+  ct1 <- data.table::data.table(
+    AT = unlist(occurrence_times_1),
+    RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
+    claim_type = 1
+  )
 
-  simulated_dataframe_RM_CT <- ct0 %>%  bind_rows(ct1) %>%
-    mutate(
-      claim_number = row_number(),
-    )  %>%  mutate(
+  simulated_dataframe_RM_CT <- data.table::rbindlist(list(ct0, ct1))
+  simulated_dataframe_RM_CT[
+    ,
+    `:=`(
+      claim_number = seq_len(.N),
       AP = ceiling(AT),
       RP = ceiling(RT),
-      DT = RT-AT,
-      DP = RP-AP+1,
-      DP_rev = years/time_unit - DP+1,
-      DT_rev = years/time_unit - DT,
-      TR = AP-1, #just setting truncation to max year simulated. and accounting for
-      I=1
-    ) %>%
-    select(claim_number,
-           #AT,
-           #RT,
-           claim_type,
-           AP,
-           RP) %>% as.data.frame()#,
-           #DT, DP, DP_rev, DT_rev, TR, I)
+      DT = RT - AT,
+      DP = ceiling(RT) - ceiling(AT) + 1,
+      DP_rev = years / time_unit - (ceiling(RT) - ceiling(AT) + 1) + 1,
+      DT_rev = years / time_unit - (RT - AT),
+      TR = ceiling(AT) - 1,
+      I = 1
+    )
+  ]
+  simulated_dataframe_RM_CT <- simulated_dataframe_RM_CT[
+    ,
+    .(claim_number, claim_type, AP, RP)
+  ]
 
   # simulated_dataframe_RM_CT
 
@@ -637,35 +633,37 @@ pkg.env$scenario4_simulator <- function(ref_claim,
                                              years=years,
                                              time_unit=time_unit)
 
-  ct0 <- tibble(AT = unlist(occurrence_times_0),
-                RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
-                claim_type = 0)
+  ct0 <- data.table::data.table(
+    AT = unlist(occurrence_times_0),
+    RT = unlist(occurrence_times_0) + unlist(notidel_claim_type_0),
+    claim_type = 0
+  )
 
-  ct1 <- tibble(AT = unlist(occurrence_times_1),
-                RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
-                claim_type = 1)
+  ct1 <- data.table::data.table(
+    AT = unlist(occurrence_times_1),
+    RT = unlist(occurrence_times_1) + unlist(notidel_claim_type_1),
+    claim_type = 1
+  )
 
-  simulated_dataframe_RM_CT <- ct0 %>%  bind_rows(ct1) %>%
-    mutate(
-      claim_number = row_number(),
-    )  %>%  mutate(
+  simulated_dataframe_RM_CT <- data.table::rbindlist(list(ct0, ct1))
+  simulated_dataframe_RM_CT[
+    ,
+    `:=`(
+      claim_number = seq_len(.N),
       AP = ceiling(AT),
       RP = ceiling(RT),
-      DT = RT-AT,
-      DP = RP-AP+1,
-      DP_rev = years/time_unit - DP+1,
-      DT_rev = years/time_unit - DT,
-      TR = AP-1, #just setting truncation to max year simulated. and accounting for
-      I=1
-    ) %>%
-    select(claim_number, #AT, RT,
-           claim_type,
-           AP,
-           RP#,
-           #DT, DP, DP_rev, DT_rev, TR, I
-
-
-           ) %>% as.data.frame()
+      DT = RT - AT,
+      DP = ceiling(RT) - ceiling(AT) + 1,
+      DP_rev = years / time_unit - (ceiling(RT) - ceiling(AT) + 1) + 1,
+      DT_rev = years / time_unit - (RT - AT),
+      TR = ceiling(AT) - 1,
+      I = 1
+    )
+  ]
+  simulated_dataframe_RM_CT <- simulated_dataframe_RM_CT[
+    ,
+    .(claim_number, claim_type, AP, RP)
+  ]
 
   # simulated_dataframe_RM_CT
 
@@ -679,7 +677,7 @@ pkg.env$scenario4_simulator <- function(ref_claim,
 }
 
 generate_proportions <- function(I) {
-       raw <- rexp(I, rate = runif(I, min = 0.1, max = 2))  # exponential with varying rates ÔåÆ irregular
+       raw <- rexp(I, rate = runif(I, min = 0.1, max = 2))  # exponential with varying rates
        proportions <- raw / sum(raw)
        return(proportions)
    }
@@ -716,11 +714,10 @@ pkg.env$scenario5_simulator <- function(ref_claim=200000,
   claim_sizes <- claim_size(frequency_vector = c(n_vector_0,n_vector_1))
   n_of_claims <- length(unlist(claim_sizes))
 
-  bu_covariates_dataset <- data.frame(
-    "claim_number"=1:n_of_claims,
-    "business_use" = c(rep("Y",sum(n_vector_0)),
-                       rep("N",sum(n_vector_1)))
-
+  bu_covariates_dataset <- data.table::data.table(
+    claim_number = seq_len(n_of_claims),
+    business_use = c(rep("Y", sum(n_vector_0)),
+                     rep("N", sum(n_vector_1)))
     )
 
 
@@ -729,16 +726,18 @@ pkg.env$scenario5_simulator <- function(ref_claim=200000,
 
   probabilties_age <- probabilties_age/sum(probabilties_age)
 
-  covariates_dataset <- data.frame(
-    "claim_number"=1:n_of_claims,
-    "age" = sample(age_range,n_of_claims,replace=TRUE,prob=probabilties_age),
-    "property_value"= rlnorm(n_of_claims, meanlog = 3.034513, sdlog = 0.4087569)#,
+  covariates_dataset <- data.table::data.table(
+    claim_number = seq_len(n_of_claims),
+    age = sample(age_range, n_of_claims, replace = TRUE, prob = probabilties_age),
+    property_value = rlnorm(n_of_claims, meanlog = 3.034513, sdlog = 0.4087569)#,
     # "business_use" = sample(c("Y","N"),n_of_claims,replace = TRUE)
   )
 
-  covariates_dataset <-merge(covariates_dataset,
-                             bu_covariates_dataset,
-                             by="claim_number")
+  covariates_dataset <- merge(
+    covariates_dataset,
+    bu_covariates_dataset,
+    by = "claim_number"
+  )
 
   rdelay = apply(FUN = notification_delay_scenario5 ,
                  covariates_dataset,
@@ -749,15 +748,21 @@ pkg.env$scenario5_simulator <- function(ref_claim=200000,
   rdelay = pmin(rdelay, years / time_unit)
 
 
-  dt_dates <- data.frame(
-    claim_number=1:n_of_claims,
-    AP=ceiling(c(unlist(occurrence_times_0),
-                 unlist(occurrence_times_1))),
-    RP=ceiling(c(unlist(occurrence_times_0),
-                 unlist(occurrence_times_1))+rdelay))
+  dt_dates <- data.table::data.table(
+    claim_number = seq_len(n_of_claims),
+    AP = ceiling(c(unlist(occurrence_times_0),
+                   unlist(occurrence_times_1))),
+    RP = ceiling(c(unlist(occurrence_times_0),
+                   unlist(occurrence_times_1)) + rdelay)
+  )
 
 
-  dt <- merge(dt_dates,covariates_dataset,by.x="claim_number",by.y="claim_number",all=TRUE)
+  dt <- merge(
+    dt_dates,
+    covariates_dataset,
+    by = "claim_number",
+    all = TRUE
+  )
 
 
 
@@ -798,10 +803,10 @@ pkg.env$scenario6_simulator <- function(ref_claim=200000,
 
   probabilties_age <- probabilties_age/sum(probabilties_age)
 
-  covariates_dataset <- data.frame(
-    "claim_number"=1:n_of_claims,
-    "AP" = ceiling(unlist(occurrence_times)),
-    "business_use" = sample(c("Y","N"),n_of_claims,replace = TRUE)
+  covariates_dataset <- data.table::data.table(
+    claim_number = seq_len(n_of_claims),
+    AP = ceiling(unlist(occurrence_times)),
+    business_use = sample(c("Y", "N"), n_of_claims, replace = TRUE)
   )
 
   rdelay = apply(FUN = notification_delay_scenario6 ,
@@ -811,13 +816,19 @@ pkg.env$scenario6_simulator <- function(ref_claim=200000,
   rdelay = pmin(rdelay, years / time_unit)
 
 
-  dt_dates <- data.frame(
-    claim_number=1:n_of_claims,
+  dt_dates <- data.table::data.table(
+    claim_number = seq_len(n_of_claims),
     # AP=ceiling(unlist(occurrence_times)), (we have it already in the covariates.)
-    RP=ceiling(unlist(occurrence_times)+rdelay))
+    RP = ceiling(unlist(occurrence_times) + rdelay)
+  )
 
 
-  dt <- merge(dt_dates,covariates_dataset,by.x="claim_number",by.y="claim_number",all=TRUE)
+  dt <- merge(
+    dt_dates,
+    covariates_dataset,
+    by = "claim_number",
+    all = TRUE
+  )
 
 
 

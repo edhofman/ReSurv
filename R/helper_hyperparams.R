@@ -1,4 +1,4 @@
-﻿## hyperparameters and prepare data for fitting ----
+## hyperparameters and prepare data for fitting ----
 
 pkg.env$spline_hp <- function(hparameters,IndividualDataPP){
   "
@@ -22,9 +22,26 @@ pkg.env$spline_hp <- function(hparameters,IndividualDataPP){
 simplified_df_2_fcst<- function(IndividualDataPP,
                                 hazard_model){
 
-  cont_f <- IndividualDataPP$data_information$continuous_features
-  cat_f <- IndividualDataPP$data_information$categorical_features
-  columns_for_grouping <- unique(c(cont_f,cat_f,"AP_i"))
+  if (!is.null(IndividualDataPP$data_information)) {
+    cont_f <- IndividualDataPP$data_information$continuous_features
+    cat_f <- IndividualDataPP$data_information$categorical_features
+    years <- IndividualDataPP$data_information$years
+    input_time_granularity <- IndividualDataPP$data_information$input_time_granularity
+    calendar_period_extrapolation <- IndividualDataPP$data_information$calendar_period_extrapolation
+  } else {
+    cont_f <- IndividualDataPP$continuous_features
+    cat_f <- IndividualDataPP$categorical_features
+    years <- IndividualDataPP$years
+    input_time_granularity <- IndividualDataPP$input_time_granularity
+    calendar_period_extrapolation <- IndividualDataPP$calendar_period_extrapolation
+  }
+
+  time_features <- c("DP_i", "DP_rev_i", "RP_i")
+  columns_for_grouping <- unique(c(
+    setdiff(cont_f, time_features),
+    setdiff(cat_f, time_features),
+    "AP_i"
+  ))
 
   tmp <- as.data.table(IndividualDataPP$training.data)
 
@@ -32,15 +49,30 @@ simplified_df_2_fcst<- function(IndividualDataPP,
 
   l4 <- list()
 
-  l4$DP_rev_i <- min(IndividualDataPP$training.data[,'DP_rev_i']):max(IndividualDataPP$training.data[,'DP_rev_i'])
+  l4$DP_rev_i <- min(IndividualDataPP$training.data[['DP_rev_i']]):max(IndividualDataPP$training.data[['DP_rev_i']])
 
   l4<-do.call(CJ, c(l4, sorted = FALSE))
 
-  out<-as.data.frame(setkey(out[,c(k=1,.SD)],k)[l4[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL])
+  out <- setkey(out[, c(k = 1, .SD)], k)[
+    l4[, c(k = 1, .SD)],
+    allow.cartesian = TRUE
+  ][, k := NULL]
 
+  max_dp_i <- pkg.env$maximum.time(years, input_time_granularity)
+  out[, DP_i := max_dp_i - DP_rev_i + 1L]
 
+  if (isTRUE(calendar_period_extrapolation) || "RP_i" %in% c(cont_f, cat_f)) {
+    out[, RP_i := AP_i + DP_i - 1L]
+  }
 
-  return(out)
+  if (!is.null(cat_f)) {
+    time_cat_f <- intersect(cat_f, time_features)
+    for (cft in time_cat_f) {
+      out[[cft]] <- factor(out[[cft]], levels = levels(IndividualDataPP$training.data[[cft]]))
+    }
+  }
+
+  return(as.data.frame(out))
 
 
 }
@@ -49,54 +81,10 @@ simplified_df_2_fcst<- function(IndividualDataPP,
 create.df.2.fcst <- function(IndividualDataPP,
                              hazard_model){
 
-  l1 <- lapply(IndividualDataPP$training.data %>% select(IndividualDataPP$data_information$categorical_features), levels)
-  l2 <- lapply(IndividualDataPP$training.data %>% select(IndividualDataPP$data_information$continuous_features), unique)
-  l3 <- list()
-  l4 <- list()
-  l5 <- list()
-
-  if(!('AP_i'%in%c(IndividualDataPP$data_information$categorical_features,IndividualDataPP$data_information$continuous_features))){
-    l3$AP_i <- unique(IndividualDataPP$training.data[,'AP_i'])
-  }else{
-    l3 <- NULL
-  }
-
-  l4$DP_rev_i <- min(IndividualDataPP$training.data[,'DP_rev_i']):max(IndividualDataPP$training.data[,'DP_rev_i'])
-
-  # OLD
-  # l1 <- as.data.table(cross_df(l1))
-  # l2 <- as.data.table(cross_df(l2))
-  # data.table alternative
-  l1<-do.call(CJ, c(l1, sorted = FALSE))
-  l2<-do.call(CJ, c(l2, sorted = FALSE))
-
-  tmp<-setkey(l1[,c(k=1,.SD)],k)[l2[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]
-
-  if(!is.null(l3)){
-    # OLD
-    # l3 <- as.data.table(cross_df(l3))
-    l3<-do.call(CJ, c(l3, sorted = FALSE))
-    tmp<-setkey(tmp[,c(k=1,.SD)],k)[l3[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]}
-  # OLD
-  # l4 <- as.data.table(cross_df(l4))
-  l4<-do.call(CJ, c(l4, sorted = FALSE))
-  tmp<-setkey(tmp[,c(k=1,.SD)],k)[l4[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]
-  tmp <- tmp %>%
-    as.data.frame()
-  # e2 <- Sys.time()
-  # Time difference of 0.6656282 secs
-
-
-  if(IndividualDataPP$data_information$calendar_period_extrapolation & (hazard_model=='COX')){
-    tmp$RP_i <- tmp$AP_i+tmp$DP_rev_i-1
-  }else{
-    if(IndividualDataPP$data_information$calendar_period_extrapolation){
-      warning("The calendar year component extrapolation is disregarded.
-             The current implementation supports this feature only for the Cox model")}
-
-  }
-
-  return(tmp)
+  simplified_df_2_fcst(
+    IndividualDataPP = IndividualDataPP,
+    hazard_model = hazard_model
+  )
 
 }
 
@@ -121,7 +109,7 @@ pkg.env$df.2.fcst.nn.pp <- function(data,
 
   }
 
-  Xc=as.matrix.data.frame(tmp)
+  Xc=as.matrix(tmp)
 
   if(!is.null(categorical_features)){
 
@@ -152,13 +140,13 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
 
     for(cft in continuous_features){
 
-      mnv <- min(data[cft])
-      mxv <- max(data[cft])
+      mnv <- min(data[[cft]])
+      mxv <- max(data[[cft]])
 
       tmp[,cft] <-2*(tmp[,cft]-mnv)/(mxv-mnv)-1
 
     }
-    Xc=as.matrix.data.frame(tmp)
+    Xc=as.matrix(tmp)
 
   }
 
@@ -181,7 +169,7 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
 
     }}
 
-  ds_train_fcst <- xgboost::xgb.DMatrix(as.matrix.data.frame(X), label=rep(1, dim(X)[1]))
+  ds_train_fcst <- xgboost::xgb.DMatrix(as.matrix(X), label=rep(1, dim(X)[1]))
 
   return(ds_train_fcst)
 

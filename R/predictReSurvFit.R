@@ -4,58 +4,18 @@
 #'
 #' @param object \code{ResurvFit} object specifying start time, end time and status.
 #' @param newdata \code{IndividualDataPP} object that contains new data to predict.
-#' @param grouping_method \code{character}, use probability or exposure approach to group from input to output development factors. Choice between:
-#' \itemize{
-#' \item{\code{"exposure"}}
-#' \item{\code{"probability"}}
-#' }
-#' Default is \code{"exposure"}.
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
 #' @param lower_triangular_output \code{logical}, if set to \code{TRUE} we add the predicted lower triangle in input and output granularity to the \code{predict.ReSurvFit} output.
-#' @param groups_encoding_output \code{logical}, if set to \code{TRUE} we add a \code{data.table} containing the groups encoding to the \code{predict.ReSurvFit} output.
+#' @param minimal_output \code{logical}, if set to \code{TRUE} return a reduced prediction object.
 #' @param ... Additional arguments to pass to the predict function.
 #'
 #'
-#' @return Predictions for the \code{ReSurvFit} model. It includes
-#' \itemize{
-#' \item{\code{ReSurvFit}: Fitted \code{ReSurv} model.}
-#' \item{\code{long_triangle_format_out}: \code{data.frame}. Predicted development factors and IBNR claim counts for each feature combination in long format.}
-#' \itemize{
-#' \item{\code{input_granularity}: \code{data.frame}. Predictions for each feature combination in long format for \code{input_time_granularity}.}
-#' \itemize{
-#' \item{\code{AP_i}: Accident period, \code{input_time_granularity}.}
-#' \item{\code{DP_i}: Development period, \code{input_time_granularity}.}
-#' \item{\code{f_i}: Predicted development factors, \code{input_time_granularity}.}
-#' \item{\code{group_i}: Group code, \code{input_time_granularity}. This associates to each feature combination an identifier.}
-#' \item{\code{expected_counts}: Expected counts, \code{input_time_granularity}.}
-#' \item{\code{IBNR}: Predicted IBNR claim counts, \code{input_time_granularity}.}
-#' }
-#' \item{\code{output_granularity}: \code{data.frame}. Predictions for each feature combination in long format for \code{output_time_granularity}.}
-#' \itemize{
-#' \item{\code{AP_o}: Accident period, \code{output_time_granularity}.}
-#' \item{\code{DP_o}: Development period, \code{output_time_granularity}.}
-#' \item{\code{f_o}: Predicted development factors, \code{output_time_granularity}.}
-#' \item{\code{group_o}: Group code, \code{output_time_granularity}. This associates to each feature combination an identifier.}
-#' \item{\code{expected_counts}: Expected counts, \code{output_time_granularity}.}
-#' \item{\code{IBNR}: Predicted IBNR claim counts, \code{output_time_granularity}.}
-#' }
-#' }
-#' \item{\code{lower_triangle}: Predicted lower triangle.}
-#' \itemize{
-#' \item{\code{input_granularity}: \code{data.frame}. Predicted lower triangle for \code{input_time_granularity}.}
-#' \item{\code{output_granularity}: \code{data.frame}. Predicted lower triangle for \code{output_time_granularity}.}
-#' }
-#' \item{\code{predicted_counts}: \code{numeric}. Predicted total frequencies.}
-#' \item{\code{grouping_method}: \code{character}. Chosen grouping method.}
-#'
-#' }
-#'
+#' @return A \code{ReSurvPredict} object with fitted predictions, long triangle outputs, predicted counts, and optional lower-triangle outputs.
 #' @importFrom dplyr bind_rows distinct relocate arrange
 #' @export
 #' @method predict ReSurvFit
 predict.ReSurvFit <- function(object,
                               newdata = NULL,
-                              grouping_method = "probability",
                               lower_triangular_output = FALSE,
                               minimal_output = FALSE,
                               check_value = 1.85,
@@ -168,8 +128,13 @@ predict.ReSurvFit <- function(object,
     feature_cols <- c(categorical_features, continuous_features)
 
     # Create feature.id efficiently
-    observed_so_far[, covariate := do.call(paste, c(.SD, sep = "_")), .SDcols = feature_cols]
-    observed_dp_rev_i[, covariate := do.call(paste, c(.SD, sep = "_")), .SDcols = feature_cols]
+    if (is.null(feature_cols) || length(feature_cols) == 0L) {
+      observed_so_far[, covariate := "0"]
+      observed_dp_rev_i[, covariate := "0"]
+    } else {
+      observed_so_far[, covariate := do.call(paste, c(.SD, sep = "_")), .SDcols = feature_cols]
+      observed_dp_rev_i[, covariate := do.call(paste, c(.SD, sep = "_")), .SDcols = feature_cols]
+    }
 
     # Perform left join
     observed_so_far <- hazard_frame_grouped$groups[observed_so_far, on = "covariate"]
@@ -191,6 +156,8 @@ predict.ReSurvFit <- function(object,
                                             continuous_features,
                                                  FALSE)
 
+    latest_cumulative <- data.table::as.data.table(out$latest_cumulative)
+    observed_pr_dp <- data.table::as.data.table(out$observed_pr_dp)
 
 
   }else{
@@ -284,6 +251,7 @@ predict.ReSurvFit <- function(object,
     ]
 
     # latest_cumulative = observed_so_far_out, observed_pr_dp = observed_dp_rev_i_tmp
+    observed_pr_dp <- observed_dp_rev_i
 
 
     }
@@ -354,49 +322,75 @@ predict.ReSurvFit <- function(object,
 
   if (conversion_factor != 1 & !(minimal_output)) {
 
+    # Map input groups to output groups before aggregating.
+    # expected_i only has group_i at this stage; group_o must be joined first.
+    group_map <- unique(hazard_frame_grouped$groups[, .(group_i, group_o)])
 
+    if (nrow(group_map) != data.table::uniqueN(group_map$group_i)) {
+      stop(
+        "Each `group_i` must map to exactly one `group_o` in output-granularity prediction.",
+        call. = FALSE
+      )
+    }
 
+    expected_o <- merge(
+      data.table::copy(expected_i),
+      group_map,
+      by = "group_i",
+      all.x = TRUE
+    )
 
+    if (anyNA(expected_o$group_o)) {
+      stop(
+        "Some `group_i` values in `expected_i` could not be mapped to `group_o`.",
+        call. = FALSE
+      )
+    }
 
-    # left join, derive variables, (optionally filter), then aggregate and select
-    expected_o <-expected_i[
-        , DP_i := max_dp_i - DP_rev_i + 1
-      ][
-        , `:=`(
-          AP_o     = ceiling(AP_i * conversion_factor),
-          DP_rev_o = ceiling(max_dp_i * conversion_factor) -
-            ceiling((DP_i + (AP_i - 1) %% (1 / conversion_factor)) * conversion_factor) + 1
-        )
-        # ][
-        #   DP_rev_o > 0  # <- uncomment to reintroduce the filter you commented out in dplyr
-      ][
-        , .(
-          I_expected = sum(I_expected, na.rm = TRUE),
-          IBNR       = sum(IBNR,       na.rm = TRUE)
-        ),
-        by = .(AP_o, DP_rev_o, group_o)
-      ][
-        , .(AP_o, group_o, DP_rev_o, I_expected, IBNR)
-      ]
+    expected_o[
+      ,
+      DP_i := max_dp_i - DP_rev_i + 1
+    ][
+      ,
+      `:=`(
+        AP_o = ceiling(AP_i * conversion_factor),
+        DP_rev_o = ceiling(max_dp_i * conversion_factor) -
+          ceiling(
+            (DP_i + (AP_i - 1) %% (1 / conversion_factor)) *
+              conversion_factor
+          ) + 1
+      )
+    ]
 
+    expected_o <- expected_o[
+      ,
+      .(
+        I_expected = sum(I_expected, na.rm = TRUE),
+        IBNR       = sum(IBNR, na.rm = TRUE)
+      ),
+      by = .(AP_o, DP_rev_o, group_o)
+    ][
+      ,
+      .(AP_o, group_o, DP_rev_o, I_expected, IBNR)
+    ]
 
     hazard_data_frame <- merge(
       hazard_frame_grouped$hazard_group,
-      hazard_frame_grouped$groups[, .(group_i, group_o)],
+      group_map,
       by = "group_i",
       all.x = TRUE
     )
 
     observed_pr_dp_o <- merge(
       observed_dp_rev_i,
-      hazard_frame_grouped$groups[, .(group_i, group_o)],
+      group_map,
       by = "group_i",
       all.x = TRUE
     )
 
     latest_cumulative_o <- merge(
       latest_cumulative,
-      hazard_frame_grouped$groups[, .(group_i, group_o)],
+      group_map,
       by = "group_i",
       all.x = TRUE
     )[
@@ -407,7 +401,7 @@ predict.ReSurvFit <- function(object,
 
     expected_i <- merge(
       expected_i_probability,
-      hazard_frame_grouped$groups[, .(group_i, group_o)],
+      group_map,
       by = "group_i",
       all.x = TRUE
     )
@@ -432,7 +426,7 @@ predict.ReSurvFit <- function(object,
     )
 
     grouped_hazard_0[
-      hazard_frame_grouped$groups[, .(group_i, group_o)],
+      group_map,
       on = "group_i",
       group_o := i.group_o
     ]
@@ -525,7 +519,7 @@ predict.ReSurvFit <- function(object,
     all.x = TRUE
   )
 
-  # exposure_combined = coalesce(exposure_expected, 0)
+  # exposure_combined = dplyr::coalesce(exposure_expected, 0)
   exposures_combined[
     , exposure_combined := fifelse(!is.na(exposure_expected), exposure_expected, 0)
   ]
@@ -538,7 +532,7 @@ predict.ReSurvFit <- function(object,
     all.x = TRUE
   )
 
-  # coalesce(I_expected, 0)
+  # dplyr::coalesce(I_expected, 0)
   grouped_hazard_1[, I_combined := fifelse(!is.na(I_expected), I_expected, 0)]
 
   # aggregate

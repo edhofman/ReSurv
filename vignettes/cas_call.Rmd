@@ -17,8 +17,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r eval=FALSE, include=TRUE}
 library(ReSurv)
-library(reticulate)
-use_virtualenv("pyresurv")
+# Python backend setup removed; native torch backend is used.
+# Python backend setup removed.
 library(ggplot2)
 ```
 
@@ -43,7 +43,7 @@ packageVersion("ReSurv")
 To handle the Python dependencies for *the first package installation*, we suggest to create a dedicated virtual environment. The remaining part of this Section can be disregard from users that are not interested in using our models based on Neural Networks.
 
 ```{r eval=FALSE, include=TRUE}
-ReSurv::install_pyresurv()
+# Python backend setup removed.
 ```
 
 The default name of the virtual environment is `"pyresurv"`.
@@ -52,7 +52,7 @@ We then suggest to refresh the R session and to import the `ReSurv` package in R
 
 ```{r eval=FALSE, include=TRUE}
 library(ReSurv)
-reticulate::use_virtualenv("pyresurv")
+# Python backend setup removed.
 
 ```
 
@@ -62,7 +62,7 @@ For the case of multiple packages using isolated-package-environments we suggest
 
 ```{r eval=FALSE, include=TRUE}
 envname <- "./venv"
-ReSurv::install_pyresurv(envname = envname)
+# Python backend setup removed.
 pysparklyr::install_pyspark(envname = envname)
 ```
 

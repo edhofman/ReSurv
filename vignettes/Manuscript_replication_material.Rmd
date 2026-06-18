@@ -24,7 +24,7 @@ For optimising the hyperparameters included in this vignette, we used the proced
 ```{r eval=FALSE, echo=TRUE}
 
 library(ReSurv)
-reticulate::use_virtualenv("pyresurv")
+# Python backend setup removed.
 library(data.table)
 library(ggplot2)
 

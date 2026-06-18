@@ -13,10 +13,10 @@ ReSurv(
   random_seed = 1,
   hparameters = list(),
   percentage_data_training = 0.8,
-  grouping_method = "probability",
+  grouping_method = "exposure",
   check_value = 1.85,
   eta = 0.5,
-  simplifier = FALSE
+  simplifier = TRUE
 )
 }
 \arguments{
@@ -49,6 +49,10 @@ ReSurv(
 Default is \code{"exposure"}.}
 
 \item{check_value}{\code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.}
+
+\item{eta}{\code{numeric}, Efron baseline and development-factor eta parameter.}
+
+\item{simplifier}{\code{logical}, kept for compatibility. The simplified forecast frame is always used.}
 }
 \value{
 \code{ReSurv} fit. A list containing
@@ -114,7 +118,8 @@ years=4)
 
 
 resurv_fit_cox <- ReSurv(individual_data,
-hazard_model = "COX")
+hazard_model = "COX",
+eta = 0)
 
 
 
@@ -123,9 +128,9 @@ hazard_model = "COX")
 \references{
 Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 
-Therneau, T. M., & Lumley, T. (2015). Package ‘survival’. R Top Doc, 128(10), 28-33.
+Therneau, T. M., & Lumley, T. (2015). Package â€˜survivalâ€™. R Top Doc, 128(10), 28-33.
 
 Katzman, J. L., Shaham, U., Cloninger, A., Bates, J., Jiang, T., & Kluger, Y. (2018). DeepSurv: personalized treatment recommender system using a Cox proportional hazards deep neural network. BMC medical research methodology, 18(1), 1-12.
 
-Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
+Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package â€˜xgboostâ€™. R version, 90, 1-66.
 }

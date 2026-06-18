@@ -15,8 +15,8 @@ vignette: >
 knitr::opts_chunk$set(echo = TRUE)
 
 library(ReSurv)
-library(reticulate)
-use_virtualenv("pyresurv")
+# Python backend setup removed; native torch backend is used.
+# Python backend setup removed.
 
 ```
 

@@ -1,139 +1,176 @@
-﻿# XGBoost helper functions
+# XGBoost helper functions
 #
 # XGBoost data preprocessing and model fitting.
 #
 # @import xgboost
 ## xgboost ----
 
-pkg.env$xgboost_pp <-function(X,
-                              Y,
-                              samples_TF=NULL,
-                              training_test_split=.1){
+pkg.env$xgboost_pp <- function(X,
+                               Y,
+                               samples_TF = NULL,
+                               training_test_split = .1) {
 
-  if(!is.null(samples_TF)){
-    xy=cbind(X,Y,samples_TF)
-  }else{
-    xy= cbind(X,Y)
+  if (!is.numeric(training_test_split) ||
+      length(training_test_split) != 1L ||
+      !is.finite(training_test_split) ||
+      training_test_split <= 0 ||
+      training_test_split > 1) {
+    stop("`training_test_split` must be a number in (0, 1].", call. = FALSE)
   }
 
-  tmp=xy %>%
-    arrange(DP_rev_i) %>%
-    as.data.frame()
-
-  tmp[,'id'] = seq(1,dim(tmp)[1])
-
-  if(is.null(samples_TF)){
-
-    samples_cn <- tmp %>% select(id) %>% sample_frac(size=training_test_split)
-
-  }else{
-
-    cond <- tmp$samples_TF
-    samples_cn <- tmp %>% select(id) %>% filter(cond)
-    tmp <- tmp %>% select(-samples_TF)
+  if (!is.null(samples_TF)) {
+    xy <- data.frame(X, Y, samples_TF = samples_TF, check.names = FALSE)
+  } else {
+    xy <- data.frame(X, Y, check.names = FALSE)
   }
 
-  suppressMessages(
-    tmp_train <- tmp %>%
-      semi_join(samples_cn)%>%
-      arrange(DP_rev_i) %>%
-      group_by(DP_rev_i) %>%
-      mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame())
+  tmp <- xy[order(xy$DP_rev_i), , drop = FALSE]
+  tmp$id <- seq_len(nrow(tmp))
 
-  ds_train_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_train %>% select(colnames(X))), label=tmp_train$I)
-  attr(ds_train_m, 'truncation') <- tmp_train$TR_i
-  attr(ds_train_m, 'claim_arrival') <- tmp_train$DP_rev_i
+  if (is.null(samples_TF)) {
+    if (training_test_split == 1) {
+      sampled_id <- tmp$id
+    } else {
+      n_sample <- ceiling(nrow(tmp) * training_test_split)
+      n_sample <- max(1L, min(nrow(tmp), n_sample))
+      sampled_id <- sample(tmp$id, size = n_sample, replace = FALSE)
+    }
 
+    samples_cn <- data.frame(id = sampled_id)
 
-  attr(ds_train_m, 'risk_sets') <- risks_in_the_tie(starts_i=tmp_train$TR_i,
-                                                    stops_i=tmp_train$DP_rev_i,
-                                                    stops = unique(tmp_train$DP_rev_i))
-  attr(ds_train_m, 'event_sets') <- events_in_the_tie(starts_i=tmp_train$TR_i,
-                                                      stops_i=tmp_train$DP_rev_i,
-                                                      stops = unique(tmp_train$DP_rev_i))
+  } else {
+    cond <- as.logical(tmp$samples_TF)
 
-  attr(ds_train_m, 'efron_c') <- tmp_train$efron_c
+    if (anyNA(cond)) {
+      stop("`samples_TF` must be coercible to TRUE/FALSE without NA values.",
+           call. = FALSE)
+    }
 
-  attr(ds_train_m, 'tieid') <- unname(table(tmp_train$DP_rev_i))
-
-  attr(ds_train_m, 'groups') <- rep( as.integer(names(table(tmp_train$end_time))),
-                                     attr(ds_train_m, 'tieid'))
-
-  if(training_test_split<1){
-
-    suppressMessages(
-      tmp_test <- tmp %>%
-        anti_join(samples_cn)%>%
-        arrange(DP_rev_i) %>%
-        group_by(DP_rev_i) %>%
-        mutate(efron_c=(1:length(DP_rev_i)-1)/length(DP_rev_i))%>% as.data.frame())
-
-
-    # ds_all_m <- xgboost::xgb.DMatrix( as.matrix(tmp,ncol=1),
-    #                          label=tmp$I)
-    ds_test_m <- xgboost::xgb.DMatrix( as.matrix.data.frame(tmp_test %>% select(colnames(X)), label=tmp_test$I))
-
-
-    attr(ds_test_m, 'truncation') <- tmp_test$TR_i
-    attr(ds_test_m, 'claim_arrival') <- tmp_test$DP_rev_i
-
-    attr(ds_test_m, 'risk_sets') <- risks_in_the_tie(starts_i=tmp_test$TR_i,
-                                                     stops_i=tmp_test$DP_rev_i,
-                                                     stops = unique(tmp_test$DP_rev_i))
-
-    #
-    attr(ds_test_m, 'event_sets') <- events_in_the_tie(starts_i=tmp_test$TR_i,
-                                                       stops_i=tmp_test$DP_rev_i,
-                                                       stops = unique(tmp_test$DP_rev_i))
-    #
-    attr(ds_test_m, 'efron_c') <- tmp_test$efron_c
-
-    attr(ds_test_m, 'tieid') <- unname(table(tmp_test$DP_rev_i))
-
-    attr(ds_test_m, 'groups') <- rep( as.integer(names(table(tmp_test$end_time))),
-                                      attr(ds_test_m, 'tieid'))
-
-    return(list(ds_train_m=ds_train_m,
-                ds_test_m=ds_test_m,
-                samples_cn=samples_cn))
+    samples_cn <- data.frame(id = tmp$id[cond])
+    tmp$samples_TF <- NULL
   }
-  else{
-    return(list(ds_train_m=ds_train_m,
-                ds_test_m=NULL,
-                samples_cn=samples_cn))
+
+  make_efron_c <- function(z) {
+    ave(
+      seq_along(z),
+      z,
+      FUN = function(ind) (seq_along(ind) - 1) / length(ind)
+    )
   }
+
+  make_dmatrix <- function(df) {
+    xgboost::xgb.DMatrix(
+      data = as.matrix(df[, colnames(X), drop = FALSE]),
+      label = df$I
+    )
+  }
+
+  add_xgb_attrs <- function(dmat, df) {
+    event_times <- unique(df$DP_rev_i)
+
+    attr(dmat, "truncation") <- df$TR_i
+    attr(dmat, "claim_arrival") <- df$DP_rev_i
+
+    attr(dmat, "risk_sets") <- risks_in_the_tie(
+      starts_i = df$TR_i,
+      stops_i  = df$DP_rev_i,
+      stops    = event_times
+    )
+
+    attr(dmat, "event_sets") <- events_in_the_tie(
+      starts_i = df$TR_i,
+      stops_i  = df$DP_rev_i,
+      stops    = event_times
+    )
+
+    attr(dmat, "efron_c") <- df$efron_c
+
+    tie_table <- table(df$DP_rev_i)
+
+    attr(dmat, "tieid") <- unname(tie_table)
+
+    attr(dmat, "groups") <- rep(
+      as.integer(names(tie_table)),
+      unname(tie_table)
+    )
+
+    dmat
+  }
+
+  tmp_train <- tmp[tmp$id %in% samples_cn$id, , drop = FALSE]
+  tmp_train <- tmp_train[order(tmp_train$DP_rev_i), , drop = FALSE]
+  tmp_train$efron_c <- make_efron_c(tmp_train$DP_rev_i)
+
+  ds_train_m <- make_dmatrix(tmp_train)
+  ds_train_m <- add_xgb_attrs(ds_train_m, tmp_train)
+
+  if (training_test_split < 1) {
+    tmp_test <- tmp[!(tmp$id %in% samples_cn$id), , drop = FALSE]
+    tmp_test <- tmp_test[order(tmp_test$DP_rev_i), , drop = FALSE]
+    tmp_test$efron_c <- make_efron_c(tmp_test$DP_rev_i)
+
+    ds_test_m <- make_dmatrix(tmp_test)
+    ds_test_m <- add_xgb_attrs(ds_test_m, tmp_test)
+
+    return(list(
+      ds_train_m = ds_train_m,
+      ds_test_m  = ds_test_m,
+      samples_cn = samples_cn
+    ))
+  }
+
+  list(
+    ds_train_m = ds_train_m,
+    ds_test_m  = NULL,
+    samples_cn = samples_cn
+  )
 }
-
-
 pkg.env$fit_xgboost <- function(datads_pp,
-                                hparameters=list(params=list(booster="gbtree",
-                                                             eta=.01,
-                                                             subsample=.5,
-                                                             alpha=1,
-                                                             lambda=1,
-                                                             min_child_weight=.2),
-                                                 print_every_n = NULL,
-                                                 nrounds=10,
-                                                 verbose=FALSE,
-                                                 early_stopping_rounds = 500)){
+                                hparameters = list()) {
 
+  if (length(hparameters) == 0L) {
+    hparameters <- list(
+      params = list(
+        booster = "gbtree",
+        eta = .01,
+        subsample = .5,
+        alpha = 1,
+        lambda = 1,
+        min_child_weight = .2
+      ),
+      print_every_n = NULL,
+      nrounds = 10,
+      verbose = FALSE,
+      early_stopping_rounds = 500
+    )
+  }
 
-  out <- xgboost::xgb.train(params = hparameters$params,
-                            data =datads_pp$ds_train_m,
-                            obj=cox_loss_objective,
-                            nrounds = hparameters$nrounds,
-                            feval= cox_evaluation_metrics,
-                            watchlist = list(train=datads_pp$ds_train_m,
-                                             eval=datads_pp$ds_test_m),
-                            verbose= hparameters$verbose,
-                            print_every_n = hparameters$print_every_n,
-                            early_stopping_rounds = hparameters$early_stopping_rounds,
-                            maximize = FALSE)
+  evals <- list(train = datads_pp$ds_train_m)
 
-  return(out)
+  if (!is.null(datads_pp$ds_test_m)) {
+    evals$eval <- datads_pp$ds_test_m
+  }
 
+  early_stopping_rounds <- hparameters$early_stopping_rounds
 
+  if (is.null(datads_pp$ds_test_m)) {
+    early_stopping_rounds <- NULL
+  }
 
+  out <- xgboost::xgb.train(
+    params = hparameters$params,
+    data = datads_pp$ds_train_m,
+    obj = cox_loss_objective,
+    nrounds = hparameters$nrounds,
+    custom_metric = cox_evaluation_metrics,
+    evals = evals,
+    verbose = hparameters$verbose,
+    print_every_n = hparameters$print_every_n,
+    early_stopping_rounds = early_stopping_rounds,
+    maximize = FALSE
+  )
+
+  out
 }
 
 

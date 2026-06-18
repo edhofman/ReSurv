@@ -4,3 +4,5 @@
 ^\.github$
 ^_rhub\.yml$
 ^docs$
+^vignettes$
+^vignettes/

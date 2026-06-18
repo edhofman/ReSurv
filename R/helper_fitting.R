@@ -1,4 +1,4 @@
-﻿# Model fitting helper functions
+# Model fitting helper functions
 #
 # Scalers, DeepSurv preprocessing, Cox and NN fitting routines.
 #
@@ -6,55 +6,67 @@
 
 pkg.env$deep_surv_pp <- function(X,
                                  Y,
-                                 training_test_split,
-                                 samples_TF=NULL){
+                                 training_test_split = 0.8,
+                                 samples_TF = NULL) {
 
+  tmp_order <- order(Y$DP_rev_i)
 
-  X <- cbind(X, DP_rev_i = Y$DP_rev_i) %>%
-    arrange(DP_rev_i) %>%
-    select(-DP_rev_i)
+  X <- as.data.frame(X[tmp_order, , drop = FALSE])
+  Y <- as.data.frame(Y[tmp_order, , drop = FALSE])
 
-  Y <- Y %>%
-    arrange(DP_rev_i) %>%
-    as.data.frame()
+  tmp <- data.frame(id = seq_len(nrow(X)))
 
+  if (is.null(samples_TF)) {
+    if (!is.numeric(training_test_split) ||
+        length(training_test_split) != 1L ||
+        !is.finite(training_test_split) ||
+        training_test_split <= 0 ||
+        training_test_split > 1) {
+      stop("`training_test_split` must be a number in (0, 1].",
+           call. = FALSE)
+    }
 
-  tmp <- as.data.frame(seq(1,dim(X)[1]))
-  colnames(tmp) <- "id"
+    if (training_test_split == 1) {
+      sampled_id <- tmp$id
+    } else {
+      n_sample <- ceiling(nrow(tmp) * training_test_split)
+      n_sample <- max(1L, min(nrow(tmp), n_sample))
+      sampled_id <- sample(tmp$id, size = n_sample, replace = FALSE)
+    }
 
-  if(is.null(samples_TF)){
+    id_train <- tmp$id %in% sampled_id
+  } else {
+    if (length(samples_TF) != nrow(X)) {
+      stop("`samples_TF` must have length equal to the number of rows in `X`.",
+           call. = FALSE)
+    }
 
-    samples_cn <- tmp %>% sample_frac(size=training_test_split)
-    id_train <- tmp$id %in% samples_cn$id
+    id_train <- as.logical(samples_TF)
 
-  }else{
-
-    cond <- samples_TF
-    samples_cn <- tmp %>% select(id) %>% filter(cond)
-    id_train <- tmp$id %in% samples_cn$id
+    if (anyNA(id_train)) {
+      stop("`samples_TF` must be coercible to TRUE/FALSE without NA values.",
+           call. = FALSE)
+    }
   }
 
+  x_train <- as.matrix(X[id_train, , drop = FALSE])
+  x_val   <- as.matrix(X[!id_train, , drop = FALSE])
+  y_train <- as.matrix(Y[id_train, , drop = FALSE])
+  y_val   <- as.matrix(Y[!id_train, , drop = FALSE])
 
-  # Plain R matrices for native torch training
-  x_train <- as.matrix(X[id_train, ])
-  x_val   <- as.matrix(X[!id_train, ])
-  y_train <- as.matrix(Y[id_train, ])   # columns: duration, event, truncation
-  y_val   <- as.matrix(Y[!id_train, ])
-
-  return(list(
+  list(
     x_train = x_train,
     y_train = y_train,
     x_val   = x_val,
     y_val   = y_val,
-    lkh_eval_data = list(data_train=X[id_train,],
-                       data_val=X[!id_train,],
-                       y_train=Y[id_train,],
-                       y_val=Y[!id_train,])
-  ))
-
+    lkh_eval_data = list(
+      data_train = X[id_train, , drop = FALSE],
+      data_val   = X[!id_train, , drop = FALSE],
+      y_train    = Y[id_train, , drop = FALSE],
+      y_val      = Y[!id_train, , drop = FALSE]
+    )
+  )
 }
-
-
 ## Fitting routines ----
 
 pkg.env$fit_cox_model <- function(data,
@@ -62,10 +74,10 @@ pkg.env$fit_cox_model <- function(data,
                                   newdata){
   "This function is the fitting routine for the cox model."
 
-  cox <- coxph(formula_ct, data=data, ties="efron")
+  cox <- survival::coxph(formula_ct, data=data, ties="efron")
   cox_lp <- predict(cox,newdata=newdata,'lp',reference='zero')
 
-  cox_training_lp <- predict(cox,newdata=data %>% arrange(DP_rev_i) %>% as.data.frame(),'lp',reference='zero')
+  cox_training_lp <- predict(cox,newdata=data %>% dplyr::arrange(DP_rev_i) %>% as.data.frame(),'lp',reference='zero')
 
   out <- list(
     cox=cox,

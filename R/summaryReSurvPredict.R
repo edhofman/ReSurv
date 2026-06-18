@@ -33,7 +33,7 @@ summary.ReSurvPredict <- function(object, granularity = "input", ...)
 
   keep = c(
     "model.out",
-    "IndividualDataPP",
+    "data_information",
     "hazard_model"
   )
 
@@ -66,25 +66,32 @@ summary.ReSurvPredict <- function(object, granularity = "input", ...)
 print.summaryReSurvPredict <-
   function (x, digits = max(3L, getOption("digits") - 3L), ...)
   {
+    hazard_model <- x$ReSurvFit$hazard_model
+    if (is.null(hazard_model)) {
+      hazard_model <- x$ReSurvFit$fit_information$hazard_model
+    }
+
+    data_information <- x$ReSurvFit$data_information
+
     cat("\n Hazard model:\n",
-        paste(deparse(x$ReSurvFit$hazard_model), sep = "\n", collapse = "\n"), "\n\n", sep = "")
+        paste(deparse(hazard_model), sep = "\n", collapse = "\n"), "\n\n", sep = "")
 
     #cat("Likelihood: \n")
     #  xx <- x$ReSurvFit$model.out$likelihood
     #print.default(xx, digits = digits, na.print = "", print.gap = 2L)
 
-    if(is.null(x$ReSurvFit$IndividualDataPP$categorical_features) & is.null(x$ReSurvFit$IndividualDataPP$continuous_features)) {
+    if(is.null(data_information$categorical_features) & is.null(data_information$continuous_features)) {
       cat("\nNo Features \n")
     } else {
       categorical_features<-NULL
       continuous_features <- NULL
-      if(!is.null(x$ReSurvFit$IndividualDataPP$categorical_features)){
+      if(!is.null(data_information$categorical_features)){
         categorical_features <- sprintf("\nCategorical Features:\n%s",
-                                      paste(x$ReSurvFit$IndividualDataPP$categorical_features ,  collapse="\n"))
+                                      paste(data_information$categorical_features ,  collapse="\n"))
       }
-      if(!is.null(x$ReSurvFit$IndividualDataPP$continuous_features)){
+      if(!is.null(data_information$continuous_features)){
         continuous_features <- sprintf("\nContinuous Features:\n%s",
-                                        paste(x$ReSurvFit$IndividualDataPP$continuous_features ,  collapse="\n"))
+                                        paste(data_information$continuous_features ,  collapse="\n"))
       }
       cat(categorical_features, continuous_features)
 
@@ -150,7 +157,7 @@ plot.ReSurvPredict <-function (x,
 
 
     dtb_2_plot <- x$long_triangle_format_out$input_granularity %>%
-      filter(group_i==group_code,
+      dplyr::filter(group_i==group_code,
              DP_i>1)
 
     if(is.null(ticks_by_par)){
@@ -187,7 +194,7 @@ plot.ReSurvPredict <-function (x,
     if(granularity=="output"){
 
       dtb_2_plot <- x$long_triangle_format_out$output_granularity %>%
-        filter(group_o==group_code,
+        dplyr::filter(group_o==group_code,
                DP_o>1)
 
       if(is.null(ticks_by_par)){

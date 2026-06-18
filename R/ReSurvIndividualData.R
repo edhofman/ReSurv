@@ -42,6 +42,8 @@
 #' }
 #' Default is \code{"exposure"}.
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
+#' @param eta \code{numeric}, Efron baseline and development-factor eta parameter.
+#' @param simplifier \code{logical}, kept for compatibility. The simplified forecast frame is always used.
 #'
 #'
 #' @return \code{ReSurv} fit. A list containing
@@ -86,7 +88,8 @@
 #'
 #'
 #' resurv_fit_cox <- ReSurv(individual_data,
-#' hazard_model = "COX")
+#' hazard_model = "COX",
+#' eta = 0)
 #'
 #'
 #'
@@ -100,11 +103,11 @@
 #' @references
 #' Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 #'
-#' Therneau, T. M., & Lumley, T. (2015). Package ‘survival’. R Top Doc, 128(10), 28-33.
+#' Therneau, T. M., & Lumley, T. (2015). Package â€˜survivalâ€™. R Top Doc, 128(10), 28-33.
 #'
 #' Katzman, J. L., Shaham, U., Cloninger, A., Bates, J., Jiang, T., & Kluger, Y. (2018). DeepSurv: personalized treatment recommender system using a Cox proportional hazards deep neural network. BMC medical research methodology, 18(1), 1-12.
 #'
-#' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
+#' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package â€˜xgboostâ€™. R version, 90, 1-66.
 #'
 #' @export
 ReSurv <- function(IndividualDataPP,
@@ -115,10 +118,10 @@ ReSurv <- function(IndividualDataPP,
                    random_seed = 1,
                    hparameters = list(),
                    percentage_data_training = .8,
-                   grouping_method = "probability",
+                   grouping_method = "exposure",
                    check_value = 1.85,
                    eta=0.5,
-                   simplifier=FALSE){
+                   simplifier=TRUE){
 
   UseMethod("ReSurv")
 
@@ -160,13 +163,10 @@ ReSurv <- function(IndividualDataPP,
 #' @param random_seed \code{integer}, random seed set for reproducibility
 #' @param hparameters \code{list}, hyperparameters for the machine learning models. It will be disregarded for the cox approach.
 #' @param percentage_data_training \code{numeric}, percentage of data used for training on the upper triangle.
-#' @param grouping_method \code{character}, use probability or exposure approach to group from input to output development factors. Choice between:
-#' \itemize{
-#' \item{\code{"exposure"}}
-#' \item{\code{"probability"}}
-#' }
-#' Default is \code{"exposure"}.
+#' @param grouping_method \code{character}, use probability or exposure approach to group from input to output development factors.
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
+#' @param eta \code{numeric}, Efron baseline and development-factor eta parameter.
+#' @param simplifier \code{logical}, kept for compatibility. The simplified forecast frame is always used.
 #'
 #'
 #' @return \code{ReSurv} fit. A list containing
@@ -217,7 +217,8 @@ ReSurv <- function(IndividualDataPP,
 #'
 #'
 #' resurv_fit_cox <- ReSurv(individual_data,
-#' hazard_model = "COX")
+#' hazard_model = "COX",
+#' eta = 0)
 #'
 #'
 #'
@@ -226,11 +227,11 @@ ReSurv <- function(IndividualDataPP,
 #' @references
 #' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
 #'
-#' Therneau, T. M., & Lumley, T. (2015). Package ‘survival’. R Top Doc, 128(10), 28-33.
+#' Therneau, T. M., & Lumley, T. (2015). Package â€˜survivalâ€™. R Top Doc, 128(10), 28-33.
 #'
 #' Katzman, J. L., Shaham, U., Cloninger, A., Bates, J., Jiang, T., & Kluger, Y. (2018). DeepSurv: personalized treatment recommender system using a Cox proportional hazards deep neural network. BMC medical research methodology, 18(1), 1-12.
 #'
-#' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
+#' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package â€˜xgboostâ€™. R version, 90, 1-66.
 #'
 #' @export
 ReSurv.default <- function(IndividualDataPP,
@@ -244,7 +245,7 @@ ReSurv.default <- function(IndividualDataPP,
                            grouping_method = "exposure",
                            check_value = 1.85,
                            eta=0.5,
-                           simplifier=FALSE){
+                           simplifier=TRUE){
 
   message('The object provided must be of class IndividualDataPP')
 
@@ -296,6 +297,8 @@ ReSurv.default <- function(IndividualDataPP,
 #' }
 #' Default is \code{"exposure"}.
 #' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
+#' @param eta \code{numeric}, Efron baseline and development-factor eta parameter.
+#' @param simplifier \code{logical}, kept for compatibility. The simplified forecast frame is always used.
 #'
 #' @return \code{ReSurv} fit. A list containing
 #' \itemize{
@@ -345,7 +348,8 @@ ReSurv.default <- function(IndividualDataPP,
 #'
 #'
 #' resurv_fit_cox <- ReSurv(individual_data,
-#' hazard_model = "COX")
+#' hazard_model = "COX",
+#' eta = 0)
 #'
 #'
 #'
@@ -354,11 +358,11 @@ ReSurv.default <- function(IndividualDataPP,
 #' @references
 #' Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
 #'
-#' Therneau, T. M., & Lumley, T. (2015). Package ‘survival’. R Top Doc, 128(10), 28-33.
+#' Therneau, T. M., & Lumley, T. (2015). Package â€˜survivalâ€™. R Top Doc, 128(10), 28-33.
 #'
 #' Katzman, J. L., Shaham, U., Cloninger, A., Bates, J., Jiang, T., & Kluger, Y. (2018). DeepSurv: personalized treatment recommender system using a Cox proportional hazards deep neural network. BMC medical research methodology, 18(1), 1-12.
 #'
-#' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
+#' Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package â€˜xgboostâ€™. R version, 90, 1-66.
 #'
 #' @export
 ReSurv.IndividualDataPP <- function(IndividualDataPP,
@@ -372,11 +376,10 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
                                   grouping_method = "exposure",
                                   check_value = 1.85,
                                   eta=0.5,
-                                  simplifier=FALSE
+                                  simplifier=TRUE
 ){
 
-
-
+  eta <- pkg.env$validate_eta(eta)
   cont_f <- IndividualDataPP$data_information$continuous_features
   cat_f <- IndividualDataPP$data_information$categorical_features
 
@@ -384,43 +387,31 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
   formula_ct <- as.formula(IndividualDataPP$data_information$string_formula_i)
 
-  if(simplifier){
-
-    columns_for_grouping <- unique(c(cont_f,cat_f,"AP_i"))
-
-    tmp <- as.data.table(IndividualDataPP$training.data)
-
-    out <- tmp[,.(.N),by=columns_for_grouping][,..columns_for_grouping]
-
-    l4 <- list()
-
-    l4$DP_rev_i <- min(IndividualDataPP$training.data[,'DP_rev_i']):max(IndividualDataPP$training.data[,'DP_rev_i'])
-
-    l4<-do.call(CJ, c(l4, sorted = FALSE))
-
-    newdata<-as.data.frame(setkey(out[,c(k=1,.SD)],k)[l4[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL])
-
-
-  }else{
-  newdata <- create.df.2.fcst(IndividualDataPP=IndividualDataPP,
-                              hazard_model=hazard_model)}
+  newdata <- simplified_df_2_fcst(
+    IndividualDataPP = IndividualDataPP,
+    hazard_model = hazard_model
+  )
 
 
   # logical: check if we work with a baseline model
   is_baseline_model = is.null(c(cont_f,
                                 cat_f))
 
-
+  data=IndividualDataPP$training.data
   if(hazard_model=="COX"){
 
-    data=IndividualDataPP$training.data
 
-    X=data[,.SD,
-           .SDcols=c(cont_f,
-                     cat_f)]
+
+    if (is_baseline_model) {
+      X <- data.frame(intercept_1 = rep(1, nrow(data)))
+    } else {
+      X=data[,.SD,
+             .SDcols=c(cont_f,
+                       cat_f)]
+    }
 
     # X=data %>%
-    #   select(c(IndividualDataPP$data_information$continuous_features,IndividualDataPP$data_information$categorical_features))
+    #   dplyr::select(c(IndividualDataPP$data_information$continuous_features,IndividualDataPP$data_information$categorical_features))
 
     Y=data[,.SD,
            .SDcols=c("DP_rev_i", "I", "TR_i")]
@@ -428,7 +419,7 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
     # model.out <- pkg.env$fit_cox_model(data=data,
     #                                    formula_ct=formula_ct,
     #                                    newdata=newdata)
-    cox <- coxph(formula_ct, data=data, ties="efron")
+    cox <- survival::coxph(formula_ct, data=data, ties="efron")
     cox_lp <- predict(cox,newdata=newdata,'lp',reference='zero')
 
     cox_training_lp <- predict(cox,newdata=data[order(DP_rev_i)],'lp',reference='zero')
@@ -443,7 +434,7 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
     if(is_baseline_model){
 
-      X_tmp_bsln = data.frame(rep(1,dim(Y)[1]))
+      X_tmp_bsln = data.frame(intercept_1 = rep(1,dim(Y)[1]))
 
     }else{
 
@@ -485,10 +476,13 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
       }
 
-    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
-                                  model.out = model.out,
-                                  X=X_tmp_bsln,
-                                  Y=Y)
+    bsln <- pkg.env$baseline.calc(
+      hazard_model = hazard_model,
+      model.out    = model.out,
+      X            = X_tmp_bsln,
+      Y            = Y,
+      eta          = eta
+    )
 
 
     bsln <- data.table(baseline=bsln,
@@ -562,7 +556,7 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
       scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
 
       Xc <- IndividualDataPP$training.data %>%
-        reframe(across(all_of(IndividualDataPP$data_information$continuous_features),
+        dplyr::reframe(dplyr::across(dplyr::all_of(IndividualDataPP$data_information$continuous_features),
                        scaler))
 
       if(!is.null(IndividualDataPP$data_information$categorical_features)){
@@ -603,10 +597,13 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
 
 
-    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
-                                  model.out = model.out,
-                                  X=X,
-                                  Y=Y)
+    bsln <- pkg.env$baseline.calc(
+      hazard_model = hazard_model,
+      model.out    = model.out,
+      X            = X,
+      Y            = Y,
+      eta          = eta
+    )
 
     if(is_baseline_model){
 
@@ -687,7 +684,7 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
       scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
 
       Xc <- IndividualDataPP$training.data %>%
-        reframe(across(all_of(IndividualDataPP$data_information$continuous_features),
+        dplyr::reframe(dplyr::across(dplyr::all_of(IndividualDataPP$data_information$continuous_features),
                        scaler))
 
 
@@ -717,11 +714,13 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
     model.out <- pkg.env$fit_xgboost(datads_pp,
                                      hparameters=hparameters)
 
-    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
-                                  model.out = model.out,
-                                  X=X,
-                                  Y=Y)
-
+    bsln <- pkg.env$baseline.calc(
+      hazard_model = hazard_model,
+      model.out    = model.out,
+      X            = X,
+      Y            = Y,
+      eta          = eta
+    )
 
     if(is_baseline_model){
 
@@ -758,7 +757,9 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
     benchmark_id <- pkg.env$benchmark_id(X = X,
                                          Y =Y ,
                                          newdata.mx = newdata.bs,
-                                         remove_first_dummy=T)}
+                                         remove_first_dummy=T)
+
+    }
 
 
     pred_relative <- pred - pred[benchmark_id]
@@ -789,13 +790,15 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
 
   # hazard_frame <- hazard_frame %>%
-  #   full_join(bsln,
+  #   dplyr::full_join(bsln,
   #             by="DP_rev_i") %>%
   #   as.data.frame() %>%
-  #   replace_na(list(baseline=0))
+  #   tidyr::replace_na(list(baseline=0))
 
 
-  # assuming hazard_frame and bsln are already data.tables
+  hazard_frame <- data.table::as.data.table(hazard_frame)
+  bsln <- data.table::as.data.table(bsln)
+
   hazard_frame <- merge(
     hazard_frame,
     bsln,
@@ -819,7 +822,6 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
   hazard_frame[,dev_f_i := (1+(1-..eta)*hazard)/(1-..eta*hazard)]
 
   hazard_frame[is.na(dev_f_i), dev_f_i := 1]
-
   hazard_frame[dev_f_i < 0, dev_f_i := 1]
 
   hazard_frame <- hazard_frame[order(DP_rev_i)]
@@ -936,7 +938,9 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
                 ][,TR_o:=AP_o - 1L]
 
 
-    tmp.missing[, (IndividualDataPP$data_information$categorical_features) := lapply(.SD, as.factor), .SDcols = IndividualDataPP$data_information$categorical_features]
+    if (!is.null(IndividualDataPP$data_information$categorical_features)) {
+      tmp.missing[, (IndividualDataPP$data_information$categorical_features) := lapply(.SD, as.factor), .SDcols = IndividualDataPP$data_information$categorical_features]
+    }
 
     tmp.missing[,.SD,
                 .SDcols = colnames(tmp.missing)%in%unique(c(
@@ -983,7 +987,8 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
            data_information = data_information,
            fit_information = list(hazard_model = hazard_model,
                                   is_lkh=is_lkh,
-                                  os_lkh=os_lkh))
+                                  os_lkh=os_lkh,
+                                  eta          = eta))
 
   class(out) <- c('ReSurvFit')
 

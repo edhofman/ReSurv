@@ -9,6 +9,8 @@ survival_crps(ReSurvFit, user_hazard_frame = NULL, user_data_set = NULL)
 \arguments{
 \item{ReSurvFit}{ReSurvFit object to use for the score computation.}
 
+\item{user_hazard_frame}{data.frame with user-provided hazards. This path is currently unsupported for the current ReSurvFit structure.}
+
 \item{user_data_set}{data.frame provided from the user to compute the survival CRPS, optional.}
 }
 \value{
@@ -23,9 +25,9 @@ The model fit uses the theoretical framework of Hiabu et al. (2023), that relies
 \references{
 Pittarello, G., Hiabu, M., & Villegas, A. M. (2023). Chain Ladder Plus: a versatile approach for claims reserving. arXiv preprint arXiv:2301.03858.
 
-Therneau, T. M., & Lumley, T. (2015). Package ‘survival’. R Top Doc, 128(10), 28-33.
+Therneau, T. M., & Lumley, T. (2015). Package â€˜survivalâ€™. R Top Doc, 128(10), 28-33.
 
 Katzman, J. L., Shaham, U., Cloninger, A., Bates, J., Jiang, T., & Kluger, Y. (2018). DeepSurv: personalized treatment recommender system using a Cox proportional hazards deep neural network. BMC medical research methodology, 18(1), 1-12.
 
-Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package ‘xgboost’. R version, 90, 1-66.
+Chen, T., He, T., Benesty, M., & Khotilovich, V. (2019). Package â€˜xgboostâ€™. R version, 90, 1-66.
 }
