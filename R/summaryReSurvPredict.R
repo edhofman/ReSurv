@@ -20,33 +20,76 @@
 
 summary.ReSurvPredict <- function(object, granularity = "input", ...)
 {
-  handle <- match(granularity, c("input","output"))
+  handle <- match.arg(granularity, c("input", "output"))
 
-  IBNR_AP <- switch(handle,
-                    data.table(object$long_triangle_format_out$input_granularity)[, .(IBNR=sum(IBNR, na.rm=T)), by = AP_i],
-                    data.table(object$long_triangle_format_out$output_granularity)[, .(IBNR=sum(IBNR, na.rm=T)), by = AP_o]
-  )
+  if (handle == "input") {
 
-  # development_factor = switch(handle,
-  #                             object$df_input,
-  #                             object$df_output)
+    IBNR_AP <- data.table::as.data.table(
+      object$long_triangle_format_out$input_granularity
+    )[
+      ,
+      .(IBNR = sum(IBNR, na.rm = TRUE)),
+      by = AP_i
+    ]
 
-  keep = c(
-    "model.out",
-    "data_information",
-    "hazard_model"
-  )
+  } else {
+
+    if (is.null(object$long_triangle_format_out$output_granularity)) {
+      stop(
+        "Output granularity is not available. Use granularity = 'input' or call predict() with minimal_output = FALSE and conversion_factor != 1.",
+        call. = FALSE
+      )
+    }
+
+    IBNR_AP <- data.table::as.data.table(
+      object$long_triangle_format_out$output_granularity
+    )[
+      ,
+      .(IBNR = sum(IBNR, na.rm = TRUE)),
+      by = AP_o
+    ]
+  }
+
+  ReSurvFit_summary <- object$ReSurvFit[
+    intersect(
+      c("model.out", "data_information", "fit_information", "hazard_model"),
+      names(object$ReSurvFit)
+    )
+  ]
+
+  hazard_model <- NULL
+
+  if (!is.null(object$ReSurvFit$hazard_model)) {
+    hazard_model <- object$ReSurvFit$hazard_model
+  }
+
+  if (is.null(hazard_model) &&
+      !is.null(object$ReSurvFit$fit_information$hazard_model)) {
+    hazard_model <- object$ReSurvFit$fit_information$hazard_model
+  }
+
+  if (is.null(hazard_model) &&
+      !is.null(object$ReSurvFit$model.out$hazard_model)) {
+    hazard_model <- object$ReSurvFit$model.out$hazard_model
+  }
+
+  if (is.null(hazard_model) &&
+      !is.null(object$ReSurvFit$model.out$model.out$hazard_model)) {
+    hazard_model <- object$ReSurvFit$model.out$model.out$hazard_model
+  }
+
+  ReSurvFit_summary$hazard_model <- hazard_model
 
   summary <- list(
     IBNR_AP = IBNR_AP,
     total_IBNR = sum(IBNR_AP$IBNR),
-    # development_factor=development_factor,
-    grouping_method = object$grouping_method,
+    grouping_method = object$ReSurvFit$fit_information$grouping_method,
     granularity = granularity,
-    ReSurvFit = object$ReSurvFit[keep]
+    ReSurvFit = ReSurvFit_summary
   )
 
   class(summary) <- "summaryReSurvPredict"
+
   return(summary)
 }
 

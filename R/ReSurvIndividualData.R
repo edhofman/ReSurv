@@ -397,21 +397,102 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
   formula_ct <- as.formula(IndividualDataPP$data_information$string_formula_i)
 
-  newdata <- simplified_df_2_fcst(
-    IndividualDataPP = IndividualDataPP,
-    hazard_model = hazard_model
+  ## ------------------------------------------------------------------
+  ## Inline simplified_df_2_fcst(), data.table-only
+  ## ------------------------------------------------------------------
+
+  train_dt <- data.table::as.data.table(IndividualDataPP$training.data)
+
+  years <- IndividualDataPP$data_information$years
+  input_time_granularity <- IndividualDataPP$data_information$input_time_granularity
+  calendar_period_extrapolation <- IndividualDataPP$data_information$calendar_period_extrapolation
+
+  time_features <- c("DP_i", "DP_rev_i", "RP_i")
+
+  columns_for_grouping <- unique(c(
+    setdiff(cont_f, time_features),
+    setdiff(cat_f, time_features),
+    "AP_i"
+  ))
+
+  columns_for_grouping <- intersect(columns_for_grouping, names(train_dt))
+
+  out <- train_dt[
+    ,
+    .(.N),
+    by = columns_for_grouping
+  ][
+    ,
+    .SD,
+    .SDcols = columns_for_grouping
+  ]
+
+  l4 <- data.table::CJ(
+    DP_rev_i = min(train_dt[["DP_rev_i"]], na.rm = TRUE):
+      max(train_dt[["DP_rev_i"]], na.rm = TRUE),
+    sorted = FALSE
   )
 
+  out <- data.table::setkey(
+    out[, c(k = 1, .SD)],
+    k
+  )[
+    l4[, c(k = 1, .SD)],
+    allow.cartesian = TRUE
+  ][
+    ,
+    k := NULL
+  ]
+
+  time_unit_string <- c("days", "months", "quarters", "semesters", "years")
+  time_unit_numeric <- c(1 / 360, 1 / 12, 1 / 4, 1 / 2, 1)
+
+  input_pos <- match(input_time_granularity, time_unit_string)
+
+  if (is.na(input_pos)) {
+    stop(
+      "`input_time_granularity` must be one of: ",
+      paste(time_unit_string, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  max_dp_i <- as.integer(years / time_unit_numeric[input_pos])
+
+  out[
+    ,
+    DP_i := max_dp_i - DP_rev_i + 1L
+  ]
+
+  if (isTRUE(calendar_period_extrapolation) || "RP_i" %in% c(cont_f, cat_f)) {
+    out[
+      ,
+      RP_i := AP_i + DP_i - 1L
+    ]
+  }
+
+  if (!is.null(cat_f)) {
+    time_cat_f <- intersect(cat_f, time_features)
+
+    for (cft in time_cat_f) {
+      if (cft %in% names(out) && cft %in% names(train_dt)) {
+        out[
+          ,
+          (cft) := factor(
+            get(cft),
+            levels = levels(train_dt[[cft]])
+          )
+        ]
+      }
+    }
+  }
+
+  newdata <- as.data.frame(out)
 
   # logical: check if we work with a baseline model
   is_baseline_model = is.null(c(cont_f,
                                 cat_f))
 
-
-
-  # Data pre-processing
-
-  data=IndividualDataPP$training.data
 
   # Proportional hazard model fitting -------
 
@@ -1897,22 +1978,12 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
 
 
-  #Add development and relevant survival values to the hazard_frame
-  # hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
-  #                                                   # Om.df=Om.df,
-  #                                                   eta_old=eta,
-  #                                                   categorical_features = IndividualDataPP$categorical_features,
-  #                                                   continuous_features = IndividualDataPP$continuous_features,
-  #                                                   calendar_period_extrapolation = IndividualDataPP$calendar_period_extrapolation)
-
 
 
   # Prepare software output -----
 
   data_information <- IndividualDataPP$data_information
   data <- data.table::as.data.table(IndividualDataPP$training.data)
-
-  ## Inline pkg.env$maximum.time()
 
   time_unit_string <- c("days", "months", "quarters", "semesters", "years")
   time_unit_numeric <- c(1 / 360, 1 / 12, 1 / 4, 1 / 2, 1)

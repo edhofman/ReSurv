@@ -132,196 +132,488 @@
 #' Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 #'
 #' @export
+#' Individual data preprocessing for ReSurv
+#'
+#' @export
 IndividualDataPP <- function(data,
-                           id = NULL,
-                           continuous_features = NULL,
-                           categorical_features = NULL,
-                           accident_period,
-                           calendar_period,
-                           input_time_granularity="months",
-                           output_time_granularity="quarters",
-                           years=NULL,
-                           calendar_period_extrapolation=FALSE,
-                           continuous_features_spline=NULL,
-                           degrees_cf=3,
-                           degrees_of_freedom_cf=4,
-                           degrees_cp=3,
-                           degrees_of_freedom_cp=4){
+                             id = NULL,
+                             continuous_features = NULL,
+                             categorical_features = NULL,
+                             accident_period,
+                             calendar_period,
+                             input_time_granularity = "months",
+                             output_time_granularity = "quarters",
+                             years = NULL,
+                             calendar_period_extrapolation = FALSE,
+                             continuous_features_spline = NULL,
+                             degrees_cf = 3,
+                             degrees_of_freedom_cf = 4,
+                             degrees_cp = 3,
+                             degrees_of_freedom_cp = 4) {
 
+  ## ------------------------------------------------------------------
+  ## Basic validation
+  ## ------------------------------------------------------------------
 
-  # Work on a copy of the input data
-  tmp <- as.data.table(data)
+  tmp <- data.table::copy(data.table::as.data.table(data))
 
-  if(inherits(tmp[,get(accident_period)], "Date")){
-    ap1=lubridate::floor_date(min(tmp[,get(accident_period)]),"year")
-
-
-  }else{
-    ap1=min(tmp[,get(accident_period)])
-
-
-
+  if (!(accident_period %in% names(tmp))) {
+    stop("`accident_period` is not a column of `data`.", call. = FALSE)
   }
 
-  ap1num <- pkg.env$check.dates.consistency(ap1,
-                                            input_time_granularity=input_time_granularity,
-                                            ap1=ap1)
-  # Accident periods encoding
-  x.ap <- pkg.env$check.dates.consistency(tmp[,get(accident_period)],
-                                          input_time_granularity=input_time_granularity,
-                                          ap1=ap1)
-  tmp.ap <- pkg.env$encode.variables(x.ap,
-                                     ap1=ap1num)
-
-  # Calendar periods encoding
-  x.cp <- pkg.env$check.dates.consistency(tmp[,get(calendar_period)],
-                                          input_time_granularity=input_time_granularity,
-                                          ap1=ap1)
-  tmp.cp <- pkg.env$encode.variables.cp(x.cp,
-                                        ap1=ap1num)
-  # Development periods encoding
-  # browser()
-  tmp.dp <- tmp.cp-tmp.ap+1
-
-  # Check the ap among features
-  continuous_features<-pkg.env$fix.double.ap(features=continuous_features,accident_period=accident_period)
-  categorical_features<-pkg.env$fix.double.ap(features=categorical_features,accident_period=accident_period)
-
-  # The following checks warn you if there is a missing accident period or reporting period
-  # in the data. They do not interrupt the code.
-  pkg.env$check.all.present(tmp.ap, check.on='accident periods')
-  pkg.env$check.all.present(tmp.cp, check.on='calendar periods')
-
-  dim1=max(tmp.ap)
-  dim2=max(tmp.dp)
-
-  # You need at least the number of development periods on the rows.
-  # if(dim1>dim2){
-  #
-  #   stop("The number of accident periods is bigger than the number of development periods")
-  #
-  # }
-
-
-  # We need a conversion factor from input_time_granularity to output_time_granularity
-
-  # conversion_factor <- input_time_granularity*(1/output_time_granularity)
-
-  conversion_factor <- pkg.env$conversion.factor.of.time.units(input_time_granularity,
-                                                               output_time_granularity)
-
-
-  if(is.null(years)){
-
-    years <- pkg.env$total.years.in.the.data(input_time_granularity,
-                                             tmp.dp)
-
+  if (!(calendar_period %in% names(tmp))) {
+    stop("`calendar_period` is not a column of `data`.", call. = FALSE)
   }
 
-
-  max_dp_i =  pkg.env$maximum.time(years,input_time_granularity)
-  # Build the variables you need
-
-  tmp[,c("AP_i",
-         "DP_i",
-         "RP_i",
-         "DP_rev_i",
-         "TR_i",
-         "I"):=list(
-           tmp.ap,
-           tmp.dp,
-           tmp.cp,
-           max_dp_i-tmp.dp+1,
-           tmp.ap-1,
-           1
-         )]
-
-  # In case you have an ID you only take the first row to avoid double counts.
-  # We assume you can only have one reporting time.
-  if(!is.null(id)){
-
-    tmp <- tmp[, .SD[1], by = id]
+  if (!is.null(id) && !(id %in% names(tmp))) {
+    stop("`id` is not a column of `data`.", call. = FALSE)
   }
 
+  all_features <- unique(c(continuous_features, categorical_features))
 
+  if (length(all_features) > 0L) {
+    missing_features <- setdiff(all_features, names(tmp))
 
-  # Change columns that need to be changed
-  train <- tmp[, c("DP_rev_o", "AP_o") := list(
-    floor(max_dp_i * conversion_factor) - ceiling(DP_i * conversion_factor +
-                                                    ((AP_i - 1) %% (
-                                                      1 / conversion_factor
-                                                    )) * conversion_factor) + 1,
-    ceiling(AP_i * conversion_factor)
-  )][, TR_o := AP_o - 1][DP_rev_i > TR_i, ]
+    if (length(missing_features) > 0L) {
+      stop(
+        "The following features are not columns of `data`: ",
+        paste(missing_features, collapse = ", "),
+        call. = FALSE
+      )
+    }
+  }
 
-  # Check that the categorical covariates are of factor class
+  time_unit_string <- c(
+    "days",
+    "months",
+    "quarters",
+    "semesters",
+    "years"
+  )
+
+  time_unit_numeric <- c(
+    1 / 360,
+    1 / 12,
+    1 / 4,
+    1 / 2,
+    1
+  )
+
+  input_pos <- match(input_time_granularity, time_unit_string)
+  output_pos <- match(output_time_granularity, time_unit_string)
+
+  if (is.na(input_pos)) {
+    stop(
+      "`input_time_granularity` must be one of: ",
+      paste(time_unit_string, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  if (is.na(output_pos)) {
+    stop(
+      "`output_time_granularity` must be one of: ",
+      paste(time_unit_string, collapse = ", "),
+      call. = FALSE
+    )
+  }
+
+  input_numeric <- time_unit_numeric[input_pos]
+  output_numeric <- time_unit_numeric[output_pos]
+
+  if (abs((1 / input_numeric) %% (1 / output_numeric)) > .Machine$double.eps^0.5) {
+    stop(
+      "The provided time granularities are not subsettable.",
+      call. = FALSE
+    )
+  }
+
+  conversion_factor <- input_numeric / output_numeric
+
+  ## ------------------------------------------------------------------
+  ## Inline date conversion and period encoding
+  ## ------------------------------------------------------------------
+
+  if (inherits(tmp[[accident_period]], "Date")) {
+    ap1 <- lubridate::floor_date(
+      min(tmp[[accident_period]], na.rm = TRUE),
+      "year"
+    )
+  } else {
+    ap1 <- min(tmp[[accident_period]], na.rm = TRUE)
+  }
+
+  if (inherits(ap1, "Date")) {
+
+    if (input_time_granularity == "quarters") {
+      ap1num <- floor(
+        lubridate::time_length(ap1 - ap1, "months") / 3
+      )
+    } else if (input_time_granularity == "semesters") {
+      ap1num <- floor(
+        lubridate::time_length(ap1 - ap1, "months") / 6
+      )
+    } else {
+      ap1num <- floor(
+        lubridate::time_length(ap1 - ap1, input_time_granularity)
+      )
+    }
+
+  } else {
+    ap1num <- ap1
+  }
+
+  if (inherits(tmp[[accident_period]], "Date")) {
+
+    if (input_time_granularity == "quarters") {
+      x.ap <- floor(
+        lubridate::time_length(tmp[[accident_period]] - ap1, "months") / 3
+      )
+    } else if (input_time_granularity == "semesters") {
+      x.ap <- floor(
+        lubridate::time_length(tmp[[accident_period]] - ap1, "months") / 6
+      )
+    } else {
+      x.ap <- floor(
+        lubridate::time_length(
+          tmp[[accident_period]] - ap1,
+          input_time_granularity
+        )
+      )
+    }
+
+  } else {
+    x.ap <- tmp[[accident_period]]
+  }
+
+  if (inherits(tmp[[calendar_period]], "Date")) {
+
+    if (input_time_granularity == "quarters") {
+      x.cp <- floor(
+        lubridate::time_length(tmp[[calendar_period]] - ap1, "months") / 3
+      )
+    } else if (input_time_granularity == "semesters") {
+      x.cp <- floor(
+        lubridate::time_length(tmp[[calendar_period]] - ap1, "months") / 6
+      )
+    } else {
+      x.cp <- floor(
+        lubridate::time_length(
+          tmp[[calendar_period]] - ap1,
+          input_time_granularity
+        )
+      )
+    }
+
+  } else {
+    x.cp <- tmp[[calendar_period]]
+  }
+
+  seq_ap <- min(c(x.ap, ap1num), na.rm = TRUE):max(x.ap, na.rm = TRUE)
+  tmp.ap <- seq_along(seq_ap)[match(x.ap, seq_ap)]
+
+  seq_cp <- ap1num:max(x.cp, na.rm = TRUE)
+  tmp.cp <- seq_along(seq_cp)[match(x.cp, seq_cp)]
+
+  tmp.dp <- tmp.cp - tmp.ap + 1L
+
+  ## ------------------------------------------------------------------
+  ## Feature-name normalization
+  ## ------------------------------------------------------------------
+
+  if (!is.null(continuous_features)) {
+    continuous_features[continuous_features == accident_period] <- "AP_i"
+  }
+
   if (!is.null(categorical_features)) {
-    train<- train[, (categorical_features) := lapply(.SD, as.factor), .SDcols = categorical_features]
+    categorical_features[categorical_features == accident_period] <- "AP_i"
   }
 
-  train <- train[,.SD,.SDcols = c(id,
-                                  unique(c(categorical_features,
-                                  continuous_features,
-                                  "AP_i")),
-                                  switch(calendar_period_extrapolation, 'RP_i', NULL),
-                                  "AP_o",
-                                  "DP_i",
-                                  "DP_rev_i",
-                                  "DP_rev_o",
-                                  "TR_i",
-                                  "TR_o",
-                                  "I")]
+  continuous_features <- unique(continuous_features)
+  categorical_features <- unique(categorical_features)
 
+  ## ------------------------------------------------------------------
+  ## Missing-period warnings
+  ## ------------------------------------------------------------------
 
-  if(calendar_period_extrapolation){
-    train[,RP_o:=ceiling(RP_i*conversion_factor)]
+  ap_diff <- diff(as.integer(sort(unique(tmp.ap))))
 
+  if (sum(ap_diff > 1L, na.rm = TRUE) > 0L) {
+    warning(
+      "Some accident periods are missing in the data",
+      call. = FALSE
+    )
   }
 
-  string_formula_i <- pkg.env$formula.editor(continuous_features=continuous_features,
-                                             categorical_features=categorical_features,
-                                             continuous_features_spline=continuous_features_spline,
-                                             degree_cf=degrees_cf,
-                                             degrees_of_freedom_cf=degrees_of_freedom_cf,
-                                             calendar_period="RP_i",
-                                             calendar_period_extrapolation=calendar_period_extrapolation,
-                                             degree_cp=degree_cp,
-                                             degrees_of_freedom_cp=degrees_of_freedom_cp,
-                                             input_output='i')
+  cp_diff <- diff(as.integer(sort(unique(tmp.cp))))
 
-  string_formula_o <- pkg.env$formula.editor(continuous_features=continuous_features,
-                                             categorical_features=categorical_features,
-                                             continuous_features_spline=continuous_features_spline,
-                                             degree_cf=degrees_cf,
-                                             degrees_of_freedom_cf=degrees_of_freedom_cf,
-                                             calendar_period="RP_o",
-                                             calendar_period_extrapolation=calendar_period_extrapolation,
-                                             degree_cp=degree_cp,
-                                             degrees_of_freedom_cp=degrees_of_freedom_cp,
-                                             input_output='o')
+  if (sum(cp_diff > 1L, na.rm = TRUE) > 0L) {
+    warning(
+      "Some calendar periods are missing in the data",
+      call. = FALSE
+    )
+  }
 
+  ## ------------------------------------------------------------------
+  ## Time horizon
+  ## ------------------------------------------------------------------
 
-  # Create and organize the output
-  out <- list(training.data = train,
-              data_information=list(conversion_factor=conversion_factor,
-                               string_formula_i=string_formula_i,
-                               string_formula_o=string_formula_o,
-                               continuous_features=continuous_features,
-                               categorical_features=categorical_features,
-                               calendar_period_extrapolation=calendar_period_extrapolation,
-                               years=years,
-                               accident_period=accident_period,
-                               calendar_period=calendar_period,
-                               input_time_granularity=input_time_granularity,
-                               output_time_granularity=output_time_granularity)
-              )
+  if (is.null(years)) {
+    years <- ceiling(max(tmp.dp, na.rm = TRUE) * input_numeric)
+  }
 
-  # Return the correct output
+  max_dp_i <- as.integer(round(years / input_numeric))
+  max_dp_o <- as.integer(round(years / output_numeric))
+
+  ## ------------------------------------------------------------------
+  ## Main encoded variables
+  ## ------------------------------------------------------------------
+
+  tmp[
+    ,
+    `:=`(
+      AP_i = as.integer(tmp.ap),
+      DP_i = as.integer(tmp.dp),
+      RP_i = as.integer(tmp.cp),
+      DP_rev_i = as.integer(max_dp_i - tmp.dp + 1L),
+      TR_i = as.integer(tmp.ap - 1L),
+      I = 1L
+    )
+  ]
+
+  ## In case there is an ID, keep only the first row per ID to avoid
+  ## double counting. We assume one reporting time per claim.
+  if (!is.null(id)) {
+    tmp <- tmp[
+      ,
+      .SD[1L],
+      by = id
+    ]
+  }
+
+  tmp[
+    ,
+    `:=`(
+      DP_rev_o = as.integer(
+        floor(max_dp_i * conversion_factor) -
+          ceiling(
+            DP_i * conversion_factor +
+              ((AP_i - 1L) %% (1 / conversion_factor)) *
+              conversion_factor
+          ) +
+          1L
+      ),
+      AP_o = as.integer(ceiling(AP_i * conversion_factor))
+    )
+  ]
+
+  tmp[
+    ,
+    `:=`(
+      TR_o = as.integer(AP_o - 1L),
+      DP_o = as.integer(max_dp_o - DP_rev_o + 1L)
+    )
+  ]
+
+  if (isTRUE(calendar_period_extrapolation)) {
+    tmp[
+      ,
+      RP_o := as.integer(ceiling(RP_i * conversion_factor))
+    ]
+  }
+
+  if (!is.null(categorical_features)) {
+    cat_cols_present <- intersect(categorical_features, names(tmp))
+
+    if (length(cat_cols_present) > 0L) {
+      tmp[
+        ,
+        (cat_cols_present) := lapply(.SD, as.factor),
+        .SDcols = cat_cols_present
+      ]
+    }
+  }
+
+  ## ------------------------------------------------------------------
+  ## Training data: observed upper triangle
+  ## ------------------------------------------------------------------
+
+  train <- data.table::copy(
+    tmp[
+      DP_rev_i > TR_i
+    ]
+  )
+
+  train_cols <- unique(c(
+    id,
+    categorical_features,
+    continuous_features,
+    "AP_i",
+    if (isTRUE(calendar_period_extrapolation)) "RP_i" else NULL,
+    "AP_o",
+    "DP_i",
+    "DP_rev_i",
+    "DP_rev_o",
+    "TR_i",
+    "TR_o",
+    "I",
+    if (isTRUE(calendar_period_extrapolation)) "RP_o" else NULL
+  ))
+
+  train_cols <- intersect(train_cols, names(train))
+
+  train <- train[
+    ,
+    .SD,
+    .SDcols = train_cols
+  ]
+
+  ## ------------------------------------------------------------------
+  ## Inline formula editor
+  ## ------------------------------------------------------------------
+
+  continuous_features_i <- continuous_features
+  continuous_features_o <- continuous_features
+
+  if (!is.null(continuous_features_o)) {
+    continuous_features_o[continuous_features_o == "AP_i"] <- "AP_o"
+    continuous_features_o[continuous_features_o == "RP_i"] <- "RP_o"
+  }
+
+  make_formula <- function(continuous_features_local,
+                           categorical_features_local,
+                           continuous_features_spline_local,
+                           calendar_period_local,
+                           calendar_period_extrapolation_local,
+                           input_output_local) {
+
+    cat_terms <- NULL
+
+    if (!is.null(categorical_features_local) &&
+        length(categorical_features_local) > 0L) {
+      cat_terms <- categorical_features_local
+    }
+
+    cont_terms <- NULL
+    spline_terms <- NULL
+
+    if (!is.null(continuous_features_local) &&
+        length(continuous_features_local) > 0L) {
+
+      spline_features <- intersect(
+        continuous_features_local,
+        continuous_features_spline_local
+      )
+
+      linear_features <- setdiff(
+        continuous_features_local,
+        spline_features
+      )
+
+      if (length(linear_features) > 0L) {
+        cont_terms <- linear_features
+      }
+
+      if (length(spline_features) > 0L) {
+        spline_terms <- paste0(
+          "pspline(",
+          spline_features,
+          ",degree=",
+          degrees_cf,
+          ",df=",
+          degrees_of_freedom_cf,
+          ")"
+        )
+      }
+    }
+
+    calendar_term <- NULL
+
+    if (isTRUE(calendar_period_extrapolation_local)) {
+      calendar_term <- paste0(
+        "pspline(",
+        calendar_period_local,
+        ",degree=",
+        degrees_cp,
+        ",df=",
+        degrees_of_freedom_cp,
+        ")"
+      )
+    }
+
+    rhs_terms <- c(
+      cat_terms,
+      cont_terms,
+      spline_terms,
+      calendar_term
+    )
+
+    rhs_terms <- rhs_terms[
+      !is.na(rhs_terms) &
+        nzchar(rhs_terms)
+    ]
+
+    lhs <- paste0(
+      "survival::Surv(TR_",
+      input_output_local,
+      ", DP_rev_",
+      input_output_local,
+      ", I) ~ "
+    )
+
+    if (length(rhs_terms) == 0L) {
+      paste0(lhs, "1")
+    } else {
+      paste0(lhs, paste(rhs_terms, collapse = "+"))
+    }
+  }
+
+  string_formula_i <- make_formula(
+    continuous_features_local = continuous_features_i,
+    categorical_features_local = categorical_features,
+    continuous_features_spline_local = continuous_features_spline,
+    calendar_period_local = "RP_i",
+    calendar_period_extrapolation_local = calendar_period_extrapolation,
+    input_output_local = "i"
+  )
+
+  string_formula_o <- make_formula(
+    continuous_features_local = continuous_features_o,
+    categorical_features_local = categorical_features,
+    continuous_features_spline_local = continuous_features_spline,
+    calendar_period_local = "RP_o",
+    calendar_period_extrapolation_local = calendar_period_extrapolation,
+    input_output_local = "o"
+  )
+
+  ## ------------------------------------------------------------------
+  ## Output
+  ## ------------------------------------------------------------------
+
+  out <- list(
+    training.data = train,
+    full.data = tmp,
+    data_information = list(
+      conversion_factor = conversion_factor,
+      string_formula_i = string_formula_i,
+      string_formula_o = string_formula_o,
+      continuous_features = continuous_features,
+      categorical_features = categorical_features,
+      calendar_period_extrapolation = calendar_period_extrapolation,
+      years = years,
+      accident_period = accident_period,
+      calendar_period = calendar_period,
+      input_time_granularity = input_time_granularity,
+      output_time_granularity = output_time_granularity,
+      input_time_unit = input_time_granularity,
+      output_time_unit = output_time_granularity
+    )
+  )
+
   class(out) <- "IndividualDataPP"
 
   out
-
-  }
+}
 
 
 
