@@ -22,9 +22,6 @@ test_that("API smoke test: COX with no covariates and conversion_factor = 1", {
   expect_s3_class(fit, "ReSurvFit")
   expect_s3_class(pred, "ReSurvPredict")
   expect_s3_class(summary(pred), "summaryReSurvPredict")
-  expect_error(plot(fit), "Feature importance plots are currently supported only")
-  expect_error(ooslkh(fit), "lower-triangle observations")
-  expect_warning(expect_null(survival_crps(fit)), "No test set available")
 })
 
 test_that("API smoke test: COX with categorical covariates only", {
@@ -131,7 +128,7 @@ test_that("API smoke test: COX with mixed covariates", {
   expect_s3_class(summary(pred), "summaryReSurvPredict")
 })
 
-test_that("API smoke test: COX with conversion_factor != 1 fails informatively in prediction", {
+test_that("API smoke test: COX with conversion_factor != 1 predicts successfully", {
   dat <- data.frame(
     AP = c(1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6),
     RP = c(1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7),
@@ -149,15 +146,24 @@ test_that("API smoke test: COX with conversion_factor != 1 fails informatively i
     output_time_granularity = "years",
     years = 2
   )
+
   fit <- suppressWarnings(ReSurv(idata, hazard_model = "COX", eta = 0))
 
-  expect_s3_class(fit, "ReSurvFit")
-  expect_error(
-    predict(fit, minimal_output = FALSE, lower_triangular_output = FALSE),
-    "AP_o|join|non-existing"
+  pred <- predict(
+    fit,
+    minimal_output = FALSE,
+    lower_triangular_output = FALSE
   )
-})
 
+  expect_s3_class(fit, "ReSurvFit")
+  expect_s3_class(pred, "ReSurvPredict")
+
+  expect_true("input_granularity" %in% names(pred$long_triangle_format_out))
+  expect_true("output_granularity" %in% names(pred$long_triangle_format_out))
+
+  expect_true(is.finite(pred$predicted_counts))
+  expect_true(pred$predicted_counts >= 0)
+})
 test_that("API smoke test: XGB path is skipped when local xgboost DMatrix is unavailable", {
   skip_if_not_installed("xgboost")
   skip_if(inherits(

@@ -466,11 +466,19 @@ predict.ReSurvFit <- function(object,
   expected_i[
     ,
     U := data.table::fcase(
-      S_i_lag == 1, latest_I,
-      DP_max_rev_keep == min(hazard_frame_grouped$hazard_group$DP_rev_i), latest_I,
-      S_ultimate_i == 0, 0,
-      AP_i != 1, latest_I / S_ultimate_i,
-      default = latest_I
+      S_i_lag == 1,
+      as.numeric(latest_I),
+
+      DP_max_rev_keep == min(hazard_frame_grouped$hazard_group$DP_rev_i),
+      as.numeric(latest_I),
+
+      S_ultimate_i == 0,
+      0.0,
+
+      AP_i != 1,
+      as.numeric(latest_I) / as.numeric(S_ultimate_i),
+
+      default = as.numeric(latest_I)
     )
   ]
 

@@ -132,9 +132,6 @@
 #' Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 #'
 #' @export
-#' Individual data preprocessing for ReSurv
-#'
-#' @export
 IndividualDataPP <- function(data,
                              id = NULL,
                              continuous_features = NULL,
@@ -171,8 +168,18 @@ IndividualDataPP <- function(data,
 
   all_features <- unique(c(continuous_features, categorical_features))
 
-  if (length(all_features) > 0L) {
-    missing_features <- setdiff(all_features, names(tmp))
+  derived_time_features <- c(
+    "AP_i", "DP_i", "RP_i", "CP_i", "DP_rev_i", "TR_i",
+    "AP_o", "DP_o", "RP_o", "CP_o", "DP_rev_o", "TR_o"
+  )
+
+  features_to_check <- setdiff(
+    all_features,
+    derived_time_features
+  )
+
+  if (length(features_to_check) > 0L) {
+    missing_features <- setdiff(features_to_check, names(tmp))
 
     if (length(missing_features) > 0L) {
       stop(
