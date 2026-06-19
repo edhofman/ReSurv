@@ -60,7 +60,7 @@ test_that("hand-computed Efron likelihood matches package likelihood", {
     data = toy,
     ties = "efron"
   )
-  cox_eval <- pkg.env$evaluate_lkh_cox(
+  cox_eval <- evaluate_lkh_cox(
     X_train = toy["phi"],
     Y_train = toy[c("DP_rev_i", "I", "TR_i")],
     model = list(cox = cox)
@@ -68,7 +68,7 @@ test_that("hand-computed Efron likelihood matches package likelihood", {
   expect_equal(cox_eval$value, manual_avg_loss, tolerance = 1e-10)
 
   skip_if_not_installed("torch")
-  torch_loss <- pkg.env$cox_ph_loss_torch(
+  torch_loss <- cox_ph_loss_torch(
     log_h = torch::torch_tensor(toy$phi, dtype = torch::torch_float32()),
     durations = torch::torch_tensor(toy$DP_rev_i, dtype = torch::torch_float32()),
     events = torch::torch_tensor(toy$I, dtype = torch::torch_float32()),

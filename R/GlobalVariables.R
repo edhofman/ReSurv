@@ -1,8 +1,6 @@
 # Vector of variables
 # This script contains the global variables we define to ease the package computations.
 
-pkg.env <- new.env()
-
 vector_of_variables <- c("DP_i",
                          "AP_i",
                          "DP_rev_i",

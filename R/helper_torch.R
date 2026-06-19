@@ -5,7 +5,7 @@
 
 ## Network builder ----
 
-pkg.env$build_deepsurv_net <- function(input_dim, params) {
+build_deepsurv_net <- function(input_dim, params) {
 
   activation_map <- list(
     "relu"       = torch::nn_relu,
@@ -44,7 +44,7 @@ pkg.env$build_deepsurv_net <- function(input_dim, params) {
 
 ## Efron partial likelihood loss with left truncation ----
 
-pkg.env$cox_ph_loss_torch <- function(log_h,
+cox_ph_loss_torch <- function(log_h,
                                       durations,
                                       events,
                                       truncation) {
@@ -132,7 +132,7 @@ pkg.env$cox_ph_loss_torch <- function(log_h,
 }
 
 
-pkg.env$nn_elastic_net_penalty_torch <- function(net,
+nn_elastic_net_penalty_torch <- function(net,
                                                  xi,
                                                  eps) {
   # The paper writes:
@@ -159,7 +159,7 @@ pkg.env$nn_elastic_net_penalty_torch <- function(net,
 
 ## Breslow baseline hazard estimator ----
 
-pkg.env$compute_baseline_hazards_r <- function(net, input, df_target) {
+compute_baseline_hazards_r <- function(net, input, df_target) {
 
   net$eval()
 
@@ -193,7 +193,7 @@ pkg.env$compute_baseline_hazards_r <- function(net, input, df_target) {
 
 ## Training loop ----
 
-pkg.env$train_deepsurv <- function(net,
+train_deepsurv <- function(net,
                                    x_train,
                                    y_train,
                                    x_val,
@@ -269,14 +269,14 @@ pkg.env$train_deepsurv <- function(net,
     # This is necessary because Cox risk sets are global.
     train_log_h <- net(x_train_t)$squeeze()
 
-    cox_loss <- pkg.env$cox_ph_loss_torch(
+    cox_loss <- cox_ph_loss_torch(
       log_h      = train_log_h,
       durations  = dur_train_t,
       events     = event_train_t,
       truncation = trunc_train_t
     )
 
-    reg <- pkg.env$nn_elastic_net_penalty_torch(
+    reg <- nn_elastic_net_penalty_torch(
       net = net,
       xi  = params$xi,
       eps = params$eps
@@ -292,7 +292,7 @@ pkg.env$train_deepsurv <- function(net,
 
     torch::with_no_grad({
       train_log_h_eval <- net(x_train_t)$squeeze()
-      t_loss <- pkg.env$cox_ph_loss_torch(
+      t_loss <- cox_ph_loss_torch(
         log_h      = train_log_h_eval,
         durations  = dur_train_t,
         events     = event_train_t,
@@ -300,7 +300,7 @@ pkg.env$train_deepsurv <- function(net,
       )
 
       val_log_h <- net(x_val_t)$squeeze()
-      v_loss <- pkg.env$cox_ph_loss_torch(
+      v_loss <- cox_ph_loss_torch(
         log_h      = val_log_h,
         durations  = dur_val_t,
         events     = event_val_t,
@@ -350,7 +350,7 @@ pkg.env$train_deepsurv <- function(net,
 }
 ## Prediction ----
 
-pkg.env$predict_deepsurv <- function(net, x) {
+predict_deepsurv <- function(net, x) {
 
   net$eval()
   x_tensor <- torch::torch_tensor(as.matrix(x), dtype = torch::torch_float32())

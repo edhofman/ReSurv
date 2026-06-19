@@ -3,7 +3,7 @@
 # @importFrom fastDummies dummy_cols
 ## Encoding and formula ----
 
-pkg.env$check.dates.consistency <- function(x,
+check.dates.consistency <- function(x,
                                             input_time_granularity,
                                             ap1){
 "
@@ -42,7 +42,7 @@ In case they are, it transforms them into numeric.
 }
 
 
-pkg.env$encode.variables <- function(x,ap1){
+encode.variables <- function(x,ap1){
   "
   This function encodes the periods.
   We impose that the indexization starts from 1.
@@ -60,7 +60,7 @@ pkg.env$encode.variables <- function(x,ap1){
 
 }
 
-pkg.env$encode.variables.cp <- function(x,ap1){
+encode.variables.cp <- function(x,ap1){
   "
   This function encodes the periods.
   We impose that the indexization starts from 1.
@@ -76,7 +76,7 @@ pkg.env$encode.variables.cp <- function(x,ap1){
 }
 
 
-pkg.env$formula.editor <- function(continuous_features,
+formula.editor <- function(continuous_features,
                                    categorical_features,
                                    continuous_features_spline,
                                    degree_cf,
@@ -132,11 +132,11 @@ pkg.env$formula.editor <- function(continuous_features,
 
 "This is a vectorized version of the grepl function.
 See the grepl function documentation."
-pkg.env$vgrepl <- Vectorize(grepl, vectorize.args = "pattern")
+vgrepl <- Vectorize(grepl, vectorize.args = "pattern")
 
 ## Model Matrix helpers ----
 
-pkg.env$model.matrix.creator <- function(data,
+model.matrix.creator <- function(data,
                                          select_columns,
                                          remove_first_dummy = FALSE){
   "
@@ -157,7 +157,7 @@ pkg.env$model.matrix.creator <- function(data,
     remove_first_dummy = remove_first_dummy
   )
 
-  tmp.cond=as.logical(apply(pkg.env$vgrepl(pattern=select_columns,
+  tmp.cond=as.logical(apply(vgrepl(pattern=select_columns,
                                            x=colnames(X)), #individual_data$categorical_features
                             MARGIN=1,
                             sum))
@@ -175,7 +175,7 @@ pkg.env$model.matrix.creator <- function(data,
 }
 
 
-pkg.env$model.matrix.extract.hazard.names <- function(X,
+model.matrix.extract.hazard.names <- function(X,
                                                       string_formula,
                                                       data){
 
@@ -207,19 +207,19 @@ pkg.env$model.matrix.extract.hazard.names <- function(X,
 
 ## Scalers ----
 
-pkg.env$MinMaxScaler <- function(x, na.rm = TRUE) {
+MinMaxScaler <- function(x, na.rm = TRUE) {
   "MinMax Scaler"
   return(2*(x- min(x)) /(max(x)-min(x))-1)
 }
-pkg.env$StandardScaler <- function(x, na.rm = TRUE) {
+StandardScaler <- function(x, na.rm = TRUE) {
   "Standard Scaler"
   return( (x-mean(x))/sd(x) )
 }
 
-pkg.env$scaler <- function(continuous_features_scaling_method){
+scaler <- function(continuous_features_scaling_method){
   "Apply the scaling method"
-  if(continuous_features_scaling_method == "minmax" ){return(pkg.env$MinMaxScaler)}
-  if(continuous_features_scaling_method == "standard" ){return(pkg.env$StandardScaler)}
+  if(continuous_features_scaling_method == "minmax" ){return(MinMaxScaler)}
+  if(continuous_features_scaling_method == "standard" ){return(StandardScaler)}
 
 
 }

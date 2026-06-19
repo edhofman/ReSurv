@@ -13,7 +13,7 @@ test_that("torch NN Cox-Efron loss matches R reference", {
     truncation = truncation
   )
 
-  torch_loss <- pkg.env$cox_ph_loss_torch(
+  torch_loss <- cox_ph_loss_torch(
     log_h = torch::torch_tensor(log_h, dtype = torch::torch_float32()),
     durations = torch::torch_tensor(durations, dtype = torch::torch_float32()),
     events = torch::torch_tensor(events, dtype = torch::torch_float32()),
@@ -39,7 +39,7 @@ test_that("torch NN Cox-Efron loss matches R reference", {
     truncation = truncation
   )
 
-  torch_loss <- pkg.env$cox_ph_loss_torch(
+  torch_loss <- cox_ph_loss_torch(
     log_h = torch::torch_tensor(log_h, dtype = torch::torch_float32()),
     durations = torch::torch_tensor(durations, dtype = torch::torch_float32()),
     events = torch::torch_tensor(events, dtype = torch::torch_float32()),

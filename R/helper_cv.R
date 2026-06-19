@@ -1,4 +1,9 @@
-pkg.env$cv_design_matrix <- function(IndividualDataPP,
+# Internal legacy CV helpers
+#
+# These helpers support older CV construction, hyperparameter expansion, and
+# likelihood evaluation paths that are still used by internal fitting code.
+
+cv_design_matrix <- function(IndividualDataPP,
                                      continuous_features_scaling_method = "minmax",
                                      remove_first_dummy = FALSE) {
 
@@ -17,7 +22,7 @@ pkg.env$cv_design_matrix <- function(IndividualDataPP,
     X_parts <- list()
 
     if (!is.null(categorical_features)) {
-      X_parts[["categorical"]] <- pkg.env$model.matrix.creator(
+      X_parts[["categorical"]] <- model.matrix.creator(
         data = training_data,
         select_columns = categorical_features,
         remove_first_dummy = remove_first_dummy
@@ -25,7 +30,7 @@ pkg.env$cv_design_matrix <- function(IndividualDataPP,
     }
 
     if (!is.null(continuous_features)) {
-      scaler <- pkg.env$scaler(
+      scaler <- scaler(
         continuous_features_scaling_method = continuous_features_scaling_method
       )
 
@@ -48,7 +53,7 @@ pkg.env$cv_design_matrix <- function(IndividualDataPP,
 }
 
 
-pkg.env$xgboost_cv <- function(IndividualDataPP,
+xgboost_cv <- function(IndividualDataPP,
                                folds,
                                kfolds,
                                print_every_n = 1L,
@@ -71,7 +76,7 @@ pkg.env$xgboost_cv <- function(IndividualDataPP,
     )
   }
 
-  xy <- pkg.env$cv_design_matrix(
+  xy <- cv_design_matrix(
     IndividualDataPP = IndividualDataPP,
     continuous_features_scaling_method = continuous_features_scaling_method,
     remove_first_dummy = TRUE
@@ -89,7 +94,7 @@ pkg.env$xgboost_cv <- function(IndividualDataPP,
       )
     }
 
-    out[hp, c("train.lkh", "test.lkh", "time")] <- pkg.env$cv_xgboost(
+    out[hp, c("train.lkh", "test.lkh", "time")] <- cv_xgboost(
       hp = hp,
       X = xy$X,
       Y = xy$Y,
@@ -107,7 +112,7 @@ pkg.env$xgboost_cv <- function(IndividualDataPP,
   out
 }
 
-pkg.env$get_xgb_eval_value <- function(model.out,
+get_xgb_eval_value <- function(model.out,
                                        dataset = c("train", "eval"),
                                        iteration = NULL) {
   dataset <- match.arg(dataset)
@@ -150,7 +155,7 @@ pkg.env$get_xgb_eval_value <- function(model.out,
 
   evaluation_log[[candidates[1L]]][iteration]
 }
-pkg.env$cv_xgboost <- function(hp,
+cv_xgboost <- function(hp,
                                X,
                                Y,
                                folds,
@@ -177,13 +182,13 @@ pkg.env$cv_xgboost <- function(hp,
 
   for (i in seq_len(folds)) {
 
-    datads_pp <- pkg.env$xgboost_pp(
+    datads_pp <- xgboost_pp(
       X = X,
       Y = Y,
       samples_TF = kfolds != i
     )
 
-    model.out.k <- pkg.env$fit_xgboost(
+    model.out.k <- fit_xgboost(
       datads_pp = datads_pp,
       hparameters = hparameters
     )
@@ -294,7 +299,7 @@ pkg.env$cv_xgboost <- function(hp,
     time
   )
 }
-pkg.env$nn_hparameter_nodes_grid <- function(hparameters, cv = FALSE) {
+nn_hparameter_nodes_grid <- function(hparameters, cv = FALSE) {
 
   if (!("num_layers" %in% names(hparameters))) {
     return(hparameters)
@@ -353,7 +358,7 @@ pkg.env$nn_hparameter_nodes_grid <- function(hparameters, cv = FALSE) {
 }
 
 
-pkg.env$deep_surv_cv <- function(IndividualDataPP,
+deep_surv_cv <- function(IndividualDataPP,
                                  continuous_features_scaling_method,
                                  folds,
                                  kfolds,
@@ -374,7 +379,7 @@ pkg.env$deep_surv_cv <- function(IndividualDataPP,
     )
   }
 
-  xy <- pkg.env$cv_design_matrix(
+  xy <- cv_design_matrix(
     IndividualDataPP = IndividualDataPP,
     continuous_features_scaling_method = continuous_features_scaling_method,
     remove_first_dummy = FALSE
@@ -392,7 +397,7 @@ pkg.env$deep_surv_cv <- function(IndividualDataPP,
       )
     }
 
-    out[hp, c("train.lkh", "test.lkh", "time")] <- pkg.env$cv_deep_surv(
+    out[hp, c("train.lkh", "test.lkh", "time")] <- cv_deep_surv(
       hp = hp,
       X = xy$X,
       Y = xy$Y,
@@ -409,7 +414,7 @@ pkg.env$deep_surv_cv <- function(IndividualDataPP,
 }
 
 
-pkg.env$cv_deep_surv <- function(hp,
+cv_deep_surv <- function(hp,
                                  X,
                                  Y,
                                  folds,
@@ -431,13 +436,13 @@ pkg.env$cv_deep_surv <- function(hp,
   tmp.test.lkh  <- numeric(folds)
 
   for (i in seq_len(folds)) {
-    datads_pp <- pkg.env$deep_surv_pp(
+    datads_pp <- deep_surv_pp(
       X = X,
       Y = Y,
       samples_TF = kfolds != i
     )
 
-    model.out.k <- pkg.env$fit_deep_surv(
+    model.out.k <- fit_deep_surv(
       data = datads_pp,
       params = hparameters$params,
       verbose = hparameters$verbose,

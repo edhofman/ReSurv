@@ -16,7 +16,7 @@ test_that("simplified forecast frame derives input time features", {
   )
 
   newdata <- simplified_df_2_fcst(idata, hazard_model = "XGB")
-  max_dp_i <- pkg.env$maximum.time(
+  max_dp_i <- maximum.time(
     idata$data_information$years,
     idata$data_information$input_time_granularity
   )

@@ -6,7 +6,7 @@
 # @importFrom tidyr replace_na
 ## Evaluation metrics ----
 
-pkg.env$evaluate_lkh_nn <-function(X_train,
+evaluate_lkh_nn <-function(X_train,
                                    Y_train,
                                    model){
 
@@ -17,7 +17,7 @@ pkg.env$evaluate_lkh_nn <-function(X_train,
     dplyr::select(-DP_rev_i) %>%
     as.matrix()
 
-  preds <- pkg.env$predict_deepsurv(model$net, data_train)
+  preds <- predict_deepsurv(model$net, data_train)
   preds <-preds-preds[1]
 
 
@@ -74,7 +74,7 @@ pkg.env$evaluate_lkh_nn <-function(X_train,
 
 }
 
-pkg.env$evaluate_lkh_xgb <-function(X_train,
+evaluate_lkh_xgb <-function(X_train,
                                     Y_train,
                                     dset,
                                     samples_cn,
@@ -147,7 +147,7 @@ pkg.env$evaluate_lkh_xgb <-function(X_train,
 }
 
 
-pkg.env$evaluate_lkh_cox <-function(X_train,
+evaluate_lkh_cox <-function(X_train,
                                     Y_train,
                                     model){
 
@@ -246,10 +246,10 @@ adjust.predictions <- function(ResurvFit,
 
   if(hazard_model=="NN"){
 
-    X <- pkg.env$model.matrix.creator(data= idata$training.data,
+    X <- model.matrix.creator(data= idata$training.data,
                                       select_columns = idata$categorical_features)
 
-    scaler <- pkg.env$scaler(continuous_features_scaling_method='minmax')
+    scaler <- scaler(continuous_features_scaling_method='minmax')
 
     Xc <- idata$training.data %>%
       dplyr::reframe(dplyr::across(dplyr::all_of(idata$continuous_features),
@@ -260,16 +260,16 @@ adjust.predictions <- function(ResurvFit,
 
     Y=idata$training.data[,c("DP_rev_i", "I", "TR_i")]
 
-    datads_pp = pkg.env$deep_surv_pp(X=X,
+    datads_pp = deep_surv_pp(X=X,
                                      Y=Y,
                                      training_test_split = 1)
 
-    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+    bsln <- baseline.calc(hazard_model = hazard_model,
                                   model.out = ResurvFit$model.out$model.out,
                                   X=X,
                                   Y=Y)
 
-    newdata.mx <- pkg.env$df.2.fcst.nn.pp(data=idata$training.data,
+    newdata.mx <- df.2.fcst.nn.pp(data=idata$training.data,
                                           newdata=newdata,
                                           continuous_features=idata$continuous_features,
                                           categorical_features=idata$categorical_features)
@@ -280,11 +280,11 @@ adjust.predictions <- function(ResurvFit,
 
 
 
-    beta_ams <- pkg.env$predict_deepsurv(ResurvFit$model.out$model.out$net, x_fc)
+    beta_ams <- predict_deepsurv(ResurvFit$model.out$model.out$net, x_fc)
 
     #make to hazard relative to initial model, to have similiar interpretation as standard cox
 
-    benchmark_id <- pkg.env$benchmark_id(X = X,
+    benchmark_id <- benchmark_id(X = X,
                                          Y =Y ,
                                          newdata.mx = newdata.mx
     )
@@ -309,7 +309,7 @@ adjust.predictions <- function(ResurvFit,
   hazard_frame[,'hazard'] <- hazard_frame[,'baseline']*hazard_frame[,'expg']
 
   #Add development and relevant survival values to the hazard_frame
-  hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
+  hazard_frame_updated <- hazard_data_frame(hazard=hazard_frame,
                                                     Om.df=Om.df,
                                                     categorical_features = idata$categorical_features,
                                                     continuous_features = idata$continuous_features,
@@ -342,7 +342,7 @@ survival_information<-function(x,
 }
 
 
-pkg.env$complete_lt_predictions_i <- function(dt,max_dp){
+complete_lt_predictions_i <- function(dt,max_dp){
 
   "
   Add the missing combinations of AP_i and DP_i to the long format output long_tr_input to create a triangle data.frame.
@@ -388,7 +388,7 @@ pkg.env$complete_lt_predictions_i <- function(dt,max_dp){
 }
 
 
-pkg.env$complete_lt_predictions_o <- function(dt,max_dp){
+complete_lt_predictions_o <- function(dt,max_dp){
 
   "
   Add the missing combinations of AP_o and DP_o to the long format output long_tr_output to create a triangle data.frame.
@@ -433,7 +433,7 @@ pkg.env$complete_lt_predictions_o <- function(dt,max_dp){
 
 }
 
-pkg.env$find_lt_input <- function(dt,max_dp){
+find_lt_input <- function(dt,max_dp){
 
   "
   Return the lower triangular output in a data.frame format (input granularity).
@@ -444,7 +444,7 @@ pkg.env$find_lt_input <- function(dt,max_dp){
 
   dt<-dt[,.(value=sum(IBNR,na.rm=TRUE)),by=.(AP_i,DP_i)]
 
-  add_up <- pkg.env$complete_lt_predictions_i(dt,max_dp)
+  add_up <- complete_lt_predictions_i(dt,max_dp)
 
   if(!is.null(add_up)){
 
@@ -481,7 +481,7 @@ pkg.env$find_lt_input <- function(dt,max_dp){
 }
 
 
-pkg.env$find_lt_output <- function(dt,
+find_lt_output <- function(dt,
                                    max_dp,
                                    cut_point){
 
@@ -494,7 +494,7 @@ pkg.env$find_lt_output <- function(dt,
 
   dt<-dt[,.(value=sum(IBNR,na.rm=TRUE)),by=.(AP_o,DP_o)]
 
-  add_up <- pkg.env$complete_lt_predictions_o(dt,max_dp)
+  add_up <- complete_lt_predictions_o(dt,max_dp)
 
   if(!is.null(add_up)){
 
@@ -598,7 +598,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
     ## NEW BASELINE COMPUTATION (RESURV)
 
-      scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
+      scaler <- scaler(continuous_features_scaling_method = continuous_features_scaling_method)
 
       Xc_tmp_bsln <- IndividualDataPP$full.data %>%
         dplyr::reframe(dplyr::across(dplyr::all_of(IndividualDataPP$continuous_features),
@@ -608,7 +608,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
       if(!is.null(IndividualDataPP$categorical_features)){
 
 
-        X_tmp_bsln <- pkg.env$model.matrix.creator(data= IndividualDataPP$full.data,
+        X_tmp_bsln <- model.matrix.creator(data= IndividualDataPP$full.data,
                                                    select_columns = IndividualDataPP$categorical_features,
                                                    remove_first_dummy=T)
 
@@ -623,7 +623,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
 
 
-    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+    bsln <- baseline.calc(hazard_model = hazard_model,
                                   model.out = model.out,
                                   X=X_tmp_bsln,
                                   Y=Y)
@@ -636,12 +636,12 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
     ### make it relative
 
 
-      newdata.bs <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$full.data,
+      newdata.bs <- df.2.fcst.nn.pp(data=IndividualDataPP$full.data,
                                             newdata=newdata,
                                             continuous_features=IndividualDataPP$continuous_features,
                                             categorical_features=IndividualDataPP$categorical_features)
 
-      benchmark_id <- pkg.env$benchmark_id(X = X_tmp_bsln,
+      benchmark_id <- benchmark_id(X = X_tmp_bsln,
                                            Y =Y ,
                                            newdata.mx = newdata.bs,
                                            remove_first_dummy=T)
@@ -662,7 +662,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
 
 
-    is_lkh <- pkg.env$evaluate_lkh_cox(X_train=X,
+    is_lkh <- evaluate_lkh_cox(X_train=X,
                                        Y_train=Y,
                                        model=model.out)
 
@@ -677,7 +677,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
     Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
 
-    training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
+    training_test_split = check.traintestsplit(percentage_data_training)
 
     if(is_baseline_model){
 
@@ -685,7 +685,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
     }else{
 
-      scaler <- pkg.env$scaler(continuous_features_scaling_method=continuous_features_scaling_method)
+      scaler <- scaler(continuous_features_scaling_method=continuous_features_scaling_method)
 
       Xc <- IndividualDataPP$training.data %>%
         dplyr::reframe(dplyr::across(dplyr::all_of(IndividualDataPP$continuous_features),
@@ -693,7 +693,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
       if(!is.null(IndividualDataPP$categorical_features)){
 
-        X <- pkg.env$model.matrix.creator(data= IndividualDataPP$training.data,
+        X <- model.matrix.creator(data= IndividualDataPP$training.data,
                                           select_columns = IndividualDataPP$categorical_features)
 
         X = cbind(X,Xc)
@@ -708,11 +708,11 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
     }
 
-    datads_pp = pkg.env$deep_surv_pp(X=X,
+    datads_pp = deep_surv_pp(X=X,
                                      Y=Y,
                                      training_test_split = training_test_split)
 
-    hparameters <- pkg.env$nn_hparameter_nodes_grid(hparameters)
+    hparameters <- nn_hparameter_nodes_grid(hparameters)
 
     hparameters <- list(params=as.list.data.frame(hparameters),
                         verbose=hparameters$verbose,
@@ -720,7 +720,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
                         num_workers = hparameters$num_workers)
 
 
-    model.out <- pkg.env$fit_deep_surv(datads_pp,
+    model.out <- fit_deep_surv(datads_pp,
                                        params=hparameters$params,
                                        verbose = hparameters$verbose,
                                        epochs = hparameters$epochs,
@@ -728,7 +728,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
                                        seed = random_seed)
 
 
-    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+    bsln <- baseline.calc(hazard_model = hazard_model,
                                   model.out = model.out,
                                   X=X,
                                   Y=Y)
@@ -739,7 +739,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
     }else{
 
-      newdata.mx <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
+      newdata.mx <- df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
                                             newdata=newdata,
                                             continuous_features=IndividualDataPP$continuous_features,
                                             categorical_features=IndividualDataPP$categorical_features)}
@@ -749,11 +749,11 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
     x_fc = as.matrix(newdata.mx)
 
 
-    beta_ams <- pkg.env$predict_deepsurv(model.out$net, x_fc)
+    beta_ams <- predict_deepsurv(model.out$net, x_fc)
 
     #make to hazard relative to initial model, to have similiar interpretation as standard cox
 
-    benchmark_id <- pkg.env$benchmark_id(X = X,
+    benchmark_id <- benchmark_id(X = X,
                                          Y =Y ,
                                          newdata.mx = newdata.mx
     )
@@ -770,22 +770,22 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
     if(!inherits(datads_pp$lkh_eval_data$data_train,"data.frame")){
 
 
-      is_lkh <- pkg.env$evaluate_lkh_nn(X_train=as.data.frame(datads_pp$lkh_eval_data$data_train),
+      is_lkh <- evaluate_lkh_nn(X_train=as.data.frame(datads_pp$lkh_eval_data$data_train),
                                         Y_train=datads_pp$lkh_eval_data$y_train,
                                         model=model.out)
 
-      os_lkh <- pkg.env$evaluate_lkh_nn(X_train=as.data.frame(datads_pp$lkh_eval_data$data_val),
+      os_lkh <- evaluate_lkh_nn(X_train=as.data.frame(datads_pp$lkh_eval_data$data_val),
                                         Y_train=datads_pp$lkh_eval_data$y_val,
                                         model=model.out)
 
 
     }else{
 
-      is_lkh <- pkg.env$evaluate_lkh_nn(X_train=datads_pp$lkh_eval_data$data_train,
+      is_lkh <- evaluate_lkh_nn(X_train=datads_pp$lkh_eval_data$data_train,
                                         Y_train=datads_pp$lkh_eval_data$y_train,
                                         model=model.out)
 
-      os_lkh <- pkg.env$evaluate_lkh_nn(X_train=datads_pp$lkh_eval_data$data_val,
+      os_lkh <- evaluate_lkh_nn(X_train=datads_pp$lkh_eval_data$data_val,
                                         Y_train=datads_pp$lkh_eval_data$y_val,
                                         model=model.out)
 
@@ -800,7 +800,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
     Y=IndividualDataPP$training.data[,c("DP_rev_i", "I", "TR_i")]
 
-    training_test_split = pkg.env$check.traintestsplit(percentage_data_training)
+    training_test_split = check.traintestsplit(percentage_data_training)
 
     if(is_baseline_model){
 
@@ -808,7 +808,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
     }else{
 
-      scaler <- pkg.env$scaler(continuous_features_scaling_method = continuous_features_scaling_method)
+      scaler <- scaler(continuous_features_scaling_method = continuous_features_scaling_method)
 
       Xc <- IndividualDataPP$training.data %>%
         dplyr::reframe(dplyr::across(dplyr::all_of(IndividualDataPP$continuous_features),
@@ -817,7 +817,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
       if(!is.null(IndividualDataPP$categorical_features)){
 
-        X <- pkg.env$model.matrix.creator(data= IndividualDataPP$training.data,
+        X <- model.matrix.creator(data= IndividualDataPP$training.data,
                                           select_columns = IndividualDataPP$categorical_features,
                                           remove_first_dummy=T)
 
@@ -834,14 +834,14 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
 
 
-    datads_pp <- pkg.env$xgboost_pp(X=X,
+    datads_pp <- xgboost_pp(X=X,
                                     Y=Y,
                                     training_test_split=training_test_split)
 
-    model.out <- pkg.env$fit_xgboost(datads_pp,
+    model.out <- fit_xgboost(datads_pp,
                                      hparameters=hparameters)
 
-    bsln <- pkg.env$baseline.calc(hazard_model = hazard_model,
+    bsln <- baseline.calc(hazard_model = hazard_model,
                                   model.out = model.out,
                                   X=X,
                                   Y=Y)
@@ -853,7 +853,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
     }else{
 
-      newdata.mx <- pkg.env$df.2.fcst.xgboost.pp(data=IndividualDataPP$training.data,
+      newdata.mx <- df.2.fcst.xgboost.pp(data=IndividualDataPP$training.data,
                                                  newdata=newdata,
                                                  continuous_features=IndividualDataPP$continuous_features,
                                                  categorical_features=IndividualDataPP$categorical_features)
@@ -867,19 +867,19 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
       newdata.bs <- data.frame(intercept_1 = rep(1, dim(newdata)[1]))
 
-      benchmark_id <- pkg.env$benchmark_id(X = X,
+      benchmark_id <- benchmark_id(X = X,
                                            Y =Y ,
                                            newdata.mx = newdata.bs,
                                            remove_first_dummy=F)
 
     }else{
       #make to hazard relative to initial model, to have similiar interpretation as standard cox
-      newdata.bs <- pkg.env$df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
+      newdata.bs <- df.2.fcst.nn.pp(data=IndividualDataPP$training.data,
                                             newdata=newdata,
                                             continuous_features=IndividualDataPP$continuous_features,
                                             categorical_features=IndividualDataPP$categorical_features)
 
-      benchmark_id <- pkg.env$benchmark_id(X = X,
+      benchmark_id <- benchmark_id(X = X,
                                            Y =Y ,
                                            newdata.mx = newdata.bs,
                                            remove_first_dummy=T)}
@@ -895,13 +895,13 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
                        DP_rev_i=sort(as.integer(unique(IndividualDataPP$training.data$DP_rev_i))))
 
     # compute the likelihood of the fitted model (upper triangle)
-    is_lkh <- pkg.env$evaluate_lkh_xgb(X_train=X,
+    is_lkh <- evaluate_lkh_xgb(X_train=X,
                                        Y_train=Y,
                                        dset='is',
                                        samples_cn=datads_pp$samples_cn,
                                        model=model.out)
 
-    os_lkh <- pkg.env$evaluate_lkh_xgb(X_train=X,
+    os_lkh <- evaluate_lkh_xgb(X_train=X,
                                        Y_train=Y,
                                        dset='os',
                                        samples_cn=datads_pp$samples_cn,
@@ -924,7 +924,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
 
   #Add development and relevant survival values to the hazard_frame
-  hazard_frame_updated <- pkg.env$hazard_data_frame(hazard=hazard_frame,
+  hazard_frame_updated <- hazard_data_frame(hazard=hazard_frame,
                                                     # Om.df=Om.df,
                                                     eta=eta,
                                                     categorical_features = IndividualDataPP$categorical_features,
@@ -933,7 +933,7 @@ manually_extract_info_for_scoring_cont <- function(ReSurvFit,
 
 
   out_hz_frame <-  hazard_frame_updated %>%
-    dplyr::mutate(DP_i=pkg.env$maximum.time(IndividualDataPP$years, IndividualDataPP$input_time_granularity)-DP_rev_i+1) %>%
+    dplyr::mutate(DP_i=maximum.time(IndividualDataPP$years, IndividualDataPP$input_time_granularity)-DP_rev_i+1) %>%
     relocate(DP_i, .after =  AP_i) %>%
     dplyr::rename(f_i=dev_f_i,
            cum_f_i=cum_dev_f_i)

@@ -6,12 +6,12 @@ test_that("output development factors are coherent with input development factor
 
   q <- 1.05
 
-  max_dp_i <- pkg.env$maximum.time(
+  max_dp_i <- maximum.time(
     years,
     input_time_granularity
   )
 
-  max_dp_o <- pkg.env$maximum.time(
+  max_dp_o <- maximum.time(
     years,
     output_time_granularity
   )
@@ -151,12 +151,12 @@ test_that("output development factors increase when input development factors in
     output_time_granularity <- "quarters"
     conversion_factor <- 1 / 3
 
-    max_dp_i <- pkg.env$maximum.time(
+    max_dp_i <- maximum.time(
       years,
       input_time_granularity
     )
 
-    max_dp_o <- pkg.env$maximum.time(
+    max_dp_o <- maximum.time(
       years,
       output_time_granularity
     )

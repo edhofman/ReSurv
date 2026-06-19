@@ -47,12 +47,12 @@ test_that("hand-computed Efron baseline matches package baseline", {
   expect_equal(attr(dtrain, "risk_sets"), risk_sets_manual)
   expect_equal(attr(dtrain, "event_sets"), event_sets_manual)
 
-  package_baseline_eta_05 <- pkg.env$baseline.efron(
+  package_baseline_eta_05 <- baseline.efron(
     preds = toy$phi,
     dtrain = dtrain,
     eta = 0.5
   )
-  package_baseline_eta_025 <- pkg.env$baseline.efron(
+  package_baseline_eta_025 <- baseline.efron(
     preds = toy$phi,
     dtrain = dtrain,
     eta = 0.25

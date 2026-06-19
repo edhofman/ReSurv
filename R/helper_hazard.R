@@ -5,7 +5,7 @@
 # @import data.table
 ## Hazard computation ----
 
-pkg.env$hazard_f<-function(i,
+hazard_f<-function(i,
                            enter,
                            time,
                            exit,
@@ -22,7 +22,7 @@ pkg.env$hazard_f<-function(i,
   c(O/E)}
 
 
-pkg.env$hazard_data_frame <- function(hazard,
+hazard_data_frame <- function(hazard,
                                       # Om.df,
                                       eta = 0.5,
                                       eta_old = NULL,
@@ -37,7 +37,7 @@ pkg.env$hazard_data_frame <- function(hazard,
   if (!is.null(eta_old)) {
     eta <- eta_old
   }
-  eta <- pkg.env$validate_eta(eta)
+  eta <- validate_eta(eta)
   continuous_features_group=unique(c("AP_i",continuous_features))
 
   #Calculate input development factors and corresponding survival probabilities
@@ -72,7 +72,7 @@ pkg.env$hazard_data_frame <- function(hazard,
   }
 
 
-pkg.env$covariate_mapping <- function(hazard_frame,
+covariate_mapping <- function(hazard_frame,
                                       categorical_features,
                                       continuous_features,
                                       conversion_factor,
@@ -105,7 +105,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
     hazard_frame[, covariate := do.call(paste, c(.SD, sep = "_")), .SDcols = feature_cols]
   }
 
-  # hazard_frame$covariate <- pkg.env$name_covariates(
+  # hazard_frame$covariate <- name_covariates(
   #   hazard_frame,
   #   categorical_features,
   #   continuous_features_group
@@ -256,7 +256,7 @@ pkg.env$covariate_mapping <- function(hazard_frame,
 }
 
 
-pkg.env$latest_observed_values_i <- function(data_reserve,
+latest_observed_values_i <- function(data_reserve,
                                              groups,
                                              categorical_features,
                                              continuous_features,
@@ -288,12 +288,12 @@ pkg.env$latest_observed_values_i <- function(data_reserve,
       dplyr::summarise(I=sum(I), .groups = "drop")
 
     #Combine covariate values into single variable and add group dimension
-    observed_so_far$covariate <- pkg.env$name_covariates(
+    observed_so_far$covariate <- name_covariates(
       observed_so_far,
       categorical_features,
       continuous_features
     )
-    observed_dp_rev_i$covariate <- pkg.env$name_covariates(
+    observed_dp_rev_i$covariate <- name_covariates(
       observed_dp_rev_i,
       categorical_features,
       continuous_features
@@ -372,13 +372,13 @@ pkg.env$latest_observed_values_i <- function(data_reserve,
       )
     }
 
-    observed_so_far$covariate <- pkg.env$name_covariates(
+    observed_so_far$covariate <- name_covariates(
       observed_so_far,
       categorical_features,
       continuous_features_group
     )
 
-    observed_dp_rev_i$covariate <- pkg.env$name_covariates(
+    observed_dp_rev_i$covariate <- name_covariates(
       observed_dp_rev_i,
       categorical_features,
       continuous_features_group
@@ -401,7 +401,7 @@ pkg.env$latest_observed_values_i <- function(data_reserve,
 
 }
 
-pkg.env$name_covariates <-function(data, categorical_features, continuous_features){
+name_covariates <-function(data, categorical_features, continuous_features){
 
   #
   feats <- c(categorical_features,continuous_features)
@@ -430,7 +430,7 @@ pkg.env$name_covariates <-function(data, categorical_features, continuous_featur
 
 
 
-pkg.env$predict_i <- function(hazard_data_frame,
+predict_i <- function(hazard_data_frame,
                               latest_cumulative,
                               grouping_method,
                               min_DP_rev_i
@@ -472,7 +472,7 @@ pkg.env$predict_i <- function(hazard_data_frame,
 
 }
 
-pkg.env$retrieve_df_i <- function(hazard_data_frame,
+retrieve_df_i <- function(hazard_data_frame,
                                   groups,
                                   adjusted=FALSE,
                                   is_baseline_model=FALSE
@@ -523,7 +523,7 @@ pkg.env$retrieve_df_i <- function(hazard_data_frame,
 }
 
 
-pkg.env$input_hazard_frame <- function(
+input_hazard_frame <- function(
     hazard_frame,
     expected_i,
     categorical_features,
@@ -627,7 +627,7 @@ pkg.env$input_hazard_frame <- function(
 }
 
 
-pkg.env$predict_o <- function(
+predict_o <- function(
     expected_i,
     groups,
     conversion_factor,
@@ -638,7 +638,7 @@ pkg.env$predict_o <- function(
   Calculate expected incremential claim number on output scale
 
    "
-  max_dp_i <-pkg.env$maximum.time(years,input_time_granularity)
+  max_dp_i <-maximum.time(years,input_time_granularity)
   # Predict expected numbers, this is also used grouping methodology
   expected <-  expected_i %>%
     dplyr::left_join(groups[,c("group_i", "group_o")], by =c("group_i")) %>%
@@ -656,7 +656,7 @@ pkg.env$predict_o <- function(
 
 }
 
-pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
+i_to_o_development_factor <- function(hazard_data_frame,
                                               expected_i,
                                               dp_ranges,
                                               groups,
@@ -672,7 +672,7 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
 
   "
 
-  max_dp_i <-pkg.env$maximum.time(years,input_time_granularity)
+  max_dp_i <-maximum.time(years,input_time_granularity)
   # Add output groupings to relevant frames
   hazard_data_frame <- as.data.table(hazard_data_frame) %>%
     dplyr::left_join(groups[,c("group_i", "group_o")], by =c("group_i"))
@@ -688,7 +688,7 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
 
   #For probability approach to grouping method we assume equal exposure for each accident period
   if(grouping_method == "probability"){
-    expected_i <-  pkg.env$predict_i(
+    expected_i <-  predict_i(
       hazard_data_frame = hazard_data_frame,
       latest_cumulative = latest_cumulative,
       grouping_method = "probability",
@@ -791,7 +791,7 @@ pkg.env$i_to_o_development_factor <- function(hazard_data_frame,
 
 }
 
-pkg.env$output_hazard_frame <- function(
+output_hazard_frame <- function(
     hazard_frame_input,
     expected_o,
     categorical_features,
@@ -877,7 +877,7 @@ pkg.env$output_hazard_frame <- function(
 }
 
 
-pkg.env$update_hazard_frame <- function(
+update_hazard_frame <- function(
     hazard_frame_input,
     hazard_frame_grouped,
     df_o,
@@ -890,7 +890,7 @@ pkg.env$update_hazard_frame <- function(
     years,
     input_time_granularity
     ){
-  max_dp_i <-pkg.env$maximum.time(years,input_time_granularity)
+  max_dp_i <-maximum.time(years,input_time_granularity)
   #Periods where we exceed the check_value
   relevant <- hazard_frame_input %>%
     dplyr::filter(hazard > check_value & DP_rev_i < max(DP_rev_i)) %>%

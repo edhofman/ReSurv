@@ -24,7 +24,7 @@ test_that("hazard-to-development-factor formula keeps legacy negative-factor rep
   )
 
   expect_equal(
-    pkg.env$hazard_data_frame(
+    hazard_data_frame(
       hazard = hazard_frame,
       eta = 0.5,
       categorical_features = NULL,

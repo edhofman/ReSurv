@@ -36,13 +36,13 @@ Imports:
   lubridate,
   survival,
   SynthETIC,
-  torch,
   xgboost
 Encoding: UTF-8
 LazyData: true
 Suggests: 
     bshazard,
     knitr,
+    torch,
     rmarkdown,
     rpart,
     testthat (>= 3.0.0)

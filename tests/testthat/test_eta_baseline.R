@@ -8,7 +8,7 @@ test_that("baseline.efron uses eta consistently", {
     TR_i     = c(0, 0, 1, 2)
   )
 
-  dtrain <- pkg.env$xgboost_pp(
+  dtrain <- xgboost_pp(
     X = X,
     Y = Y,
     training_test_split = 1
@@ -16,13 +16,13 @@ test_that("baseline.efron uses eta consistently", {
 
   preds <- c(0.1, -0.2, 0.3, 0.0)
 
-  b_eta_05 <- pkg.env$baseline.efron(
+  b_eta_05 <- baseline.efron(
     preds  = preds,
     dtrain = dtrain,
     eta    = 0.5
   )
 
-  b_eta_00 <- pkg.env$baseline.efron(
+  b_eta_00 <- baseline.efron(
     preds  = preds,
     dtrain = dtrain,
     eta    = 0

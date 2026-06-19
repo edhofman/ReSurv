@@ -4,7 +4,7 @@
 #
 ## Deepsurv helpers ----
 
-pkg.env$deep_surv_pp <- function(X,
+deep_surv_pp <- function(X,
                                  Y,
                                  training_test_split = 0.8,
                                  samples_TF = NULL) {
@@ -69,7 +69,7 @@ pkg.env$deep_surv_pp <- function(X,
 }
 ## Fitting routines ----
 
-pkg.env$fit_cox_model <- function(data,
+fit_cox_model <- function(data,
                                   formula_ct,
                                   newdata){
   "This function is the fitting routine for the cox model."
@@ -90,7 +90,7 @@ pkg.env$fit_cox_model <- function(data,
 }
 
 
-pkg.env$fit_deep_surv <- function(data,
+fit_deep_surv <- function(data,
                                   params,
                                   verbose,
                                   epochs,
@@ -100,9 +100,9 @@ pkg.env$fit_deep_surv <- function(data,
                                   newdata){
 
   input_dim <- ncol(data$x_train)
-  net <- pkg.env$build_deepsurv_net(input_dim, params)
+  net <- build_deepsurv_net(input_dim, params)
 
-  result <- pkg.env$train_deepsurv(
+  result <- train_deepsurv(
     net       = net,
     x_train   = data$x_train,
     y_train   = data$y_train,

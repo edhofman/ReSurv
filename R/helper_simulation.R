@@ -168,7 +168,7 @@ notification_delay_scenario6 <- function(x) {
 
 ## Data generator ----
 
-pkg.env$check_scenario <- function(scenario){
+check_scenario <- function(scenario){
 
   available_scenarios <- c(0,1,2,3,4,5,6)
   available_scenario_char <- c('alpha','beta','gamma','delta','epsilon','zeta','eta')
@@ -213,7 +213,7 @@ SI_payment <- function(payment_time, claim_size) {
 }
 
 
-pkg.env$scenario0_simulator <- function(ref_claim,
+scenario0_simulator <- function(ref_claim,
                                         time_unit,
                                         years,
                                         random_seed,
@@ -306,7 +306,7 @@ pkg.env$scenario0_simulator <- function(ref_claim,
 
 }
 
-pkg.env$scenario1_simulator <- function(ref_claim,
+scenario1_simulator <- function(ref_claim,
                                         time_unit,
                                         years,
                                         random_seed,
@@ -395,7 +395,7 @@ pkg.env$scenario1_simulator <- function(ref_claim,
 }
 
 
-pkg.env$scenario2_simulator <- function(ref_claim,
+scenario2_simulator <- function(ref_claim,
                                         time_unit,
                                         years,
                                         random_seed,
@@ -492,7 +492,7 @@ pkg.env$scenario2_simulator <- function(ref_claim,
 
   }
 
-pkg.env$scenario3_simulator <- function(ref_claim,
+scenario3_simulator <- function(ref_claim,
                                         time_unit,
                                         years,
                                         random_seed,
@@ -585,7 +585,7 @@ pkg.env$scenario3_simulator <- function(ref_claim,
 
 }
 
-pkg.env$scenario4_simulator <- function(ref_claim,
+scenario4_simulator <- function(ref_claim,
                                         time_unit,
                                         years,
                                         random_seed,
@@ -684,7 +684,7 @@ generate_proportions <- function(I) {
 
 ## Wuethrich 18 comparisons
 
-pkg.env$scenario5_simulator <- function(ref_claim=200000,
+scenario5_simulator <- function(ref_claim=200000,
                                         time_unit=1/4,
                                         years=10,
                                         random_seed,
@@ -773,7 +773,7 @@ pkg.env$scenario5_simulator <- function(ref_claim=200000,
 
 }
 
-pkg.env$scenario6_simulator <- function(ref_claim=200000,
+scenario6_simulator <- function(ref_claim=200000,
                                         time_unit=1/4,
                                         years=10,
                                         random_seed,

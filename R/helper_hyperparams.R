@@ -1,6 +1,11 @@
+# Internal hyperparameter and forecast-frame helpers
+#
+# These functions normalize fitting hyperparameters and prepare forecast design
+# frames for the Cox, XGBoost, and NN model paths.
+
 ## hyperparameters and prepare data for fitting ----
 
-pkg.env$spline_hp <- function(hparameters,IndividualDataPP){
+spline_hp <- function(hparameters,IndividualDataPP){
   "
   Returns spline hyperparameters in case they are not provided from the user.
 
@@ -58,7 +63,7 @@ simplified_df_2_fcst<- function(IndividualDataPP,
     allow.cartesian = TRUE
   ][, k := NULL]
 
-  max_dp_i <- pkg.env$maximum.time(years, input_time_granularity)
+  max_dp_i <- maximum.time(years, input_time_granularity)
   out[, DP_i := max_dp_i - DP_rev_i + 1L]
 
   if (isTRUE(calendar_period_extrapolation) || "RP_i" %in% c(cont_f, cat_f)) {
@@ -90,7 +95,7 @@ create.df.2.fcst <- function(IndividualDataPP,
 
 
 
-pkg.env$df.2.fcst.nn.pp <- function(data,
+df.2.fcst.nn.pp <- function(data,
                                     newdata,
                                     continuous_features,
                                     categorical_features){
@@ -113,7 +118,7 @@ pkg.env$df.2.fcst.nn.pp <- function(data,
 
   if(!is.null(categorical_features)){
 
-    X=pkg.env$model.matrix.creator(data= newdata,
+    X=model.matrix.creator(data= newdata,
                                    select_columns = categorical_features)
 
     out <- cbind(X,Xc)
@@ -129,7 +134,7 @@ pkg.env$df.2.fcst.nn.pp <- function(data,
 }
 
 
-pkg.env$df.2.fcst.xgboost.pp <- function(data,
+df.2.fcst.xgboost.pp <- function(data,
                                          newdata,
                                          continuous_features,
                                          categorical_features){
@@ -153,7 +158,7 @@ pkg.env$df.2.fcst.xgboost.pp <- function(data,
 
   if(!is.null(categorical_features)){
 
-    X=pkg.env$model.matrix.creator(data= newdata,
+    X=model.matrix.creator(data= newdata,
                                    select_columns = categorical_features,
                                    remove_first_dummy = TRUE)
   }

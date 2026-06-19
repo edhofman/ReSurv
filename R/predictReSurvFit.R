@@ -65,7 +65,7 @@ predict.ReSurvFit <- function(object,
   input_time_granularity <- data_information$input_time_granularity
   output_time_granularity <- data_information$output_time_granularity
 
-  ## Inline pkg.env$maximum.time()
+  ## Inline maximum.time()
 
   time_unit_string <- c("days", "months", "quarters", "semesters", "years")
   time_unit_numeric <- c(1 / 360, 1 / 12, 1 / 4, 1 / 2, 1)

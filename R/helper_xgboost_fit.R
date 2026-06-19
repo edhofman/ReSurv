@@ -5,7 +5,7 @@
 # @import xgboost
 ## xgboost ----
 
-pkg.env$xgboost_pp <- function(X,
+xgboost_pp <- function(X,
                                Y,
                                samples_TF = NULL,
                                training_test_split = .1) {
@@ -125,7 +125,7 @@ pkg.env$xgboost_pp <- function(X,
     samples_cn = samples_cn
   )
 }
-pkg.env$fit_xgboost <- function(datads_pp,
+fit_xgboost <- function(datads_pp,
                                 hparameters = list()) {
 
   if (length(hparameters) == 0L) {

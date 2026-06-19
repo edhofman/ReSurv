@@ -3,7 +3,7 @@
 # @importFrom bshazard bshazard
 ## Baseline calculation ----
 
-pkg.env$benchmark_id <- function(X,
+benchmark_id <- function(X,
                                  Y,
                                  newdata.mx,
                                  remove_first_dummy=FALSE
@@ -51,10 +51,10 @@ pkg.env$benchmark_id <- function(X,
 
 #Note that we for all methods apply xgboost naming convention
 
-pkg.env$baseline.efron <- function(preds,
+baseline.efron <- function(preds,
                                    dtrain,
                                    eta = 0.5) {
-  eta <- pkg.env$validate_eta(eta)
+  eta <- validate_eta(eta)
 
   risk_sets  <- attr(dtrain, "risk_sets")
   event_sets <- attr(dtrain, "event_sets")
@@ -90,17 +90,17 @@ pkg.env$baseline.efron <- function(preds,
   baseline
 }
 
-pkg.env$baseline.calc <- function(hazard_model,
+baseline.calc <- function(hazard_model,
                                   model.out,
                                   X,
                                   Y,
                                   training_df = NULL,
                                   eta = 0.5) {
-  eta <- pkg.env$validate_eta(eta)
+  eta <- validate_eta(eta)
 
 
   #for baseline need full training data
-  datads_pp <- pkg.env$xgboost_pp(X,Y, training_test_split = 1)
+  datads_pp <- xgboost_pp(X,Y, training_test_split = 1)
 
   if(hazard_model=="COX"){
 
@@ -109,11 +109,11 @@ pkg.env$baseline.calc <- function(hazard_model,
   }
 
   if(hazard_model=="NN"){
-    datads_pp_nn = pkg.env$deep_surv_pp(X=X,
+    datads_pp_nn = deep_surv_pp(X=X,
                                         Y=Y,
                                         training_test_split = 1)
 
-    predict_bsln <- pkg.env$predict_deepsurv(model.out$net, datads_pp_nn$x_train)
+    predict_bsln <- predict_deepsurv(model.out$net, datads_pp_nn$x_train)
 
   }
 
@@ -123,7 +123,7 @@ pkg.env$baseline.calc <- function(hazard_model,
 
 
   predict_bsln <- predict_bsln - predict_bsln[1] #make relative to initial value, same approach as cox
-  bsln <- pkg.env$baseline.efron(
+  bsln <- baseline.efron(
     preds  = predict_bsln,
     dtrain = datads_pp$ds_train_m,
     eta    = eta
@@ -137,7 +137,7 @@ pkg.env$baseline.calc <- function(hazard_model,
 
 ## Data handling ----
 
-pkg.env$fix.double.ap<-function(features,accident_period){
+fix.double.ap<-function(features,accident_period){
   if(is.null(features)){
     return(NULL)
   }
@@ -147,7 +147,7 @@ pkg.env$fix.double.ap<-function(features,accident_period){
 
 }
 
-pkg.env$create.om.df<-function(training.data,
+create.om.df<-function(training.data,
                                input_time_granularity,
                                years){
 
@@ -156,7 +156,7 @@ pkg.env$create.om.df<-function(training.data,
     dplyr::summarise(Om= sum(I))
 
   tmp.v <- tmp$DP_rev_i
-  sequ.v <- seq(1,pkg.env$maximum.time(years,input_time_granularity))
+  sequ.v <- seq(1,maximum.time(years,input_time_granularity))
 
   cond <- !sequ.v %in% tmp.v
 
@@ -176,7 +176,7 @@ pkg.env$create.om.df<-function(training.data,
 
 }
 
-pkg.env$simplified_fill_data_frame<-function(data,
+simplified_fill_data_frame<-function(data,
                                   continuous_features,
                                   categorical_features,
                                   years,
@@ -187,7 +187,7 @@ pkg.env$simplified_fill_data_frame<-function(data,
   # browser()
   #Take the features unique values
   tmp.ls <- data %>%
-    dplyr::filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1))
+    dplyr::filter((maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1))
 
   setDT(tmp.ls)
 
@@ -195,12 +195,12 @@ pkg.env$simplified_fill_data_frame<-function(data,
             continuous_features)
 
 
-  tmp.ls <- tmp.ls[,.(.N),by=cols][,.(DP_i=1:pkg.env$maximum.time(years,input_time_granularity)),by=cols] #
+  tmp.ls <- tmp.ls[,.(.N),by=cols][,.(DP_i=1:maximum.time(years,input_time_granularity)),by=cols] #
 
 
   #Take only the training data
   tmp.existing <- data %>%
-    dplyr::filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1)) %>%
+    dplyr::filter((maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1)) %>%
     dplyr::select(dplyr::all_of(continuous_features),
            dplyr::all_of(categorical_features),
            AP_i,
@@ -215,9 +215,9 @@ pkg.env$simplified_fill_data_frame<-function(data,
     return(NULL)
   }else{
 
-    max_dp_i = pkg.env$maximum.time(years,input_time_granularity)
+    max_dp_i = maximum.time(years,input_time_granularity)
     tmp.missing<- tmp.missing %>%
-      dplyr::mutate(DP_rev_i = pkg.env$maximum.time(years,input_time_granularity) - DP_i+1,
+      dplyr::mutate(DP_rev_i = maximum.time(years,input_time_granularity) - DP_i+1,
              TR_i = AP_i-1, #just setting truncation to max year simulated. and accounting for
              I=0)%>%
       dplyr::filter(DP_rev_i > TR_i) %>%
@@ -244,7 +244,7 @@ pkg.env$simplified_fill_data_frame<-function(data,
 
   }}
 
-pkg.env$fill_data_frame<-function(data,
+fill_data_frame<-function(data,
                                   continuous_features,
                                   categorical_features,
                                   years,
@@ -262,7 +262,7 @@ pkg.env$fill_data_frame<-function(data,
 
   #Take only the training data
   tmp.existing <- data %>%
-    dplyr::filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1)) %>%
+    dplyr::filter((maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1)) %>%
     dplyr::select(dplyr::all_of(continuous_features),
            dplyr::all_of(categorical_features),
            AP_i,
@@ -285,7 +285,7 @@ pkg.env$fill_data_frame<-function(data,
 
   tmp.full <- expand.grid(tmp.ls) %>%
     as.data.frame() %>%
-    dplyr::filter((pkg.env$maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1))
+    dplyr::filter((maximum.time(years,input_time_granularity) - DP_i+1) > (AP_i-1))
 
   tmp.missing <- dplyr::setdiff(x=tmp.full,y=tmp.existing)
 
@@ -293,9 +293,9 @@ pkg.env$fill_data_frame<-function(data,
     return(NULL)
   }else{
 
-    max_dp_i = pkg.env$maximum.time(years,input_time_granularity)
+    max_dp_i = maximum.time(years,input_time_granularity)
     tmp.missing<- tmp.missing %>%
-      dplyr::mutate(DP_rev_i = pkg.env$maximum.time(years,input_time_granularity) - DP_i+1,
+      dplyr::mutate(DP_rev_i = maximum.time(years,input_time_granularity) - DP_i+1,
              TR_i = AP_i-1, #just setting truncation to max year simulated. and accounting for
              I=0)%>%
       dplyr::filter(DP_rev_i > TR_i) %>%

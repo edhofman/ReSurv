@@ -1,5 +1,10 @@
+# Internal validation helpers
+#
+# These functions check user inputs, time units, train/test splits, and hazard
+# frames before fitting, prediction, and reserving calculations.
+
 ## Checks ----
-pkg.env$validate_eta <- function(eta) {
+validate_eta <- function(eta) {
   if (!is.numeric(eta) || length(eta) != 1L || !is.finite(eta)) {
     stop("`eta` must be a single finite numeric value.", call. = FALSE)
   }
@@ -11,7 +16,7 @@ pkg.env$validate_eta <- function(eta) {
   eta
 }
 
-pkg.env$check.all.present <- function(x,check.on){
+check.all.present <- function(x,check.on){
 
   "
   This function checks that you have all the periods in the data,
@@ -34,7 +39,7 @@ pkg.env$check.all.present <- function(x,check.on){
 
 }
 
-pkg.env$check.time.units <- function(input_time_unit,
+check.time.units <- function(input_time_unit,
                                      output_time_unit){
 
   "
@@ -54,7 +59,7 @@ pkg.env$check.time.units <- function(input_time_unit,
 }
 
 
-pkg.env$maximum.time <- function(years,
+maximum.time <- function(years,
                                  input_time_granularity){
 
   "
@@ -74,7 +79,7 @@ pkg.env$maximum.time <- function(years,
 
 }
 
-pkg.env$conversion.factor.of.time.units <- function(input_time_unit,
+conversion.factor.of.time.units <- function(input_time_unit,
                                                     output_time_unit){
 
   "
@@ -97,7 +102,7 @@ pkg.env$conversion.factor.of.time.units <- function(input_time_unit,
   input_numeric <- time_unit_numeric[input.pos]
   output_numeric <- time_unit_numeric[output.pos]
 
-  pkg.env$check.time.units(input_numeric,
+  check.time.units(input_numeric,
                            output_numeric)
 
 
@@ -108,7 +113,7 @@ pkg.env$conversion.factor.of.time.units <- function(input_time_unit,
 }
 
 
-pkg.env$total.years.in.the.data <- function(input_time_unit,
+total.years.in.the.data <- function(input_time_unit,
                                             development_period){
 
   "
@@ -133,7 +138,7 @@ pkg.env$total.years.in.the.data <- function(input_time_unit,
 
 }
 
-pkg.env$check.traintestsplit <- function(x){
+check.traintestsplit <- function(x){
 
   "
   This function checks that the training test split is specified correctly.
@@ -153,7 +158,7 @@ pkg.env$check.traintestsplit <- function(x){
 }
 
 
-pkg.env$check_input_hazard <- function(hazard_frame_input, check_value=1.9){
+check_input_hazard <- function(hazard_frame_input, check_value=1.9){
   check <- hazard_frame_input %>%  dplyr::filter(hazard > check_value & DP_rev_i < max(DP_rev_i))
 
   if(nrow(check)>0){
@@ -168,11 +173,11 @@ pkg.env$check_input_hazard <- function(hazard_frame_input, check_value=1.9){
 }
 
 
-pkg.env$check.newdata <- function(newdata,
+check.newdata <- function(newdata,
                                   pastdata){
 
 
-  # cf <- pkg.env$conversion.factor.of.time.units(pastdata$input_time_granularity,
+  # cf <- conversion.factor.of.time.units(pastdata$input_time_granularity,
   #                                               newdata$output_time_granularity)
 
   if(!identical(pastdata$input_time_unit,newdata$data_information$input_time_unit)){

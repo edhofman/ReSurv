@@ -57,7 +57,7 @@ data_generator <- function(ref_claim = 200000,
   set.seed(random_seed)
 
   ## ------------------------------------------------------------------
-  ## Inline pkg.env$check_scenario()
+  ## Inline check_scenario()
   ## ------------------------------------------------------------------
 
   available_scenarios <- c(0, 1, 2, 3, 4, 5, 6)

@@ -17,7 +17,7 @@ test_that("cv_design_matrix uses data_information slots", {
 
   class(x) <- "IndividualDataPP"
 
-  xy <- pkg.env$cv_design_matrix(
+  xy <- cv_design_matrix(
     IndividualDataPP = x,
     continuous_features_scaling_method = "minmax",
     remove_first_dummy = TRUE

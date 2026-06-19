@@ -609,8 +609,15 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
     }
   }
 
-  if (hazard_model == "NN") {
+  if (hazard_model == "NN"&& !requireNamespace("torch", quietly = TRUE) ) {
+    #reproducibility
+    if (!is.null(random_seed)) {
+      set.seed(random_seed)
 
+      if (requireNamespace("torch", quietly = TRUE)) {
+        torch::torch_manual_seed(as.integer(random_seed))
+      }
+    }
     ## Inline deep_surv_pp()
 
     tmp_order <- order(Y$DP_rev_i)
@@ -1500,7 +1507,7 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
 
   }
 
-  if (hazard_model == "NN") {
+  if (hazard_model == "NN" && !requireNamespace("torch", quietly = TRUE)) {
 
     tmp_order_bsln <- order(Y$DP_rev_i)
     x_train_bsln <- as.matrix(as.data.frame(X_base[tmp_order_bsln, , drop = FALSE]))
@@ -1723,7 +1730,7 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
     os_lkh <- NULL
   }
 
-  if (hazard_model == "NN") {
+  if (hazard_model == "NN"&& !requireNamespace("torch", quietly = TRUE) ) {
 
     for (lkh_set in c("is", "os")) {
 
