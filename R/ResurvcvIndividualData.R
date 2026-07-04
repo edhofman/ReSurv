@@ -33,7 +33,8 @@ ReSurvCV <- function(IndividualDataPP,
                      ncores = 1,
                      num_workers = 0,
                      verbose = FALSE,
-                     verbose.cv = FALSE) {
+                     verbose.cv = FALSE,
+                     cv_data_subsample = 1) {
 
   UseMethod("ReSurvCV")
 }
@@ -54,7 +55,8 @@ ReSurvCV.default <- function(IndividualDataPP,
                              ncores = 1,
                              num_workers = 0,
                              verbose = FALSE,
-                             verbose.cv = FALSE) {
+                             verbose.cv = FALSE,
+                             cv_data_subsample = 1) {
 
   stop(
     "`IndividualDataPP` must be an object of class `IndividualDataPP`.",
@@ -78,7 +80,8 @@ ReSurvCV.IndividualDataPP <- function(IndividualDataPP,
                                       ncores = 1,
                                       num_workers = 0,
                                       verbose = FALSE,
-                                      verbose.cv = FALSE) {
+                                      verbose.cv = FALSE,
+                                      cv_data_subsample = 1) {
 
   ## ------------------------------------------------------------------
   ## Validation
@@ -144,6 +147,84 @@ ReSurvCV.IndividualDataPP <- function(IndividualDataPP,
   if (isTRUE(parallel)) {
     warning(
       "`parallel = TRUE` is ignored in this single-process CV implementation.",
+      call. = FALSE
+    )
+  }
+
+  ## ------------------------------------------------------------------
+  ## Optional CV-data subsampling
+  ## ------------------------------------------------------------------
+
+  if (!is.numeric(cv_data_subsample) ||
+      length(cv_data_subsample) != 1L ||
+      !is.finite(cv_data_subsample)) {
+    stop(
+      "`cv_data_subsample` must be a single finite numeric value.",
+      call. = FALSE
+    )
+  }
+
+  cv_data_subsample <- as.numeric(cv_data_subsample)
+
+  ## Allow both 0.03 and 3 to mean 3 percent.
+  if (cv_data_subsample > 1 && cv_data_subsample <= 100) {
+    cv_data_subsample <- cv_data_subsample / 100
+  }
+
+  if (cv_data_subsample <= 0 || cv_data_subsample > 1) {
+    stop(
+      "`cv_data_subsample` must lie in (0, 1], or be a percentage in (0, 100].",
+      call. = FALSE
+    )
+  }
+
+  if (cv_data_subsample < 1) {
+
+    td <- IndividualDataPP$training.data
+    n_full <- nrow(td)
+
+    n_keep <- max(
+      folds,
+      ceiling(n_full * cv_data_subsample)
+    )
+
+    set.seed(as.integer(random_seed) + 9137L)
+
+    keep <- sort(
+      sample.int(
+        n = n_full,
+        size = n_keep,
+        replace = FALSE
+      )
+    )
+
+    IndividualDataPP <- IndividualDataPP
+
+    if (inherits(td, "data.table")) {
+      IndividualDataPP$training.data <- td[keep]
+    } else {
+      IndividualDataPP$training.data <- td[keep, , drop = FALSE]
+    }
+
+    if (isTRUE(verbose.cv)) {
+      cat(
+        as.character(Sys.time()),
+        "Using",
+        nrow(IndividualDataPP$training.data),
+        "out of",
+        n_full,
+        "training observations for CV",
+        paste0("(", round(100 * cv_data_subsample, 2), "%)."),
+        "\n"
+      )
+    }
+  }
+
+  n <- nrow(IndividualDataPP$training.data)
+
+  if (folds > n) {
+    stop(
+      "`folds` cannot exceed the number of CV training observations.",
       call. = FALSE
     )
   }

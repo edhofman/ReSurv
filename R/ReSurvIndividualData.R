@@ -499,7 +499,7 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
   data <- IndividualDataPP$training.data
 
   Y <- data[, .SD, .SDcols = c("DP_rev_i", "I", "TR_i")]
-
+  hazard_model <- toupper(trimws(as.character(hazard_model)))
   if (!(hazard_model %in% c("COX", "NN", "XGB"))) {
     stop("`hazard_model` must be one of 'COX', 'NN', or 'XGB'.", call. = FALSE)
   }
@@ -609,7 +609,14 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
     }
   }
 
-  if (hazard_model == "NN"&& !requireNamespace("torch", quietly = TRUE) ) {
+  if (hazard_model == "NN") {
+
+    if (!requireNamespace("torch", quietly = TRUE)) {
+      stop(
+        "Package `torch` is required for NN likelihood evaluation.",
+        call. = FALSE
+      )
+    }
     #reproducibility
     if (!is.null(random_seed)) {
       set.seed(random_seed)
@@ -1501,33 +1508,53 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
     unname(tie_table_bsln)
   )
 
+  hazard_model <- toupper(trimws(as.character(hazard_model)))
+
   if (hazard_model == "COX") {
 
     predict_bsln <- model.out$train_expg
 
-  }
+  } else if (hazard_model == "NN") {
 
-  if (hazard_model == "NN" && !requireNamespace("torch", quietly = TRUE)) {
+    if (!requireNamespace("torch", quietly = TRUE)) {
+      stop(
+        "Package `torch` is required for `hazard_model = \"NN\"`.",
+        call. = FALSE
+      )
+    }
 
     tmp_order_bsln <- order(Y$DP_rev_i)
-    x_train_bsln <- as.matrix(as.data.frame(X_base[tmp_order_bsln, , drop = FALSE]))
+
+    x_train_bsln <- as.matrix(
+      as.data.frame(
+        X_base[tmp_order_bsln, , drop = FALSE]
+      )
+    )
 
     model.out$net$eval()
 
     x_train_bsln_t <- torch::torch_tensor(
-      as.matrix(x_train_bsln),
+      x_train_bsln,
       dtype = torch::torch_float32()
     )
 
-    predict_bsln <- as.numeric(torch::with_no_grad({
-      model.out$net(x_train_bsln_t)
-    }))
-  }
+    predict_bsln <- as.numeric(
+      torch::with_no_grad({
+        model.out$net(x_train_bsln_t)
+      })
+    )
 
-  if (hazard_model == "XGB") {
+  } else if (hazard_model == "XGB") {
 
     predict_bsln <- predict(model.out, ds_bsln)
 
+  } else {
+
+    stop(
+      "Unsupported `hazard_model` in baseline calculation: ",
+      hazard_model,
+      call. = FALSE
+    )
   }
 
   predict_bsln <- predict_bsln - predict_bsln[1]
@@ -1730,7 +1757,14 @@ ReSurv.IndividualDataPP <- function(IndividualDataPP,
     os_lkh <- NULL
   }
 
-  if (hazard_model == "NN"&& !requireNamespace("torch", quietly = TRUE) ) {
+  if (hazard_model == "NN") {
+
+    if (!requireNamespace("torch", quietly = TRUE)) {
+      stop(
+        "Package `torch` is required for `hazard_model = \"NN\"`.",
+        call. = FALSE
+      )
+    }
 
     for (lkh_set in c("is", "os")) {
 
