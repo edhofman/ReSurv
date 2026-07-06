@@ -392,11 +392,119 @@ data_generator <- function(ref_claim = 200000,
     )
   }
 
+  simulate_gamma_scenario <- function() {
+
+    max_day <- as.integer(years / time_unit)
+    break_day <- floor(max_day / 2)
+
+    beta0 <- 1.15129
+    beta1 <- 1.95601
+    beta_break <- -1.2
+
+    age_mean <- 45
+    age_sd <- 4
+    age_min <- 32
+    age_max <- 58
+    age_cut1 <- 42
+    age_cut2 <- 49
+    age_low <- -0.10
+    age_mid <- 0.00
+    age_high <- 0.25
+
+    lambda_n <- as.numeric(period_exposure) * as.numeric(period_frequency)
+
+    grid <- data.table::data.table(
+      AP = rep(seq_len(max_day), times = 2L),
+      claim_type = rep(c(0L, 1L), each = max_day)
+    )
+
+    grid[, n_claims := stats::rpois(.N, lambda = lambda_n)]
+
+    claims <- grid[n_claims > 0L, .(
+      AP = rep(AP, n_claims),
+      claim_type = rep(claim_type, n_claims)
+    )]
+
+    if (nrow(claims) == 0L) {
+      stop("No claims simulated. Increase period_exposure or period_frequency.")
+    }
+
+    claims[, AT := AP - 1 + stats::runif(.N)]
+
+    claims[
+      ,
+      `:=`(
+        age_cont = stats::rnorm(.N, mean = age_mean, sd = age_sd)
+      )
+    ]
+    claims[, age := round(pmin(pmax(age_cont, age_min), age_max))]
+
+    claims[
+      ,
+      age_effect := data.table::fcase(
+        age < age_cut1, age_low,
+        age < age_cut2, age_mid,
+        default = age_high
+      )
+    ]
+
+    claims[
+      ,
+      phi := beta0 * as.numeric(claim_type == 0L) +
+        beta1 * as.numeric(claim_type == 1L) +
+        beta_break * as.numeric(claim_type == 1L & AP > break_day) +
+        age_effect
+    ]
+
+    alpha <- 0.5
+    beta <- 2 * 30
+    k <- 1
+    b <- max_day
+
+    lambda_delay <- 0.1 * exp(claims$phi)^(1 / alpha)
+
+    claims[
+      ,
+      delay := RTFWD_inverse_local(
+        n = .N,
+        alpha = alpha,
+        beta = beta,
+        lambda = lambda_delay,
+        k = k,
+        b = b
+      )
+    ]
+
+    claims[
+      ,
+      `:=`(
+        RT = AT + delay,
+        claim_number = seq_len(.N)
+      )
+    ]
+    claims[, RP := as.integer(ceiling(RT))]
+
+    claims[
+      ,
+      .(
+        claim_number = claim_number,
+        claim_type = claim_type,
+        age = age,
+        AP = as.integer(AP),
+        RP = RP
+      )
+    ]
+  }
+
   ## ------------------------------------------------------------------
   ## Scenarios 0--4
   ## ------------------------------------------------------------------
 
-  if (scenario %in% c(0, 1, 2, 3, 4)) {
+  if (scenario == 2) {
+    return(simulate_gamma_scenario())
+  }
+
+  if (scenario %in% c(0, 1, 3, 4)) {
     return(simulate_two_claim_type_scenario(scenario))
   }
 
