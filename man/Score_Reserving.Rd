@@ -10,8 +10,12 @@ Score_Reserving(
   scoring_metrics = c("EI", "R-tot", "R-cell-wise", "R-cal-wise"),
   granularity = c("output", "input"),
   chain_ladder = TRUE,
+  clmplus_benchmark = NULL,
   ...
 )
+}
+\arguments{
+\item{clmplus_benchmark}{Optional character vector containing \code{"ac"} or \code{"apc"}. Requested models are fitted with the \code{clmplus} package to the same aggregate triangle as the chain-ladder benchmark. \code{NULL} (the default) disables these benchmarks.}
 }
 \description{
 Score reserving predictions

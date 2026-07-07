@@ -41,6 +41,7 @@ Encoding: UTF-8
 LazyData: true
 Suggests: 
     bshazard,
+    clmplus,
     knitr,
     torch,
     rmarkdown,

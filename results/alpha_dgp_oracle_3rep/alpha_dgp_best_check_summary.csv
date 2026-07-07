@@ -1,5 +1,0 @@
-metric,n_reps,dgp_best_count,dgp_best_all,best_models
-EI,3,1,FALSE,"COX,CL,DGP"
-R-tot,3,1,FALSE,"COX,CL,DGP"
-R-cell-wise,3,2,FALSE,"DGP,DGP,CL"
-R-cal-wise,3,1,FALSE,"DGP,CL,COX"

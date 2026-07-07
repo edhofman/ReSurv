@@ -1,5 +1,10 @@
 #' Score reserving predictions
 #'
+#' @param clmplus_benchmark Optional character vector containing any of
+#'   `"ac"` or `"apc"`. Requested models are fitted with the
+#'   `clmplus` package to the same aggregate triangle as the chain-ladder
+#'   benchmark. `NULL` (the default) disables these benchmarks.
+#'
 #' @export
 Score_Reserving <- function(models,
                             newdata,
@@ -11,9 +16,41 @@ Score_Reserving <- function(models,
                             ),
                             granularity = c("output", "input"),
                             chain_ladder = TRUE,
+                            clmplus_benchmark = NULL,
                             ...) {
 
   granularity <- match.arg(granularity)
+
+  if (is.null(clmplus_benchmark)) {
+    clmplus_benchmark <- character()
+  } else {
+    if (!is.character(clmplus_benchmark) || anyNA(clmplus_benchmark)) {
+      stop(
+        "`clmplus_benchmark` must be NULL or a character vector containing ",
+        "'ac' and/or 'apc'.",
+        call. = FALSE
+      )
+    }
+
+    clmplus_benchmark <- unique(tolower(clmplus_benchmark))
+    invalid_clmplus <- setdiff(clmplus_benchmark, c("ac", "apc"))
+
+    if (length(invalid_clmplus) > 0L) {
+      stop(
+        "Unsupported `clmplus_benchmark` value(s): ",
+        paste(invalid_clmplus, collapse = ", "),
+        ". Choose from 'ac' and 'apc'.",
+        call. = FALSE
+      )
+    }
+
+    if (!requireNamespace("clmplus", quietly = TRUE)) {
+      stop(
+        "Package `clmplus` is required when `clmplus_benchmark` is requested.",
+        call. = FALSE
+      )
+    }
+  }
 
   allowed_metrics <- c(
     "EI",
@@ -356,7 +393,7 @@ Score_Reserving <- function(models,
   ## Chain-ladder benchmark
   ## ------------------------------------------------------------------
 
-  if (isTRUE(chain_ladder)) {
+  if (isTRUE(chain_ladder) || length(clmplus_benchmark) > 0L) {
 
     cl_raw <- data.table::copy(
       data.table::as.data.table(
@@ -655,10 +692,21 @@ Score_Reserving <- function(models,
       by = .(AP, DP, CP)
     ]
 
-    prediction_list <- c(
-      list(CL = cl_pred),
-      prediction_list
-    )
+    if (isTRUE(chain_ladder)) {
+      prediction_list <- c(
+        list(CL = cl_pred),
+        prediction_list
+      )
+    }
+
+    if (length(clmplus_benchmark) > 0L) {
+      clmplus_predictions <- .clmplus_benchmark_predictions(
+        upper_incremental = upper_incremental,
+        max_dp = max_dp,
+        benchmark_models = clmplus_benchmark
+      )
+      prediction_list <- c(clmplus_predictions, prediction_list)
+    }
   }
 
   ## ------------------------------------------------------------------
