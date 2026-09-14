@@ -2,9 +2,41 @@
 % Please edit documentation in R/ReSurvIndividualData.R
 \name{ReSurv}
 \alias{ReSurv}
+\alias{ReSurv.default}
+\alias{ReSurv.IndividualDataPP}
 \title{Fit \code{ReSurv} models on the individual data.}
 \usage{
 ReSurv(
+  IndividualDataPP,
+  hazard_model = "COX",
+  tie = "efron",
+  baseline = "spline",
+  continuous_features_scaling_method = "minmax",
+  random_seed = 1,
+  hparameters = list(),
+  percentage_data_training = 0.8,
+  grouping_method = "exposure",
+  check_value = 1.85,
+  eta = 0.5,
+  simplifier = TRUE
+)
+
+\method{ReSurv}{default}(
+  IndividualDataPP,
+  hazard_model = "COX",
+  tie = "efron",
+  baseline = "spline",
+  continuous_features_scaling_method = "minmax",
+  random_seed = 1,
+  hparameters = list(),
+  percentage_data_training = 0.8,
+  grouping_method = "exposure",
+  check_value = 1.85,
+  eta = 0.5,
+  simplifier = TRUE
+)
+
+\method{ReSurv}{IndividualDataPP}(
   IndividualDataPP,
   hazard_model = "COX",
   tie = "efron",
@@ -29,51 +61,39 @@ ReSurv(
 \item{\code{"XGB"}: eXtreme Gradient Boosting.}
 }}
 
-\item{tie}{ties handling, default is the Efron approach.}
+\item{tie}{Handling of ties in the Cox fit, passed to
+\code{survival::coxph()}: \code{"efron"} (default), \code{"breslow"},
+or \code{"exact"}. NN and XGB fitting use Efron handling.}
 
-\item{baseline}{handling the baseline hazard. Default is a spline.}
+\item{baseline}{Retained for compatibility. The baseline is estimated from
+the risk sets using the specified \code{eta}.}
 
-\item{continuous_features_scaling_method}{method to preprocess the features}
+\item{continuous_features_scaling_method}{Scaling method: \code{"minmax"}
+or \code{"standard"}.}
 
 \item{random_seed}{\code{integer}, random seed set for reproducibility}
 
 \item{hparameters}{\code{list}, hyperparameters for the machine learning models. It will be disregarded for the cox approach.}
 
-\item{percentage_data_training}{\code{numeric}, percentage of data used for training on the upper triangle.}
+\item{percentage_data_training}{\code{numeric}, fraction in (0, 1] of observed data used for training; the remainder is used for validation in the NN and XGB models.}
 
-\item{grouping_method}{\code{character}, use probability or exposure approach to group from input to output development factors. Choice between:
-\itemize{
-\item{\code{"exposure"}}
-\item{\code{"probability"}}
-}
-Default is \code{"exposure"}.}
+\item{grouping_method}{Retained for compatibility; currently ignored.}
 
-\item{check_value}{\code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.}
+\item{check_value}{Retained for compatibility; currently ignored.}
 
-\item{eta}{\code{numeric}, Efron baseline and development-factor eta parameter.}
+\item{eta}{Numeric in [0, 1], controlling the baseline estimate and
+hazard-to-development-factor conversion. Default is 0.5.}
 
 \item{simplifier}{\code{logical}, kept for compatibility. The simplified forecast frame is always used.}
 }
 \value{
-\code{ReSurv} fit. A list containing
-\itemize{
-\item{\code{model.out}: \code{list} containing the pre-processed covariates data for the fit (\code{data}) and the basic model output (\code{model.out};COX, XGB or NN).}
-\item{\code{is_lkh}: \code{numeric} Training negative log likelihood.}
-\item{\code{os_lkh}:  \code{numeric} Validation  negative log likelihood. Not available for COX.}
-\item{\code{hazard_frame}: \code{data.frame} containing the fitted hazard model with the corresponding covariates. It contains:}
-   \itemize{
-   \item{\code{expg}: fitted risk score.}
-   \item{\code{baseline}: fitted baseline.}
-   \item{\code{hazard}: fitted hazard rate (\code{expg}*\code{baseline}).}
-   \item{\code{f_i}: fitted development factors.}
-   \item{\code{cum_f_i}: fitted cumulative development factors.}
-   \item{\code{S_i}:fitted survival function.}
-   \item{\code{S_i_lag}:fitted survival function (lag version, for further information see \code{?dplyr::lag}).}
-   \item{\code{S_i_lead}:fitted survival function (lead version, for further information see \code{?dplyr::lead}).}
-   }
-\item{\code{hazard_model}: \code{string} chosen hazard model (COX, NN or XGB)}
-\item{\code{IndividualDataPP}: starting \code{IndividualDataPP} object.}
-}
+A \code{ReSurvFit} list containing \code{model.out} (design matrix
+  and fitted backend model), \code{hazard_frame} (risk scores, baseline,
+  hazards, development factors and survival probabilities),
+  \code{data_information} (preprocessing and reserving metadata), and
+  \code{fit_information} (model name, training loss \code{is_lkh},
+  validation loss \code{os_lkh}, and \code{eta}). Use \code{predict()}
+  or \code{predictReserve()} to obtain claim-count predictions.
 }
 \description{
 This function fits and computes the reserves for the \code{ReSurv} models
@@ -82,7 +102,8 @@ This function fits and computes the reserves for the \code{ReSurv} models
 The model fit uses the theoretical framework of Hiabu et al. (2023), that relies on the
 correspondence between hazard models and development factors:
 
-To be completed with final notation of the paper.
+Neural networks use the native R torch backend. Install its runtime with
+\code{torch::install_torch()} before fitting a neural network.
 
 The \code{ReSurv} package assumes proportional hazard models.
 Given an i.i.d. sample \eqn{\left\{y_i,x_i\right\}_{i=1, \ldots, n}} the individual hazard at time \eqn{t} is:
@@ -94,7 +115,7 @@ Composed of a baseline \eqn{\lambda_0(t)} and a proportional effect \eqn{e^{y_i(
 Currently, the implementation allows to optimize the partial likelihood (concerning the proportional effects) using one of the following statistical learning approaches:
 \itemize{
 \item{\href{https://github.com/therneau/survival}{COX}}
-\item{\href{https://bmcmedresmethodol.biomedcentral.com/articles/10.1186/s12874-018-0482-1}{Neural Networks}}
+\item{\href{https://link.springer.com/article/10.1186/s12874-018-0482-1}{Neural Networks}}
 \item{\href{https://xgboost.readthedocs.io/en/stable/}{eXtreme Gradient Boosting}}
 }
 }
@@ -126,7 +147,7 @@ eta = 0)
 
 }
 \references{
-Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
+Hiabu, M., Hofman, E., & Pittarello, G. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 
 Therneau, T. M., & Lumley, T. (2015). Package â€˜survivalâ€™. R Top Doc, 128(10), 28-33.
 

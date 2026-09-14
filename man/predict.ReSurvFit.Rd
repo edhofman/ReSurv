@@ -14,15 +14,15 @@
 )
 }
 \arguments{
-\item{object}{\code{ResurvFit} object specifying start time, end time and status.}
+\item{object}{A fitted \code{ReSurvFit} object.}
 
-\item{newdata}{\code{IndividualDataPP} object that contains new data to predict.}
+\item{newdata}{An optional \code{IndividualDataPP} object using the same features and time scale as the fitted data. NULL predicts for the fitted data.}
 
 \item{lower_triangular_output}{\code{logical}, if set to \code{TRUE} we add the predicted lower triangle in input and output granularity to the \code{predict.ReSurvFit} output.}
 
 \item{minimal_output}{\code{logical}, if set to \code{TRUE} return a reduced prediction object.}
 
-\item{check_value}{\code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.}
+\item{check_value}{Retained for compatibility; currently ignored.}
 
 \item{...}{Additional arguments to pass to the predict function.}
 }

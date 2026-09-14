@@ -19,7 +19,8 @@ ReSurvCV(
   ncores = 1,
   num_workers = 0,
   verbose = FALSE,
-  verbose.cv = FALSE
+  verbose.cv = FALSE,
+  cv_data_subsample = 1
 )
 }
 \arguments{
@@ -43,18 +44,27 @@ ReSurvCV(
 
 \item{epochs}{Integer. Number of NN epochs.}
 
-\item{parallel}{Logical. Currently passed to the CV helper.}
+\item{parallel}{Logical. Retained for compatibility; execution is sequential
+and setting this to TRUE produces a warning.}
 
-\item{ncores}{Integer. Number of cores if parallel execution is used.}
+\item{ncores}{Integer. Retained for compatibility; currently ignored.}
 
 \item{num_workers}{Deprecated for the native torch backend. Ignored.}
 
 \item{verbose}{Logical. Print model fitting output.}
 
 \item{verbose.cv}{Logical. Print CV progress.}
+
+\item{cv_data_subsample}{Fraction of training rows used for cross-validation,
+in (0, 1]. Values greater than 1 and at most 100 are interpreted as
+percentages. The default 1 uses all rows; use 0.01 for one percent.}
 }
 \value{
-An object of class \code{ReSurvCV}.
+An object of class \code{ReSurvCV} containing \code{out.cv}
+  (all combinations and mean training and validation losses),
+  \code{out.cv.best.oos} (the row with smallest validation loss), and
+  \code{hparameters.best}, suitable for the \code{hparameters} argument
+  of \code{ReSurv()}. Cross-validation does not refit the final model.
 }
 \description{
 K-fold cross-validation of a ReSurv model

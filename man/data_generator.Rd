@@ -17,7 +17,8 @@ data_generator(
 \arguments{
 \item{ref_claim}{\code{integer}, reference claim size.}
 
-\item{time_unit}{\code{numeric}, output time unit.}
+\item{time_unit}{Numeric, fraction of a year per output period, for example
+1/360 (the default) for days, 1/12 for months, or 1 for years.}
 
 \item{years}{\code{integer}, number of years to be simulated.}
 
@@ -34,19 +35,25 @@ Scenario Alpha is a mix of \code{claim_type 0} and  \code{claim_type 1} with sam
 Differently from scenario Alpha, in scenario Beta the volumes of \code{claim_type 1} are decreasing in the most recent accident periods.
 In scenario Gamma we add an interaction between \code{claim_type 1} and accident period: in a real world setting this can be motivated by a change in consumer behavior or company policies resulted in different reporting patterns over time.
 In scenario Delta, we introduce a seasonality effect dependent on the accident period for \code{claim_type 0} and \code{claim_type 1}.
-In the real word, scenario Delta resembles seasonal changes in the workforce composition. Scenario Epsilon does not satisfy the proportionality assumption.}
+In the real word, scenario Delta resembles seasonal changes in the workforce composition. Scenario Epsilon does not satisfy the proportionality assumption.
+Additional scenarios are \code{"zeta"} (5), with age,
+property value and business-use covariates, and
+\code{"eta"} (6), with business-use and accident-period effects.}
 }
 \value{
 Individual claims data. It contains the following columns:
 \itemize{
 \item{\code{claim_number}: Policy ID.}
-\item{\code{claim_type}: Type of claim. It can be either 0 or 1.}
+\item{\code{claim_type}: Type of claim (0 or 1) in scenarios alpha through epsilon.
+  Zeta instead includes \code{age}, \code{property_value}, and
+  \code{business_use}; eta includes \code{business_use}.}
 \item{\code{AP}: Accident period}
 \item{\code{RP}: Reporting period.}
 }
 }
 \description{
-This function generates the monthly individual claims data in the accompanying methodological paper using the \code{SynthETIC} package.
+This function generates individual claims data on the requested time scale
+using the \code{SynthETIC} package.
 This simple function allows to simulate from a sand-box to test out the \code{ReSurv} approach.
 Some parameters of the simulation can be changed.
 }

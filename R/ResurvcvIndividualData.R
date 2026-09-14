@@ -10,13 +10,21 @@
 #' @param nrounds Integer. Number of XGBoost boosting rounds.
 #' @param early_stopping_rounds Integer. XGBoost early stopping.
 #' @param epochs Integer. Number of NN epochs.
-#' @param parallel Logical. Currently passed to the CV helper.
-#' @param ncores Integer. Number of cores if parallel execution is used.
+#' @param parallel Logical. Retained for compatibility; execution is sequential
+#'   and setting this to TRUE produces a warning.
+#' @param ncores Integer. Retained for compatibility; currently ignored.
 #' @param num_workers Deprecated for the native torch backend. Ignored.
 #' @param verbose Logical. Print model fitting output.
 #' @param verbose.cv Logical. Print CV progress.
 #'
-#' @return An object of class \code{ReSurvCV}.
+#' @param cv_data_subsample Fraction of training rows used for cross-validation,
+#'   in (0, 1]. Values greater than 1 and at most 100 are interpreted as
+#'   percentages. The default 1 uses all rows; use 0.01 for one percent.
+#' @return An object of class \code{ReSurvCV} containing \code{out.cv}
+#'   (all combinations and mean training and validation losses),
+#'   \code{out.cv.best.oos} (the row with smallest validation loss), and
+#'   \code{hparameters.best}, suitable for the \code{hparameters} argument
+#'   of \code{ReSurv()}. Cross-validation does not refit the final model.
 #'
 #' @export
 ReSurvCV <- function(IndividualDataPP,

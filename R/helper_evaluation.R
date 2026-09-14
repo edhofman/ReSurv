@@ -310,7 +310,6 @@ adjust.predictions <- function(ResurvFit,
 
   #Add development and relevant survival values to the hazard_frame
   hazard_frame_updated <- hazard_data_frame(hazard=hazard_frame,
-                                                    Om.df=Om.df,
                                                     categorical_features = idata$categorical_features,
                                                     continuous_features = idata$continuous_features,
                                                     calendar_period_extrapolation = idata$calendar_period_extrapolation)

@@ -200,13 +200,15 @@ check_scenario <- function(scenario){
 
 # Superimposed inflation:
 # 1) With respect to occurrence "time" (continuous scale)
-SI_occurrence <- function(occurrence_time, claim_size) {
+# These internal helpers require explicit simulation inputs; they must not
+# depend on variables in a user's global environment.
+SI_occurrence <- function(occurrence_time, claim_size, time_unit, ref_claim) {
   if (occurrence_time <= 20 / 4 / time_unit) {1}
   else {1 - 0.4*max(0, 1 - claim_size/(0.25 * ref_claim))}
 }
 # 2) With respect to payment "time" (continuous scale)
 # -> compounding by user-defined time unit
-SI_payment <- function(payment_time, claim_size) {
+SI_payment <- function(payment_time, claim_size, time_unit, ref_claim) {
   period_rate <- (1 + 0.30)^(time_unit) - 1
   beta <- period_rate * max(0, 1 - claim_size/ref_claim)
   (1 + beta)^payment_time

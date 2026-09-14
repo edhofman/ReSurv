@@ -2,9 +2,9 @@
 #'
 #' This function predicts the results from the ReSurv fits.
 #'
-#' @param object \code{ResurvFit} object specifying start time, end time and status.
-#' @param newdata \code{IndividualDataPP} object that contains new data to predict.
-#' @param check_value \code{numeric}, check hazard value on initial granularity, if above threshold we increase granularity to try and adjust the development factor.
+#' @param object A fitted \code{ReSurvFit} object.
+#' @param newdata An optional \code{IndividualDataPP} object using the same features and time scale as the fitted data. NULL predicts for the fitted data.
+#' @param check_value Retained for compatibility; currently ignored.
 #' @param lower_triangular_output \code{logical}, if set to \code{TRUE} we add the predicted lower triangle in input and output granularity to the \code{predict.ReSurvFit} output.
 #' @param minimal_output \code{logical}, if set to \code{TRUE} return a reduced prediction object.
 #' @param ... Additional arguments to pass to the predict function.

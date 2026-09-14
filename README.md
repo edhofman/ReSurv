@@ -1,78 +1,90 @@
-[![R-hub](https://github.com/gpitt71/ReSurv/actions/workflows/rhub.yaml/badge.svg)](https://github.com/gpitt71/ReSurv/actions/workflows/rhub.yaml)
+[![CRAN-ready checks](https://github.com/edhofman/ReSurv/actions/workflows/r-checkrelease.yml/badge.svg)](https://github.com/edhofman/ReSurv/actions/workflows/r-checkrelease.yml)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10418823.svg)](https://doi.org/10.5281/zenodo.10418823)
 
 # ReSurv
 
-`ReSurv` is an `R` software for predicting IBNR claims. The software includes tools for synthetic **data generation**, **data pre-processing**, **hyperparameters tuning**, **model estimation** and **prediction**.
-
-The package is based on the approach illustrated in *Hiabu M., Hofman E., and Pittarello G. (2023)* and estimates feature dependent development factors using individual reserving data. 
-
-
-## Available Machine Learning (ML) models
-
-There is a one-to-one relationship between development factors and hazard rates (*Hiabu et al. (2023)*). The package implements extends the following machine learning algorithms for proportional hazard models:
-
-* Cox model with splines (COX, *Gray (1992)*).
-
-* Neural Networks (NN, *Katzman et al. (2018)*).
-
-* eXtreme Gradient Boosting (XGB, *Chen et al. (2016)*).
-
-`ReSurv` extends COX, NN, and XGB to account for ties in left-truncated and right-censored observations.
+ReSurv predicts incurred-but-not-reported (IBNR) claim **counts** from individual
+claims data. It links reverse-time proportional hazards to development factors,
+with Cox regression (`"COX"`), gradient boosting (`"XGB"`), and neural networks
+(`"NN"`). It includes simulation, preprocessing, cross-validation, prediction,
+and comparison with realized claim counts.
 
 ## Installation
 
-### Developer Version
+Install the development version with R 4.1 or later:
 
-The developers version of the package can be installed from GitHub.
-
-```
-devtools::install_github('https://github.com/edhofman/ReSurv')
-```
-
-### Python Dependencies
-
-For using the NN models we suggest to install a virtual environment using
-
-```
-install_pyresurv()
+```r
+install.packages("remotes")
+remotes::install_github("edhofman/ReSurv")
 ```
 
+Neural networks use the native R **torch** backend. Before using `hazard_model =
+"NN"`, install the optional package and its runtime:
 
-The default name of the virtual environment is `"pyresurv"`.
-
-We then suggest to refresh the R session and to import the `ReSurv` package in `R` using 
-
+```r
+install.packages("torch")
+torch::install_torch()
 ```
+
+Python and a virtual environment are no longer required. Cox and XGBoost models
+do not require torch.
+
+## Example
+
+```r
 library(ReSurv)
-reticulate::use_virtualenv("pyresurv")
+claims <- data_generator(
+  random_seed = 1964, scenario = "alpha", time_unit = 1,
+  years = 4, period_exposure = 100
+)
+individual <- IndividualDataPP(
+  claims, categorical_features = "claim_type",
+  accident_period = "AP", calendar_period = "RP",
+  input_time_granularity = "years", output_time_granularity = "years",
+  years = 4
+)
+fit <- ReSurv(individual, hazard_model = "COX", eta = 0)
+prediction <- predict(fit)
+summary(prediction)
+head(predictReserve(fit, granularity = "output"))
 ```
 
-#### Managing Multiple Package Dependencies
+The reserve table contains accident period (`AP`), development period (`DP`),
+calendar period (`CP`), and predicted count (`IBNR`). Periods start at one and
+`CP = AP + DP - 1`. Preprocessing retains the observed upper triangle for fitting;
+the development horizon is controlled by `years`.
 
-This section is taken from the guidelines of the R package [reticulate](https://rstudio.github.io/reticulate/articles/python_dependencies.html) for handling the case of multiple packages in your session that used isolated-package-environments.
-The most straightforward solution would be installing a dedicated environment for both.
+`ReSurvCV()` selects NN or XGB hyperparameters. Pass its `hparameters.best`
+component to `ReSurv()` to fit the selected model. `Score_Reserving()` compares
+models against realized claims and optionally adds chain-ladder and `clmplus`
+benchmarks. See the getting-started article on the
+[documentation website](https://edhofman.github.io/ReSurv/) and the R help pages
+for parameters and return values. The vignette source is
+`vignettes/getting-started.Rmd` in this repository.
 
+## Development checks
+
+GitHub Actions checks Windows, macOS, and Linux across R release, development,
+and the previous release. A separate Linux release job includes the PDF manual
+and vignettes and fails on notes. The audit verifies generated documentation,
+runs tests, checks URLs, and exercises all three model backends with torch
+installed. The website workflow builds documentation on pull requests and
+publishes from `main` or `master` to `gh-pages`.
+
+Run the core checks locally with:
+
+```r
+devtools::document()
+testthat::test_local(stop_on_failure = TRUE)
+devtools::check(document = FALSE, manual = TRUE)
 ```
-envname <- "./venv"
-ReSurv::install_pyresurv(envname = envname)
-pysparklyr::install_pyspark(envname = envname)
 
-```
+The `articles/historical/` directory preserves earlier replication sources.
+Its README explains their status. They are separate from the current package
+vignettes.
 
+## Reference
 
-
-## References 
-
-- *Chen, T., & Guestrin, C. (2016, August). Xgboost: A scalable tree boosting system. In Proceedings of the 22nd acm sigkdd international conference on knowledge discovery and data mining (pp. 785-794).*
-
-- *Gray, R. J. (1992). Flexible methods for analyzing survival data using splines, with applications to breast cancer prognosis. Journal of the American Statistical Association, 87(420), 942-951.*
-
-- *Hiabu, M., Hofman, E., & Pittarello, G. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.* 
-
-- *Snoek, J., Larochelle, H., & Adams, R. P. (2012). Practical bayesian optimization of machine learning algorithms. Advances in neural information processing systems, 25.*
-
-- *Katzman, J. L., Shaham, U., Cloninger, A., Bates, J., Jiang, T., & Kluger, Y. (2018). DeepSurv: personalized treatment recommender system using a Cox proportional hazards deep neural network. BMC medical research methodology, 18, 1-12.*
-
-
-
+Hiabu, M., Hofman, E., and Pittarello, G. (2023). *A machine learning approach
+based on survival analysis for IBNR frequencies in non-life reserving.*
+[doi:10.48550/arXiv.2312.14549](https://doi.org/10.48550/arXiv.2312.14549).

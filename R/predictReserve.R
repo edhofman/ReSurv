@@ -1,5 +1,11 @@
 #' Predict deterministic reserve table
 #'
+#' @param object A fitted \code{ReSurvFit} object.
+#' @param ... Arguments passed to the method, including \code{granularity}.
+#' @return A \code{data.table} with accident period \code{AP}, development
+#'   period \code{DP}, calendar period \code{CP}, and predicted claim count
+#'   \code{IBNR}. These are claim counts, not monetary reserves.
+#' @seealso \code{\link{predict.ReSurvFit}}
 #' @export
 predictReserve <- function(object, ...) {
   UseMethod("predictReserve")
@@ -8,6 +14,7 @@ predictReserve <- function(object, ...) {
 
 #' Predict deterministic reserve table from a ReSurvFit object
 #'
+#' @rdname predictReserve
 #' @param object A ReSurvFit object.
 #' @param granularity Character. Either "output" or "input".
 #' @param ... Additional arguments passed to predict.ReSurvFit().

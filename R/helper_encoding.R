@@ -76,6 +76,8 @@ encode.variables.cp <- function(x,ap1){
 }
 
 
+#' @noRd
+#' @exportS3Method NULL
 formula.editor <- function(continuous_features,
                                    categorical_features,
                                    continuous_features_spline,
@@ -136,6 +138,8 @@ vgrepl <- Vectorize(grepl, vectorize.args = "pattern")
 
 ## Model Matrix helpers ----
 
+#' @noRd
+#' @exportS3Method NULL
 model.matrix.creator <- function(data,
                                          select_columns,
                                          remove_first_dummy = FALSE){
@@ -175,6 +179,8 @@ model.matrix.creator <- function(data,
 }
 
 
+#' @noRd
+#' @exportS3Method NULL
 model.matrix.extract.hazard.names <- function(X,
                                                       string_formula,
                                                       data){

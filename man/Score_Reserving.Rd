@@ -15,8 +15,35 @@ Score_Reserving(
 )
 }
 \arguments{
-\item{clmplus_benchmark}{Optional character vector containing \code{"ac"} or \code{"apc"}. Requested models are fitted with the \code{clmplus} package to the same aggregate triangle as the chain-ladder benchmark. \code{NULL} (the default) disables these benchmarks.}
+\item{models}{A fitted \code{ReSurvFit} or a named list of models. At least
+one entry must be a \code{ReSurvFit}; other entries must support
+\code{predictReserve()}.}
+
+\item{newdata}{Realized claims, either individual data with the accident and
+reporting columns used for fitting, or an aggregate table with \code{AP},
+\code{DP}, \code{CP}, and counts in \code{actual}, \code{I}, or \code{IBNR}.
+Aggregate periods must be on the requested \code{granularity} scale.}
+
+\item{scoring_metrics}{Character vector selecting \code{"EI"},
+\code{"R-tot"}, \code{"R-cell-wise"}, \code{"R-cal-wise"}, or
+\code{"CRPS"}. CRPS is available only for \code{ReSurvFit} models.}
+
+\item{granularity}{Time scale for scoring: \code{"output"} (default) or
+\code{"input"}.}
+
+\item{chain_ladder}{Logical; include the aggregate chain-ladder benchmark.}
+
+\item{clmplus_benchmark}{Optional character vector containing any of
+`"ac"` or `"apc"`. Requested models are fitted with the
+`clmplus` package to the same aggregate triangle as the chain-ladder
+benchmark. `NULL` (the default) disables these benchmarks.}
+
+\item{...}{Additional arguments passed to \code{predictReserve()}.}
+}
+\value{
+A list of score tables, one per requested metric, with class
+  \code{Score_Reserving} and a \code{granularity} attribute.
 }
 \description{
-Score reserving predictions
+Compare predictions with realized claim counts in the lower triangle.
 }

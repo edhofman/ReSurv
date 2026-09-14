@@ -1,5 +1,6 @@
 Package: ReSurv
 Type: Package
+Depends: R (>= 4.1.0)
 Title: Machine Learning Models for Predicting Claim Counts
 Version: 1.1.0
 Authors@R:
@@ -20,25 +21,24 @@ Authors@R:
 Description: Prediction of claim counts using the feature based development factors introduced in the manuscript Hiabu M., Hofman E. and Pittarello G. (2023) <doi:10.48550/arXiv.2312.14549>. 
              Implementation of Neural Networks, Extreme Gradient Boosting, 
              and Cox model with splines to optimise the partial log-likelihood of proportional hazard models.
-URL: https://github.com/edhofman/ReSurv
+URL: https://github.com/edhofman/ReSurv,
+    https://edhofman.github.io/ReSurv/
 BugReports: https://github.com/edhofman/ReSurv/issues
 License: GPL (>= 2)
 Imports: 
   stats,
-  dplyr,
+  dplyr (>= 1.1.0),
   actuar,
   fastDummies,
   data.table,
   purrr,
   tidyr,
-  tibble,
   ggplot2,
   lubridate,
   survival,
   SynthETIC,
   xgboost
 Encoding: UTF-8
-LazyData: true
 Suggests: 
     bshazard,
     clmplus,
