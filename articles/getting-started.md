@@ -96,7 +96,7 @@ cv$out.cv.best.oos
 #>   booster  eta max_depth subsample alpha lambda min_child_weight nthread
 #> 1  gbtree 0.05         1         1     0      1                0       1
 #>   train.lkh  test.lkh         time
-#> 1 0.4583005 0.4719134 0.0001057585
+#> 1 0.4583005 0.4719134 0.0001764933
 xgb_fit <- ReSurv(
   individual, hazard_model = "XGB", eta = 0,
   hparameters = cv$hparameters.best
