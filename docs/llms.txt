@@ -67,29 +67,6 @@ and `clmplus` benchmarks. See the getting-started article on the
 help pages for parameters and return values. The vignette source is
 `vignettes/getting-started.Rmd` in this repository.
 
-## Development checks
-
-GitHub Actions checks Windows, macOS, and Linux across R release,
-development, and the previous release. A separate Linux release job
-includes the PDF manual and vignettes and fails on notes. The audit
-verifies generated documentation, runs tests, checks URLs, and exercises
-all three model backends with torch installed. The website workflow
-builds documentation on pull requests and publishes from `main` or
-`master` to `gh-pages`.
-
-Run the core checks locally with:
-
-``` r
-
-devtools::document()
-testthat::test_local(stop_on_failure = TRUE)
-devtools::check(document = FALSE, manual = TRUE)
-```
-
-The `articles/historical/` directory preserves earlier replication
-sources. Its README explains their status. They are separate from the
-current package vignettes.
-
 ## Reference
 
 Hiabu, M., Hofman, E., and Pittarello, G. (2023). *A machine learning
