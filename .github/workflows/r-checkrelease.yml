@@ -1,0 +1,170 @@
+# CRAN-oriented package checks.
+# Based on the current r-lib/actions v2 standard workflow, with additional
+# package-specific audits and a strict full-manual release check.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+name: CRAN-ready checks
+
+permissions: read-all
+
+concurrency:
+  group: cran-ready-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package-audit:
+    name: Package-specific audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+      OMP_NUM_THREADS: 2
+      MKL_NUM_THREADS: 2
+      TORCH_INSTALL: "0"
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::devtools
+            standard::roxygen2@7.3.3
+            any::rcmdcheck
+            any::testthat
+            any::urlchecker
+            local::.
+          needs: check
+
+      - name: Regenerate and verify documentation
+        # Keep the roxygen2 pin above in sync with DESCRIPTION's RoxygenNote.
+        # Generator upgrades can change formatting without source changes.
+        run: |
+          devtools::document()
+          changes <- system2(
+            "git",
+            c("status", "--short", "--", "NAMESPACE", "man"),
+            stdout = TRUE
+          )
+          if (length(changes)) {
+            stop(
+              "Generated documentation is stale:\n",
+              paste(changes, collapse = "\n")
+            )
+          }
+        shell: Rscript {0}
+
+      - name: Run testthat suite
+        run: testthat::test_local(stop_on_failure = TRUE)
+        shell: Rscript {0}
+
+      - name: Verify COX and XGB model backends
+        run: Rscript scripts/smoke_backends.R --skip-torch
+
+      - name: Check package URLs
+        run: |
+          urls <- urlchecker::url_check(".", parallel = FALSE)
+          if (nrow(urls)) stop("Resolve the URL problems listed above.")
+        shell: Rscript {0}
+
+  platform-checks:
+    name: ${{ matrix.config.os }} (R ${{ matrix.config.r }})
+    runs-on: ${{ matrix.config.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - {os: macos-latest,   r: release}
+          - {os: windows-latest, r: release}
+          - {os: ubuntu-latest,  r: devel, http-user-agent: release}
+          - {os: ubuntu-latest,  r: oldrel-1}
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+      OMP_NUM_THREADS: 2
+      MKL_NUM_THREADS: 2
+      TORCH_INSTALL: "0"
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.config.r }}
+          http-user-agent: ${{ matrix.config.http-user-agent }}
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          args: 'c("--no-manual", "--as-cran")'
+          build_args: 'c("--no-manual", "--compact-vignettes=gs+qpdf")'
+          error-on: '"warning"'
+          upload-results: true
+          upload-snapshots: true
+
+  cran-release-check:
+    name: Ubuntu release, manual and vignettes
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+      OMP_NUM_THREADS: 2
+      MKL_NUM_THREADS: 2
+      TORCH_INSTALL: "0"
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: r-lib/actions/setup-pandoc@v2
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-tinytex@v2
+
+      - name: Install HTML Tidy
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes tidy
+          tidy --version
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::rcmdcheck
+            any::V8
+          needs: check
+
+      - name: Full CRAN-style check
+        uses: r-lib/actions/check-r-package@v2
+        with:
+          args: 'c("--as-cran")'
+          build_args: 'c("--compact-vignettes=gs+qpdf")'
+          error-on: '"note"'
+          upload-results: true
+          upload-snapshots: true

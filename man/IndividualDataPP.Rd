@@ -40,6 +40,7 @@ IndividualDataPP(
 \item{\code{"days"}: the input data are daily.}
 \item{\code{"months"}: the input data are monthly.}
 \item{\code{"quarters"}: the input data are quarterly}
+\item{\code{"semesters"}: six-month periods.}
 \item{\code{"years"}: the input data are yearly.}
 }
 Default to \code{months}.}
@@ -49,19 +50,20 @@ Default to \code{months}.}
  \item{\code{"days"}: the output data will be on a daily scale.}
 \item{\code{"months"}: the output data will be on a monthly scale.}
 \item{\code{"quarters"}: the output data will be on a quarterly scale.}
+\item{\code{"semesters"}: six-month periods.}
 \item{\code{"years"}: the output data will be on yearly scale.}
 }
-The output granularity must be bigger than the input granularity.
+The output granularity must be equal to or coarser than the input granularity.
 Also, the output granularity must be consistent with the input granularity, meaning that the time conversion must be possible.
-E.g., it is possible to group quarters to years. It is not possible to group quarters to semesters.
+E.g., it is possible to group quarters to years. Quarters can also be grouped to semesters.
 Default to \code{quarters}.}
 
 \item{years}{\code{numeric}, number of development years in the study.}
 
-\item{calendar_period_extrapolation}{\code{character}, whether a spline for calendar extrapolation should be considered in the cox model fit.
+\item{calendar_period_extrapolation}{\code{logical}, whether a spline for calendar extrapolation should be considered in the cox model fit.
 Default is `FALSE`.}
 
-\item{continuous_features_spline}{\code{logical}, weather a spline for smoothing continuous features should be added.}
+\item{continuous_features_spline}{\code{character}, names of continuous features to model with splines; NULL uses linear terms. Use \code{"AP_i"} for a remapped accident-period feature.}
 
 \item{degrees_cf}{\code{numeric}, degrees of the spline for smoothing continuous features.}
 
@@ -72,26 +74,12 @@ Default is `FALSE`.}
 \item{degrees_of_freedom_cp}{\code{numeric}, degrees of freedom of the splines for smoothing the calendar period effect.}
 }
 \value{
-\code{IndividualDataPP} object. A list containing
-\itemize{
-\item{\code{full.data}: \code{data.frame}. The input data after pre-processing.}
-\item{\code{starting.data}: \code{data.frame}. The input data as they were provided from the user.}
-\item{\code{training.data}: \code{data.frame}. The input data pre-processed for training.}
-\item{\code{conversion_factor}: \code{numeric}. The conversion factor for going from input granularity to output granularity. E.g, the conversion factor for going from months to quarters is 1/3.}
-\item{\code{string_formula_i}: \code{character}. The \code{survival} formula to model the data in input granularity.}
-\item{\code{string_formula_o}: \code{character}. The \code{survival} formula to model the in data output granularity.}
-\item{\code{continuous_features}: \code{character}. The continuous features names as provided from the user.}
-\item{\code{categorical_features}: \code{character}. The categorical features names as provided from the user.}
-\item{\code{calendar_period_extrapolation}: \code{logical}. The value specifying if a calendar period component is extrapolated.}
-\item{\code{years}: \code{numeric}. Total number of development years in the data. Default is NULL and computed automatically from the data.}
-\item{\code{accident_period}: \code{character}. Accident period column name.}
-\item{\code{calendar_period}: \code{character}. Calendar_period column name.}
-\item{\code{input_time_granularity}: \code{character}. Input time granularity.}
-\item{\code{output_time_granularity}: \code{character}. Output time granularity.}
-}
+An \code{IndividualDataPP} list containing \code{training.data}
+  (observed rows), \code{full.data} (all encoded rows), and
+  \code{data_information} (conversion factor, input/output formulas,
+  feature names, time units, horizon, and original column names).
 
-
-After pre-processing, we provide a standard encoding for the time components. This regards the output in \code{training.data} and \code{full.data}.
+After pre-processing, we provide a standard encoding for the time components. This regards the output in \code{training.data}.
 In the \code{ReSurv} notation:
 \itemize{
 \item{\code{AP_i}: Input granularity accident period.}
@@ -108,21 +96,17 @@ In the \code{ReSurv} notation:
 This function pre-processes the data for the application of a \code{ReSurv} model.
 }
 \details{
-The input \code{accident_period} is coded as \code{AP_i}. The input development periods are derived as \code{DP_i}=\code{calendar_period}-\code{accident_period}+1.
+Accident and reporting periods are indexed from one. Development time is
+\code{DP_i = RP_i - AP_i + 1}; reverse development time is
+\code{DP_rev_i = DP_max - DP_i + 1}, and truncation time is
+\code{TR_i = AP_i - 1}. Training retains observed rows with
+\code{DP_rev_i > TR_i}.
 
-The reverse time development factors are \code{DP_rev_i} = \code{DP_max}-\code{DP_i}, where \code{DP_max} is the maximum number of development times: \code{DP_i} \eqn{=1,\ldots,}\code{DP_max}. Given the parameter \code{years}, \code{DP_max} is derived internally from our package.
-
-As for the truncation time, \code{TR_i} = \code{AP_i}-1.
-
-\code{AP_i}, \code{DP_i}, \code{DP_rev_i} and \code{TR_i} are converted to \code{AP_o}, \code{DP_o}, \code{DP_rev_o} and \code{TR_o} (from the \code{input_time_granularity} to the \code{output_time_granularity}) using a multiplicative conversion factor. E.g., \code{AP_o} = \code{AP_i} * \eqn{CF}.
-
-
-The conversion factor is computed as
-
-\eqn{CF=\frac{{\nu}^i}{({\nu}^o)^{-1}}},
-
-where \eqn{{\nu}^i} and \eqn{{\nu}^o} are the fraction of a year corresponding to \code{input_time_granularity} and \code{output_time_granularity}. \eqn{{\nu}^i} and \eqn{{\nu}^o} take values \code{1/360, 1/12, 1/4, 1/2, 1} for \code{"days", "months", "quarters", "semesters", "years"} respectively.
-We will have \code{RP_o} = \code{AP_o} + \code{DP_o}.
+The conversion factor is the input time unit divided by the output time
+unit (for example, 1/3 for months to quarters). Accident and calendar
+periods are grouped using ceiling; development periods also account for
+the position of the accident period within each output period.
+Days use a 360-day year for the development horizon.
 }
 \examples{
 
@@ -147,5 +131,5 @@ years = 2)
 
 }
 \references{
-Munir, H., Emil, H., & Gabriele, P. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
+Hiabu, M., Hofman, E., & Pittarello, G. (2023). A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving. arXiv preprint arXiv:2312.14549.
 }

@@ -1,5 +1,6 @@
 # Vector of variables
 # This script contains the global variables we define to ease the package computations.
+
 vector_of_variables <- c("DP_i",
                          "AP_i",
                          "DP_rev_i",
@@ -41,8 +42,16 @@ vector_of_variables <- c("DP_i",
                          "df_o",
                          "I_expected")
 
-globalVariables(vector_of_variables)
-
-Sys.setenv('_R_CHECK_SYSTEM_CLOCK_' = 0)
-
-
+utils::globalVariables(c(vector_of_variables,
+  # Column names and parent-scope selectors used in data.table/dplyr expressions.
+  "..columns_for_grouping", "..eta", "AP", "AP_i_tmp", "AT", "C", "CP",
+  "DP", "DP_i_tmp", "DP_max_rev", "DP_max_rev_keep", "DP_o_max", "DP_rev",
+  "I_combined", "I_help", "I_new", "RP", "RP_i_tmp", "RP_o", "RT",
+  "S_i_lag", "S_i_lead", "S_ultimate_i", "U", "actual", "age", "age_cont",
+  "age_effect", "claim_number", "claim_type", "covariate", "crps",
+  "crps_group", "delay", "delta", "dev_f_o", "df_i_adjusted", "exposure",
+  "exposure_combined", "exposure_expected", "f", "features.id", "gm",
+  "i.exposure", "i.group_o", "id_crps", "latest_I", "n_claims", "new",
+  "num_layers", "num_nodes", "obs_DP_rev_i", "observed", "phi", "term",
+  "variable"
+))

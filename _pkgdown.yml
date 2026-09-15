@@ -1,0 +1,8 @@
+url: https://edhofman.github.io/ReSurv/
+template:
+  bootstrap: 5
+articles:
+  - title: Get started
+    navbar: ~
+    contents:
+      - getting-started

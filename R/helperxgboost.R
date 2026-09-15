@@ -56,7 +56,7 @@ exp_sum_computer <- function(x,ypred){
 }
 
 
-cox_evaluation_metrix <- function(preds,
+cox_evaluation_metrics <- function(preds,
                                   dtrain){
 
   risk_sets <- attr(dtrain, 'risk_sets')
@@ -123,18 +123,17 @@ cox_loss_objective <- function(preds,dtrain){
   exp_p <- exp(preds)
   n <- length(exp_p)
   J <- length(alpha_i)
-  alpha_i_lt = vector("numeric",n)
-  gamma_i_lt = vector("numeric",n)
-  beta_i_lt = vector("numeric",n)
-  omega_i_lt = vector("numeric",n)
 
-  for(i in 1:n){
+  # Replace per-observation for-loop with cumsum lookups:
+  # sum(alpha_i[(Ti[i]+1):Ei[i]]) == cumsum_alpha[Ei[i]] - cumsum_alpha[Ti[i]]
+  # Prepend 0 so that index Ti==0 maps to 0 (no contribution)
+  cumsum_alpha <- c(0, cumsum(alpha_i))
+  cumsum_gamma <- c(0, cumsum(gamma_i))
 
-    alpha_i_lt[i]= sum(alpha_i[(Ti[i]+1):Ei[i]])
-    beta_i_lt[i] = beta_i[Ei[i]]
-    gamma_i_lt[i]= sum(gamma_i[(Ti[i]+1):Ei[i]])
-    omega_i_lt[i] = omega_i[Ei[i]]
-  }
+  alpha_i_lt <- cumsum_alpha[Ei + 1] - cumsum_alpha[Ti + 1]
+  gamma_i_lt <- cumsum_gamma[Ei + 1] - cumsum_gamma[Ti + 1]
+  beta_i_lt  <- beta_i[Ei]
+  omega_i_lt <- omega_i[Ei]
 
   #we consider the nll
   grad <- exp_p*(alpha_i_lt-beta_i_lt)-1

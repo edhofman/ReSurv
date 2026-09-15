@@ -4,3 +4,12 @@
 ^\.github$
 ^_rhub\.yml$
 ^docs$
+^\.agents$
+^\.codex$
+^results$
+^articles$
+^scripts$
+^_pkgdown\.yml$
+^cran-comments\.md$
+^.*\.Rcheck$
+^.*_[0-9.]+\.tar\.gz$
