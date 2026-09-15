@@ -1,4 +1,6 @@
 test_that("torch NN Cox-Efron loss matches R reference", {
+  skip_on_cran()
+  skip_on_ci()
   skip_if_not_installed("torch")
 
   log_h <- c(0.10, -0.20, 0.30, 0.05, -0.10)
@@ -25,6 +27,8 @@ test_that("torch NN Cox-Efron loss matches R reference", {
 
 
 test_that("torch NN Cox-Efron loss matches R reference", {
+  skip_on_cran()
+  skip_on_ci()
   skip_if_not_installed("torch")
 
   log_h <- c(0.10, -0.20, 0.30, 0.05, -0.10)

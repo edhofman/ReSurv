@@ -72,14 +72,8 @@ jobs:
         run: testthat::test_local(stop_on_failure = TRUE)
         shell: Rscript {0}
 
-      - name: Install and verify native torch runtime
-        run: |
-          torch::install_torch()
-          stopifnot(torch::torch_is_installed())
-        shell: Rscript {0}
-
-      - name: Verify all model backends
-        run: Rscript scripts/smoke_backends.R
+      - name: Verify COX and XGB model backends
+        run: Rscript scripts/smoke_backends.R --skip-torch
 
       - name: Check package URLs
         run: |

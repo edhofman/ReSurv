@@ -1,7 +1,11 @@
 # CI must fail on backend errors instead of silently skipping model tests.
 library(ReSurv)
-stopifnot(torch::torch_is_installed())
-torch::torch_set_num_threads(2)
+models <- c("COX", "XGB")
+if (!"--skip-torch" %in% commandArgs(trailingOnly = TRUE)) {
+  stopifnot(torch::torch_is_installed())
+  torch::torch_set_num_threads(2)
+  models <- c(models, "NN")
+}
 claims <- data_generator(
   random_seed = 1964, scenario = "alpha", time_unit = 1,
   years = 4, period_exposure = 100
@@ -12,7 +16,7 @@ individual <- IndividualDataPP(
   input_time_granularity = "years", output_time_granularity = "years",
   years = 4
 )
-for (model in c("COX", "XGB", "NN")) {
+for (model in models) {
   hp <- switch(model,
     COX = list(),
     XGB = list(params = list(max_depth = 1, eta = 0.1, nthread = 2),

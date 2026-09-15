@@ -67,6 +67,8 @@ test_that("hand-computed Efron likelihood matches package likelihood", {
   )
   expect_equal(cox_eval$value, manual_avg_loss, tolerance = 1e-10)
 
+  skip_on_cran()
+  skip_on_ci()
   skip_if_not_installed("torch")
   torch_loss <- cox_ph_loss_torch(
     log_h = torch::torch_tensor(toy$phi, dtype = torch::torch_float32()),

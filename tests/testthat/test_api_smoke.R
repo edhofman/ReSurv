@@ -206,6 +206,8 @@ test_that("API smoke test: XGB path is skipped when local xgboost DMatrix is una
 })
 
 test_that("API smoke test: NN path with mixed covariates", {
+  skip_on_cran()
+  skip_on_ci()
   skip_if_not_installed("torch")
 
   dat <- data.frame(

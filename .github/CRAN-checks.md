@@ -7,8 +7,12 @@ The workflows follow the structure of the local `clmplus` package and use
 dispatch. It provides:
 
 - A documentation audit pinned to the version in `RoxygenNote`, unit tests,
-  URL checks, and explicit COX/XGB/NN smoke checks. The smoke checks install
-  and verify the native torch runtime and fail on fitting/prediction errors.
+  URL checks, and explicit COX/XGB smoke checks that fail on fitting/prediction
+  errors. Torch tests are skipped on CI and CRAN using `skip_on_ci()` and
+  `skip_on_cran()`. Run `testthat::test_local()` locally to include torch tests,
+  with the native torch runtime installed. For local `R CMD check`, set
+  `NOT_CRAN=true` to include them. Run `Rscript scripts/smoke_backends.R` locally
+  to smoke-test all three backends; CI passes `--skip-torch`.
 - R release checks on Windows and macOS, and R devel/oldrel-1 on Linux.
   These fail on warnings and retain check logs as artifacts.
 - A separate Linux release check with TinyTeX, HTML Tidy, vignettes, and the
