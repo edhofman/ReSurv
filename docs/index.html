@@ -92,17 +92,6 @@
 <p><code><a href="reference/ReSurvCV.html">ReSurvCV()</a></code> selects NN or XGB hyperparameters. Pass its <code>hparameters.best</code> component to <code><a href="reference/ReSurv.html">ReSurv()</a></code> to fit the selected model. <code><a href="reference/Score_Reserving.html">Score_Reserving()</a></code> compares models against realized claims and optionally adds chain-ladder and <code>clmplus</code> benchmarks. See the getting-started article on the <a href="https://edhofman.github.io/ReSurv/">documentation website</a> and the R help pages for parameters and return values. The vignette source is <code>vignettes/getting-started.Rmd</code> in this repository.</p>
 </div>
 <div class="section level2">
-<h2 id="development-checks">Development checks<a class="anchor" aria-label="anchor" href="#development-checks"></a>
-</h2>
-<p>GitHub Actions checks Windows, macOS, and Linux across R release, development, and the previous release. A separate Linux release job includes the PDF manual and vignettes and fails on notes. The audit verifies generated documentation, runs tests, checks URLs, and exercises all three model backends with torch installed. The website workflow builds documentation on pull requests and publishes from <code>main</code> or <code>master</code> to <code>gh-pages</code>.</p>
-<p>Run the core checks locally with:</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/document.html" class="external-link">document</a></span><span class="op">(</span><span class="op">)</span></span>
-<span><span class="fu">testthat</span><span class="fu">::</span><span class="fu"><a href="https://testthat.r-lib.org/reference/test_package.html" class="external-link">test_local</a></span><span class="op">(</span>stop_on_failure <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
-<span><span class="fu">devtools</span><span class="fu">::</span><span class="fu"><a href="https://devtools.r-lib.org/reference/check.html" class="external-link">check</a></span><span class="op">(</span>document <span class="op">=</span> <span class="cn">FALSE</span>, manual <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
-<p>The <code>articles/historical/</code> directory preserves earlier replication sources. Its README explains their status. They are separate from the current package vignettes.</p>
-</div>
-<div class="section level2">
 <h2 id="reference">Reference<a class="anchor" aria-label="anchor" href="#reference"></a>
 </h2>
 <p>Hiabu, M., Hofman, E., and Pittarello, G. (2023). <em>A machine learning approach based on survival analysis for IBNR frequencies in non-life reserving.</em> <a href="https://doi.org/10.48550/arXiv.2312.14549" class="external-link">doi:10.48550/arXiv.2312.14549</a>.</p>
